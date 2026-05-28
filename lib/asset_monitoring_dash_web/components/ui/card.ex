@@ -20,24 +20,24 @@ defmodule AssetMonitoringDashWeb.UI.Card do
     <article
       id={@id}
       class={[
-        "group min-h-32 rounded-lg border border-slate-700/80 bg-[#11161d] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025),0_12px_30px_rgba(0,0,0,0.18)] transition duration-200 hover:-translate-y-0.5 hover:border-slate-500 hover:bg-[#141a22]",
+        "group min-h-32 rounded-app border border-app-border bg-app-surface px-5 py-4 shadow-app-panel transition duration-200 hover:-translate-y-0.5 hover:border-app-accent-2 hover:bg-app-surface-2",
         @class
       ]}
       {@rest}
     >
       <div class="flex items-center justify-between gap-4">
-        <p class="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+        <p class="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-app-muted">
           {@label}
         </p>
         <p
           :if={@context}
-          class="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+          class="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-app-muted"
         >
           {@context}
         </p>
       </div>
 
-      <p class="mt-5 truncate text-4xl font-bold leading-none tracking-normal text-slate-100 md:text-5xl">
+      <p class="mt-5 truncate font-display text-4xl font-bold leading-none tracking-normal text-app-fg md:text-5xl">
         {@value}
       </p>
 
@@ -54,10 +54,10 @@ defmodule AssetMonitoringDashWeb.UI.Card do
     """
   end
 
-  defp signal_class(:positive), do: "text-green-400"
-  defp signal_class(:negative), do: "text-red-400"
-  defp signal_class(:warning), do: "text-amber-400"
-  defp signal_class(:neutral), do: "text-slate-400"
+  defp signal_class(:positive), do: "text-app-accent"
+  defp signal_class(:negative), do: "text-app-danger"
+  defp signal_class(:warning), do: "text-app-warn"
+  defp signal_class(:neutral), do: "text-app-muted"
 
   defp signal_marker(:positive), do: "▲"
   defp signal_marker(:negative), do: "▼"

@@ -8,12 +8,8 @@ defmodule AssetMonitoringDashWeb.CoreComponents do
   with doc strings and declarative assigns. You may customize and style
   them in any way you want, based on your application growth and needs.
 
-  The foundation for styling is Tailwind CSS, a utility-first CSS framework,
-  augmented with daisyUI, a Tailwind CSS plugin that provides UI components
-  and themes. Here are useful references:
-
-    * [daisyUI](https://daisyui.com/docs/intro/) - a good place to get
-      started and see the available components.
+  The foundation for styling is Tailwind CSS with project-specific design
+  tokens defined in `assets/css/app.css`. Here are useful references:
 
     * [Tailwind CSS](https://tailwindcss.com) - the foundational framework
       we build on. You will use it for layout, sizing, flexbox, grid, and
@@ -65,13 +61,13 @@ defmodule AssetMonitoringDashWeb.CoreComponents do
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
-      class="toast toast-top toast-end z-50"
+      class="fixed right-4 top-4 z-50"
       {@rest}
     >
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
+        "flex w-80 max-w-80 items-start gap-3 text-wrap rounded-app border bg-app-surface p-4 text-sm shadow-app-panel sm:w-96 sm:max-w-96",
+        @kind == :info && "border-app-accent-2 text-app-fg",
+        @kind == :error && "border-app-danger text-app-fg"
       ]}>
         <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
         <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
@@ -103,11 +99,17 @@ defmodule AssetMonitoringDashWeb.CoreComponents do
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    variants = %{
+      "primary" => "border-app-primary-bg bg-app-primary-bg text-app-primary-fg",
+      nil => "border-app-border bg-app-surface text-app-fg hover:bg-app-surface-2"
+    }
 
     assigns =
       assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
+        [
+          "inline-flex min-h-10 items-center justify-center gap-2 rounded-app border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
+          Map.fetch!(variants, assigns[:variant])
+        ]
       end)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
@@ -307,7 +309,7 @@ defmodule AssetMonitoringDashWeb.CoreComponents do
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
+    <p class="mt-1.5 flex items-center gap-2 text-sm text-app-danger">
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
@@ -328,7 +330,7 @@ defmodule AssetMonitoringDashWeb.CoreComponents do
         <h1 class="text-lg font-semibold leading-8">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
+        <p :if={@subtitle != []} class="text-sm text-app-muted">
           {render_slot(@subtitle)}
         </p>
       </div>

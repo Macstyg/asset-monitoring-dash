@@ -35,7 +35,7 @@ defmodule AssetMonitoringDashWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <main class="min-h-screen bg-slate-950">
+    <main class="min-h-screen bg-app-bg text-app-fg">
       {render_slot(@inner_block)}
     </main>
 
@@ -93,11 +93,11 @@ defmodule AssetMonitoringDashWeb.Layouts do
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="relative flex flex-row items-center rounded-full border border-slate-300 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-900">
-      <div class="absolute left-1 h-8 w-8 rounded-full bg-white shadow-sm transition-[left] [[data-theme=light]_&]:left-10 [[data-theme=dark]_&]:left-[4.75rem] dark:bg-slate-700" />
+    <div class="relative flex flex-row items-center rounded-app border border-app-border bg-app-surface p-1 shadow-app-panel">
+      <div class="absolute left-1 h-8 w-8 rounded-md bg-app-surface-2 shadow-sm transition-[left] [[data-theme=light]_&]:left-10 [[data-theme=dark]_&]:left-[4.75rem]" />
 
       <button
-        class="relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full text-slate-500 transition hover:text-slate-950 dark:text-slate-400 dark:hover:text-white"
+        class="relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-md text-app-muted transition hover:text-app-fg"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
         type="button"
@@ -106,7 +106,7 @@ defmodule AssetMonitoringDashWeb.Layouts do
       </button>
 
       <button
-        class="relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full text-slate-500 transition hover:text-slate-950 dark:text-slate-400 dark:hover:text-white"
+        class="relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-md text-app-muted transition hover:text-app-fg"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
         type="button"
@@ -115,7 +115,7 @@ defmodule AssetMonitoringDashWeb.Layouts do
       </button>
 
       <button
-        class="relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full text-slate-500 transition hover:text-slate-950 dark:text-slate-400 dark:hover:text-white"
+        class="relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-md text-app-muted transition hover:text-app-fg"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
         type="button"

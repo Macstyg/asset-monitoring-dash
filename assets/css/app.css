@@ -10,85 +10,83 @@
    The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";
 
-/* daisyUI Tailwind Plugin. You can update this file by fetching the latest version with:
-   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js
-   Make sure to look at the daisyUI changelog: https://daisyui.com/docs/changelog/ */
-@plugin "../vendor/daisyui" {
-  themes: false;
+@theme inline {
+  --font-sans: var(--amd-font-body);
+  --font-mono: var(--amd-font-mono);
+  --font-display: var(--amd-font-display);
+
+  --color-app-bg: var(--amd-bg);
+  --color-app-bg-end: var(--amd-bg-end);
+  --color-app-surface: var(--amd-surface);
+  --color-app-surface-2: var(--amd-surface-2);
+  --color-app-fg: var(--amd-fg);
+  --color-app-muted: var(--amd-muted);
+  --color-app-border: var(--amd-border);
+  --color-app-accent: var(--amd-accent);
+  --color-app-accent-2: var(--amd-accent-2);
+  --color-app-warn: var(--amd-warn);
+  --color-app-danger: var(--amd-danger);
+  --color-app-violet: var(--amd-violet);
+  --color-app-primary-bg: var(--amd-primary-bg);
+  --color-app-primary-fg: var(--amd-primary-fg);
+
+  --shadow-app-panel: var(--amd-shadow);
+  --radius-app: 0.5rem;
 }
 
-/* daisyUI theme plugin. You can update this file by fetching the latest version with:
-  curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js
-  We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
-  on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
-@plugin "../vendor/daisyui-theme" {
-  name: "dark";
-  default: false;
-  prefersdark: true;
-  color-scheme: "dark";
-  --color-base-100: oklch(30.33% 0.016 252.42);
-  --color-base-200: oklch(25.26% 0.014 253.1);
-  --color-base-300: oklch(20.15% 0.012 254.09);
-  --color-base-content: oklch(97.807% 0.029 256.847);
-  --color-primary: oklch(58% 0.233 277.117);
-  --color-primary-content: oklch(96% 0.018 272.314);
-  --color-secondary: oklch(58% 0.233 277.117);
-  --color-secondary-content: oklch(96% 0.018 272.314);
-  --color-accent: oklch(60% 0.25 292.717);
-  --color-accent-content: oklch(96% 0.016 293.756);
-  --color-neutral: oklch(37% 0.044 257.287);
-  --color-neutral-content: oklch(98% 0.003 247.858);
-  --color-info: oklch(58% 0.158 241.966);
-  --color-info-content: oklch(97% 0.013 236.62);
-  --color-success: oklch(60% 0.118 184.704);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
-  --noise: 0;
+:root {
+  color-scheme: light;
+  --amd-bg: oklch(97.5% 0.006 250);
+  --amd-surface: oklch(100% 0 0);
+  --amd-surface-2: oklch(94.5% 0.01 248);
+  --amd-fg: oklch(20% 0.02 240);
+  --amd-muted: oklch(50% 0.018 240);
+  --amd-border: oklch(88% 0.01 240);
+  --amd-accent: oklch(58% 0.16 145);
+  --amd-accent-2: oklch(63% 0.13 220);
+  --amd-warn: oklch(70% 0.16 82);
+  --amd-danger: oklch(58% 0.19 28);
+  --amd-violet: oklch(60% 0.15 305);
+  --amd-bg-end: oklch(95% 0.008 245);
+  --amd-primary-bg: var(--amd-fg);
+  --amd-primary-fg: white;
+  --amd-shadow: 0 16px 44px rgba(18, 28, 45, 0.08);
+  --amd-font-display: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --amd-font-body: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --amd-font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 
-@plugin "../vendor/daisyui-theme" {
-  name: "light";
-  default: true;
-  prefersdark: false;
-  color-scheme: "light";
-  --color-base-100: oklch(98% 0 0);
-  --color-base-200: oklch(96% 0.001 286.375);
-  --color-base-300: oklch(92% 0.004 286.32);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: oklch(70% 0.213 47.604);
-  --color-primary-content: oklch(98% 0.016 73.684);
-  --color-secondary: oklch(55% 0.027 264.364);
-  --color-secondary-content: oklch(98% 0.002 247.839);
-  --color-accent: oklch(0% 0 0);
-  --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(44% 0.017 285.786);
-  --color-neutral-content: oklch(98% 0 0);
-  --color-info: oklch(62% 0.214 259.815);
-  --color-info-content: oklch(97% 0.014 254.604);
-  --color-success: oklch(70% 0.14 182.503);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
-  --noise: 0;
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --amd-bg: oklch(16% 0.018 250);
+  --amd-surface: oklch(20% 0.018 248);
+  --amd-surface-2: oklch(25% 0.02 248);
+  --amd-fg: oklch(94% 0.006 245);
+  --amd-muted: oklch(69% 0.015 245);
+  --amd-border: oklch(32% 0.022 248);
+  --amd-accent: oklch(70% 0.16 150);
+  --amd-accent-2: oklch(72% 0.13 220);
+  --amd-warn: oklch(78% 0.16 82);
+  --amd-danger: oklch(68% 0.18 28);
+  --amd-violet: oklch(74% 0.15 305);
+  --amd-bg-end: oklch(12% 0.018 252);
+  --amd-primary-bg: var(--amd-accent);
+  --amd-primary-fg: oklch(13% 0.018 250);
+  --amd-shadow: 0 16px 44px rgba(0, 0, 0, 0.34);
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      circle at 18% -10%,
+      color-mix(in oklch, var(--amd-accent-2), transparent 82%),
+      transparent 32rem
+    ),
+    linear-gradient(180deg, var(--amd-bg), var(--amd-bg-end));
+  color: var(--amd-fg);
+  font-family: var(--amd-font-body);
+  letter-spacing: 0;
 }
 
 /* Add variants based on LiveView classes */
