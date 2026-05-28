@@ -20,4 +20,177 @@ defmodule AssetMonitoringDash.DemoData do
       risk_band: "Elevated"
     }
   end
+
+  def monitored_assets do
+    [
+      %{
+        id: "asset-001",
+        name: "Aegis Dragon Helm",
+        asset_type: "NFT",
+        chain: "Polygon",
+        ecosystem: "Skyforge Arena",
+        rarity: "Legendary",
+        floor_price_usd: 4_200,
+        current_value_usd: 4_860,
+        loan_value_usd: 2_900,
+        ltv_percent: 59.7,
+        risk_score: 64,
+        risk_band: "Elevated"
+      },
+      %{
+        id: "asset-002",
+        name: "Citadel Founder Parcel",
+        asset_type: "NFT",
+        chain: "Ethereum",
+        ecosystem: "Embervale",
+        rarity: "Mythic",
+        floor_price_usd: 18_400,
+        current_value_usd: 21_150,
+        loan_value_usd: 15_900,
+        ltv_percent: 75.2,
+        risk_score: 88,
+        risk_band: "Critical"
+      },
+      %{
+        id: "asset-003",
+        name: "Neon Pulse Racer",
+        asset_type: "NFT",
+        chain: "Base",
+        ecosystem: "Rift Racers",
+        rarity: "Epic",
+        floor_price_usd: 2_750,
+        current_value_usd: 3_120,
+        loan_value_usd: 1_180,
+        ltv_percent: 37.8,
+        risk_score: 29,
+        risk_band: "Low"
+      },
+      %{
+        id: "asset-004",
+        name: "Ronin Warbeast",
+        asset_type: "NFT",
+        chain: "Ronin",
+        ecosystem: "Skyforge Arena",
+        rarity: "Rare",
+        floor_price_usd: 1_280,
+        current_value_usd: 1_510,
+        loan_value_usd: 760,
+        ltv_percent: 50.3,
+        risk_score: 46,
+        risk_band: "Moderate"
+      },
+      %{
+        id: "asset-005",
+        name: "Genesis Mana Vault",
+        asset_type: "ERC-1155",
+        chain: "Arbitrum",
+        ecosystem: "Neon Dominion",
+        rarity: "Legendary",
+        floor_price_usd: 7_900,
+        current_value_usd: 8_240,
+        loan_value_usd: 5_620,
+        ltv_percent: 68.2,
+        risk_score: 71,
+        risk_band: "Elevated"
+      },
+      %{
+        id: "asset-006",
+        name: "Void Atlas Skin",
+        asset_type: "NFT",
+        chain: "Immutable",
+        ecosystem: "Neon Dominion",
+        rarity: "Epic",
+        floor_price_usd: 940,
+        current_value_usd: 1_060,
+        loan_value_usd: 410,
+        ltv_percent: 38.7,
+        risk_score: 34,
+        risk_band: "Low"
+      },
+      %{
+        id: "asset-007",
+        name: "Ember Crown Relic",
+        asset_type: "NFT",
+        chain: "Ethereum",
+        ecosystem: "Embervale",
+        rarity: "Legendary",
+        floor_price_usd: 12_600,
+        current_value_usd: 13_950,
+        loan_value_usd: 8_740,
+        ltv_percent: 62.7,
+        risk_score: 66,
+        risk_band: "Elevated"
+      },
+      %{
+        id: "asset-008",
+        name: "Turbo Drift Chassis",
+        asset_type: "NFT",
+        chain: "Base",
+        ecosystem: "Rift Racers",
+        rarity: "Rare",
+        floor_price_usd: 1_720,
+        current_value_usd: 1_890,
+        loan_value_usd: 980,
+        ltv_percent: 51.9,
+        risk_score: 49,
+        risk_band: "Moderate"
+      },
+      %{
+        id: "asset-009",
+        name: "Moonwell Guild Charter",
+        asset_type: "ERC-1155",
+        chain: "Polygon",
+        ecosystem: "Moonwell Tactics",
+        rarity: "Epic",
+        floor_price_usd: 3_450,
+        current_value_usd: 3_780,
+        loan_value_usd: 2_260,
+        ltv_percent: 59.8,
+        risk_score: 58,
+        risk_band: "Moderate"
+      },
+      %{
+        id: "asset-010",
+        name: "Ancient Mech Core",
+        asset_type: "NFT",
+        chain: "Arbitrum",
+        ecosystem: "Mecha Rift",
+        rarity: "Mythic",
+        floor_price_usd: 9_300,
+        current_value_usd: 8_760,
+        loan_value_usd: 7_020,
+        ltv_percent: 80.1,
+        risk_score: 92,
+        risk_band: "Critical"
+      },
+      %{
+        id: "asset-011",
+        name: "Sealed Victory Crate",
+        asset_type: "ERC-1155",
+        chain: "Immutable",
+        ecosystem: "Moonwell Tactics",
+        rarity: "Uncommon",
+        floor_price_usd: 420,
+        current_value_usd: 455,
+        loan_value_usd: 120,
+        ltv_percent: 26.4,
+        risk_score: 18,
+        risk_band: "Low"
+      },
+      %{
+        id: "asset-012",
+        name: "Stormforged Battle Pass",
+        asset_type: "Tokenized pass",
+        chain: "Ronin",
+        ecosystem: "Skyforge Arena",
+        rarity: "Rare",
+        floor_price_usd: 680,
+        current_value_usd: 710,
+        loan_value_usd: 360,
+        ltv_percent: 50.7,
+        risk_score: 44,
+        risk_band: "Moderate"
+      }
+    ]
+  end
 end

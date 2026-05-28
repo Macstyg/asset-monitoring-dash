@@ -13,6 +13,10 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#weighted-apy-card")
     assert has_element?(view, "#risk-score-card")
     assert has_element?(view, "#asset-monitor")
+    assert has_element?(view, "#asset-count")
+    assert has_element?(view, "#asset-list")
+    assert has_element?(view, "#asset-row-asset-001")
+    assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, "#event-feed")
   end
 end
