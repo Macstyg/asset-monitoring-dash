@@ -15,8 +15,34 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-monitor")
     assert has_element?(view, "#asset-count")
     assert has_element?(view, "#asset-list")
+    assert has_element?(view, "#asset-list-rows")
+    assert has_element?(view, "#risk-filter")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, "#event-feed")
+    assert has_element?(view, "#event-list")
+    assert has_element?(view, "#event-row-event-001")
+    assert has_element?(view, "#event-row-event-004")
+  end
+
+  test "filters monitored assets by risk band", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#risk-filter-critical")
+    |> render_click()
+
+    assert has_element?(view, "#asset-count", "2 monitored")
+    assert has_element?(view, "#asset-row-asset-002")
+    assert has_element?(view, "#asset-row-asset-010")
+    refute has_element?(view, "#asset-row-asset-001")
+
+    view
+    |> element("#risk-filter-all")
+    |> render_click()
+
+    assert has_element?(view, "#asset-count", "12 monitored")
+    assert has_element?(view, "#asset-row-asset-001")
+    assert has_element?(view, "#asset-row-asset-010")
   end
 end

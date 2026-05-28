@@ -21,6 +21,56 @@ defmodule AssetMonitoringDash.DemoData do
     }
   end
 
+  def live_events do
+    [
+      %{
+        id: "event-001",
+        time_label: "14:28:09",
+        title: "Collateral deposited",
+        detail: "Aegis Dragon Helm moved into Polygon escrow for loan review.",
+        chain: "Polygon",
+        status: "synced",
+        tone: :success
+      },
+      %{
+        id: "event-002",
+        time_label: "14:27:31",
+        title: "Floor oracle moved",
+        detail: "Embervale parcel floor repriced down 3.2% after auction close.",
+        chain: "Ethereum",
+        status: "watch",
+        tone: :warning
+      },
+      %{
+        id: "event-003",
+        time_label: "14:26:44",
+        title: "Repayment received",
+        detail: "Rift Racers position closed early; collateral release is queued.",
+        chain: "Base",
+        status: "settled",
+        tone: :success
+      },
+      %{
+        id: "event-004",
+        time_label: "14:25:18",
+        title: "Health factor breach",
+        detail: "Ancient Mech Core crossed the critical review threshold.",
+        chain: "Arbitrum",
+        status: "risk",
+        tone: :danger
+      },
+      %{
+        id: "event-005",
+        time_label: "14:23:52",
+        title: "Cross-chain transfer",
+        detail: "Stormforged Battle Pass bridged into Ronin collateral custody.",
+        chain: "Ronin",
+        status: "pending",
+        tone: :neutral
+      }
+    ]
+  end
+
   def monitored_assets do
     [
       %{

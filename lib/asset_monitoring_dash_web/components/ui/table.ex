@@ -11,16 +11,14 @@ defmodule AssetMonitoringDashWeb.UI.Table do
   attr :grid_class, :string, required: true
   attr :min_width_class, :string, default: "min-w-[760px]"
   attr :row_class, :string, default: ""
+  attr :rows, :any, required: true
   attr :rest, :global
 
   slot :col, required: true do
     attr :align, :atom, values: [:left, :right]
   end
 
-  slot :row, required: true do
-    attr :id, :string, required: true
-    attr :class, :string
-  end
+  slot :row, required: true
 
   def render(assigns) do
     ~H"""
@@ -47,15 +45,26 @@ defmodule AssetMonitoringDashWeb.UI.Table do
       </div>
 
       <div
-        :for={row <- @row}
-        id={row.id}
-        class={[
-          "grid gap-4 border-b border-app-border px-4 py-4 last:border-b-0",
-          @row_class,
-          row[:class]
-        ]}
+        id={"#{@id}-rows"}
+        phx-update="stream"
       >
-        {render_slot(row)}
+        <div
+          id={"#{@id}-empty"}
+          class="hidden only:block px-4 py-8 text-center text-sm text-app-muted"
+        >
+          No assets match this filter.
+        </div>
+
+        <div
+          :for={{row_id, row} <- @rows}
+          id={row_id}
+          class={[
+            "grid gap-4 border-b border-app-border px-4 py-4 last:border-b-0",
+            @row_class
+          ]}
+        >
+          {render_slot(@row, row)}
+        </div>
       </div>
     </div>
     """

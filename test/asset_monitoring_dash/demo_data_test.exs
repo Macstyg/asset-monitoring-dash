@@ -45,4 +45,23 @@ defmodule AssetMonitoringDash.DemoDataTest do
     assert Enum.any?(assets, &(&1.risk_band == "Elevated"))
     assert Enum.any?(assets, &(&1.risk_band == "Critical"))
   end
+
+  test "live events expose the first event feed contract" do
+    events = DemoData.live_events()
+
+    assert length(events) == 5
+
+    assert Enum.all?(events, fn event ->
+             is_binary(event.id) and
+               is_binary(event.time_label) and
+               is_binary(event.title) and
+               is_binary(event.detail) and
+               is_binary(event.chain) and
+               is_binary(event.status) and
+               event.tone in [:neutral, :success, :warning, :danger]
+           end)
+
+    assert Enum.any?(events, &(&1.tone == :danger))
+    assert Enum.any?(events, &(&1.title == "Floor oracle moved"))
+  end
 end

@@ -5,21 +5,45 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.AssetIdentity
   alias AssetMonitoringDashWeb.UI.Card
+  alias AssetMonitoringDashWeb.UI.EventItem
   alias AssetMonitoringDashWeb.UI.RiskBadge
   alias AssetMonitoringDashWeb.UI.Table
 
   @impl true
   def mount(_params, _session, socket) do
     snapshot = DemoData.portfolio_snapshot()
+    assets = DemoData.monitored_assets()
+    events = DemoData.live_events()
 
     socket =
       socket
+      |> stream_configure(:assets, dom_id: &"asset-row-#{&1.id}")
+      |> stream_configure(:events, dom_id: &"event-row-#{&1.id}")
       |> assign(:page_title, "Asset Risk Cockpit")
       |> assign(:snapshot, snapshot)
       |> assign(:metric_cards, metric_cards(snapshot))
-      |> assign(:assets, DemoData.monitored_assets())
+      |> assign(:asset_count, length(assets))
+      |> assign(:event_count, length(events))
+      |> assign(:risk_filter, "All")
+      |> assign(:risk_filter_options, risk_filter_options())
+      |> stream(:assets, assets)
+      |> stream(:events, events)
 
     {:ok, socket}
+  end
+
+  @impl true
+  def handle_event("filter_risk", %{"risk" => risk}, socket) do
+    risk_filter = normalize_risk_filter(risk)
+    assets = filtered_assets(risk_filter)
+
+    socket =
+      socket
+      |> assign(:asset_count, length(assets))
+      |> assign(:risk_filter, risk_filter)
+      |> stream(:assets, assets, reset: true)
+
+    {:noreply, socket}
   end
 
   defp metric_cards(snapshot) do
@@ -62,4 +86,19 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       }
     ]
   end
+
+  defp filtered_assets("All"), do: DemoData.monitored_assets()
+
+  defp filtered_assets(risk_filter) do
+    Enum.filter(DemoData.monitored_assets(), &(&1.risk_band == risk_filter))
+  end
+
+  defp normalize_risk_filter(risk)
+       when risk in ["All", "Low", "Moderate", "Elevated", "Critical"] do
+    risk
+  end
+
+  defp normalize_risk_filter(_risk), do: "All"
+
+  defp risk_filter_options, do: ["All", "Low", "Moderate", "Elevated", "Critical"]
 end
