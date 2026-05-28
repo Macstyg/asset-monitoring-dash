@@ -11,7 +11,9 @@ defmodule AssetMonitoringDashWeb.UI.Table do
   attr :grid_class, :string, required: true
   attr :min_width_class, :string, default: "min-w-[760px]"
   attr :row_class, :string, default: ""
+  attr :row_click, :string, default: nil
   attr :rows, :any, required: true
+  attr :selected_row_id, :string, default: nil
   attr :rest, :global
 
   slot :col, required: true do
@@ -58,8 +60,12 @@ defmodule AssetMonitoringDashWeb.UI.Table do
         <div
           :for={{row_id, row} <- @rows}
           id={row_id}
+          phx-click={@row_click}
+          phx-value-id={row.id}
           class={[
             "grid gap-4 border-b border-app-border px-4 py-4 last:border-b-0",
+            @row_click && "cursor-pointer transition hover:bg-app-surface-2/60",
+            row.id == @selected_row_id && "bg-app-accent/5 ring-1 ring-inset ring-app-accent/20",
             @row_class
           ]}
         >

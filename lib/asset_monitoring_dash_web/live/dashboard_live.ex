@@ -2,11 +2,13 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   use AssetMonitoringDashWeb, :live_view
 
   alias AssetMonitoringDash.DemoData
+  alias AssetMonitoringDash.Risk
+  alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
+  alias AssetMonitoringDashWeb.DashboardComponents.EventItem
+  alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
   alias AssetMonitoringDashWeb.Formatters
-  alias AssetMonitoringDashWeb.UI.AssetIdentity
   alias AssetMonitoringDashWeb.UI.Card
-  alias AssetMonitoringDashWeb.UI.EventItem
-  alias AssetMonitoringDashWeb.UI.RiskBadge
+  alias AssetMonitoringDashWeb.UI.EntityIdentity
   alias AssetMonitoringDashWeb.UI.Table
 
   @impl true
@@ -26,6 +28,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:event_count, length(events))
       |> assign(:risk_filter, "All")
       |> assign(:risk_filter_options, risk_filter_options())
+      |> assign_selected_asset(List.first(assets))
       |> stream(:assets, assets)
       |> stream(:events, events)
 
@@ -36,12 +39,30 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   def handle_event("filter_risk", %{"risk" => risk}, socket) do
     risk_filter = normalize_risk_filter(risk)
     assets = filtered_assets(risk_filter)
+    selected_asset = selected_asset_for_filter(socket.assigns.selected_asset, assets)
 
     socket =
       socket
       |> assign(:asset_count, length(assets))
       |> assign(:risk_filter, risk_filter)
+      |> assign_selected_asset(selected_asset)
       |> stream(:assets, assets, reset: true)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("select_asset", %{"id" => asset_id}, socket) do
+    selected_asset = Enum.find(DemoData.monitored_assets(), &(&1.id == asset_id))
+
+    socket =
+      if selected_asset do
+        socket
+        |> assign_selected_asset(selected_asset)
+        |> stream(:assets, filtered_assets(socket.assigns.risk_filter), reset: true)
+      else
+        socket
+      end
 
     {:noreply, socket}
   end
@@ -101,4 +122,27 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp normalize_risk_filter(_risk), do: "All"
 
   defp risk_filter_options, do: ["All", "Low", "Moderate", "Elevated", "Critical"]
+
+  defp selected_asset_for_filter(nil, assets), do: List.first(assets)
+
+  defp selected_asset_for_filter(selected_asset, assets) do
+    Enum.find(assets, &(&1.id == selected_asset.id)) || List.first(assets)
+  end
+
+  defp assign_selected_asset(socket, nil) do
+    socket
+    |> assign(:selected_asset, nil)
+    |> assign(:selected_asset_id, nil)
+    |> assign(:selected_asset_health_factor, nil)
+  end
+
+  defp assign_selected_asset(socket, asset) do
+    socket
+    |> assign(:selected_asset, asset)
+    |> assign(:selected_asset_id, asset.id)
+    |> assign(
+      :selected_asset_health_factor,
+      asset |> Risk.health_factor() |> Formatters.decimal()
+    )
+  end
 end

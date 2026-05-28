@@ -1,9 +1,11 @@
-defmodule AssetMonitoringDashWeb.UI.EventItem do
+defmodule AssetMonitoringDashWeb.DashboardComponents.EventItem do
   @moduledoc """
   Compact event row for the operational activity feed.
   """
 
   use Phoenix.Component
+
+  alias AssetMonitoringDashWeb.UI.Badge
 
   attr :chain, :string, required: true
   attr :detail, :string, required: true
@@ -29,18 +31,8 @@ defmodule AssetMonitoringDashWeb.UI.EventItem do
         <p class="mt-1 text-sm leading-5 text-app-muted">{@detail}</p>
       </div>
 
-      <span class={[
-        "w-fit rounded-full px-2.5 py-1 font-mono text-xs font-semibold ring-1 ring-inset",
-        tone_class(@tone)
-      ]}>
-        {@status}
-      </span>
+      <Badge.render label={@status} tone={@tone} />
     </article>
     """
   end
-
-  defp tone_class(:success), do: "bg-app-accent/10 text-app-accent ring-app-accent/20"
-  defp tone_class(:warning), do: "bg-app-warn/10 text-app-warn ring-app-warn/25"
-  defp tone_class(:danger), do: "bg-app-danger/10 text-app-danger ring-app-danger/25"
-  defp tone_class(:neutral), do: "bg-app-surface-2 text-app-muted ring-app-border"
 end

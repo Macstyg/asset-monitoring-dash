@@ -1,6 +1,6 @@
-defmodule AssetMonitoringDashWeb.UI.AssetIdentity do
+defmodule AssetMonitoringDashWeb.UI.EntityIdentity do
   @moduledoc """
-  Compact identity block for monitored collateral assets.
+  Compact identity block with initials, name, and caption.
   """
 
   use Phoenix.Component
