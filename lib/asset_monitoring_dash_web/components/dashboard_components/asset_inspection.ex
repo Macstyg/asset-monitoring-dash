@@ -28,7 +28,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
     >
       <div class="flex items-start justify-between gap-4">
         <div>
-          <h2 class="text-base font-semibold text-app-fg">Selected asset</h2>
+          <h2 class="text-base font-semibold text-app-fg">Asset inspection</h2>
           <p class="mt-1 text-sm text-app-muted">Collateral position detail and review signals.</p>
         </div>
         <RiskBadge.render label={@asset.risk_band} />

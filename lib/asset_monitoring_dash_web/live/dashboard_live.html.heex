@@ -45,7 +45,7 @@
         />
       </section>
 
-      <section class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.6fr)]">
+      <section class="grid min-w-0 gap-4">
         <div
           id="asset-monitor"
           class="min-w-0 rounded-app border border-app-border bg-app-surface p-5 shadow-app-panel"
@@ -107,7 +107,6 @@
             row_class="lg:min-w-[960px] lg:grid-cols-[minmax(170px,1.2fr)_minmax(120px,0.8fr)_86px_86px_66px_80px_minmax(150px,1fr)] lg:items-center"
             row_click="select_asset"
             rows={@streams.assets}
-            selected_row_id={@selected_asset_id}
           >
             <:col>Asset</:col>
             <:col>Chain / game</:col>
@@ -174,114 +173,71 @@
           </Table.render>
         </div>
 
-        <aside class="grid min-w-0 gap-4">
-          <AssetInspection.render
-            :if={@selected_asset}
-            asset={@selected_asset}
-            health_factor={@selected_asset_health_factor}
-            ltv_trend={@selected_asset_ltv_trend}
-            risk_recommendation={@selected_asset_risk_recommendation}
-            risk_explanation={@selected_asset_risk_explanation}
-            review_state={@selected_asset_review_state}
-          >
-            <:actions>
-              <Button.render
-                id="apply-price-shock"
-                phx-click="apply_price_shock"
-                disabled={@selected_asset_shocked?}
-              >
-                {if(@selected_asset_shocked?, do: "Shock applied", else: "Apply 12% price shock")}
-              </Button.render>
-              <Button.render
-                id="reset-asset-scenario"
-                phx-click="reset_asset_scenario"
-                disabled={!@selected_asset_shocked?}
-              >
-                Reset scenario
-              </Button.render>
-              <Button.render
-                id="mark-asset-reviewed"
-                phx-click="mark_asset_reviewed"
-                disabled={@selected_asset_reviewed?}
-              >
-                Mark reviewed
-              </Button.render>
-              <Button.render
-                id="escalate-asset-review"
-                phx-click="escalate_asset_review"
-                disabled={@selected_asset_escalated?}
-              >
-                Escalate
-              </Button.render>
-            </:actions>
-          </AssetInspection.render>
-
-          <section
-            id="event-feed"
-            class="min-h-72 rounded-app border border-app-border bg-app-surface p-5 shadow-app-panel"
-          >
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <h2 class="text-base font-semibold text-app-fg">Live event feed</h2>
-                <p class="mt-1 text-sm text-app-muted">
-                  Deposits, transfers, price moves, repayments, and liquidation warnings.
-                </p>
-              </div>
-              <div class="flex shrink-0 flex-col items-end gap-2">
-                <span
-                  id="event-count"
-                  class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
-                >
-                  {@event_count} events
-                </span>
-                <span
-                  id="event-feed-state"
-                  class={[
-                    "rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset",
-                    if(@feed_paused,
-                      do: "bg-app-warn/10 text-app-warn ring-app-warn/25",
-                      else: "bg-app-accent/10 text-app-accent ring-app-accent/20"
-                    )
-                  ]}
-                >
-                  {if(@feed_paused, do: "paused", else: "streaming")}
-                </span>
-              </div>
+        <section
+          id="event-feed"
+          class="min-h-72 rounded-app border border-app-border bg-app-surface p-5 shadow-app-panel"
+        >
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 class="text-base font-semibold text-app-fg">Live event feed</h2>
+              <p class="mt-1 text-sm text-app-muted">
+                Deposits, transfers, price moves, repayments, and liquidation warnings.
+              </p>
             </div>
-
-            <div class="mt-4 flex flex-wrap gap-2">
-              <Button.render
-                id="push-demo-event"
-                phx-click="push_demo_event"
+            <div class="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+              <span
+                id="event-count"
+                class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
               >
-                Push event
-              </Button.render>
-              <Button.render
-                id="toggle-event-feed"
-                phx-click="toggle_event_feed"
+                {@event_count} events
+              </span>
+              <span
+                id="event-feed-state"
+                class={[
+                  "rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset",
+                  if(@feed_paused,
+                    do: "bg-app-warn/10 text-app-warn ring-app-warn/25",
+                    else: "bg-app-accent/10 text-app-accent ring-app-accent/20"
+                  )
+                ]}
               >
-                {if(@feed_paused, do: "Resume feed", else: "Pause feed")}
-              </Button.render>
+                {if(@feed_paused, do: "paused", else: "streaming")}
+              </span>
             </div>
+          </div>
 
-            <div
-              id="event-list"
-              phx-update="stream"
-              class="mt-5"
+          <div class="mt-4 flex flex-wrap gap-2">
+            <Button.render
+              id="push-demo-event"
+              phx-click="push_demo_event"
             >
-              <EventItem.render
-                :for={{event_id, event} <- @streams.events}
-                id={event_id}
-                time_label={event.time_label}
-                title={event.title}
-                detail={event.detail}
-                chain={event.chain}
-                status={event.status}
-                tone={event.tone}
-              />
-            </div>
-          </section>
-        </aside>
+              Push event
+            </Button.render>
+            <Button.render
+              id="toggle-event-feed"
+              phx-click="toggle_event_feed"
+            >
+              {if(@feed_paused, do: "Resume feed", else: "Pause feed")}
+            </Button.render>
+          </div>
+
+          <div
+            id="event-list"
+            phx-update="stream"
+            class="mt-5"
+          >
+            <EventItem.render
+              :for={{event_id, event} <- @streams.events}
+              id={event_id}
+              time_label={event.time_label}
+              title={event.title}
+              detail={event.detail}
+              chain={event.chain}
+              status={event.status}
+              tone={event.tone}
+            />
+          </div>
+        </section>
       </section>
     </div>
   </section>

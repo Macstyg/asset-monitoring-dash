@@ -8,14 +8,18 @@ defmodule AssetMonitoringDashWeb.UI.Badge do
   attr :class, :string, default: ""
   attr :label, :string, required: true
   attr :tone, :atom, values: [:neutral, :success, :info, :warning, :danger], default: :neutral
+  attr :rest, :global
 
   def render(assigns) do
     ~H"""
-    <span class={[
-      "inline-flex w-fit rounded-full px-2.5 py-1 font-mono text-xs font-semibold ring-1 ring-inset",
-      tone_class(@tone),
-      @class
-    ]}>
+    <span
+      class={[
+        "inline-flex w-fit rounded-full px-2.5 py-1 font-mono text-xs font-semibold ring-1 ring-inset",
+        tone_class(@tone),
+        @class
+      ]}
+      {@rest}
+    >
       {@label}
     </span>
     """

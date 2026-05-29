@@ -3,7 +3,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
   import Phoenix.LiveViewTest
 
-  test "renders the asset risk cockpit", %{conn: conn} do
+  test "renders the asset risk cockpit as a full-width monitor", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#dashboard-shell")
@@ -31,26 +31,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, "#asset-row-asset-012", "Manual review")
     assert has_element?(view, "#asset-row-asset-012", "Illiquid market")
-    assert has_element?(view, "#asset-inspection")
-    assert has_element?(view, "#review-workflow-panel")
-    assert has_element?(view, "#risk-recommendation-label", "Manual review")
-    assert has_element?(view, "#risk-recommendation-reasons")
-    assert has_element?(view, "#risk-recommendation-reason-elevated_risk", "Elevated risk")
-    assert has_element?(view, "#operator-review-state-label", "Unreviewed")
-    assert has_element?(view, "#asset-inspection", "Oracle")
-    assert has_element?(view, "#asset-inspection", "Fresh")
-    assert has_element?(view, "#asset-inspection", "24s ago")
-    assert has_element?(view, "#asset-inspection", "Liquidity")
-    assert has_element?(view, "#asset-inspection", "Deep")
-    assert has_element?(view, "#asset-inspection", "$42,000 depth")
-    assert has_element?(view, "#risk-explanation")
-    assert has_element?(view, "#asset-ltv-trend")
-    assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
-    assert has_element?(view, "#asset-ltv-trend-delta", "+3.2 pts")
-    assert has_element?(view, "#risk-explanation-headline", "Collateral buffer needs attention.")
-    assert has_element?(view, "#risk-reason-ltv_pressure")
-    assert has_element?(view, "#risk-reason-health_factor")
-    assert has_element?(view, "#risk-reason-valuation_gap")
+    refute has_element?(view, "#asset-inspection")
     assert has_element?(view, "#event-feed")
     assert has_element?(view, "#event-count", "5 events")
     assert has_element?(view, "#event-feed-state", "streaming")
@@ -75,7 +56,6 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-summary-highest-ltv", "80.1%")
     assert has_element?(view, "#asset-row-asset-002")
     assert has_element?(view, "#asset-row-asset-010")
-    assert has_element?(view, "#asset-inspection", "Citadel Founder Parcel")
     refute has_element?(view, "#asset-row-asset-001")
 
     view
@@ -89,24 +69,14 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-010")
   end
 
-  test "updates the selected asset trend when a row is selected", %{conn: conn} do
+  test "navigates to the selected asset detail page from a row", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
     view
     |> element("#asset-row-asset-003")
     |> render_click()
 
-    assert has_element?(view, "#asset-inspection", "Neon Pulse Racer")
-    assert has_element?(view, "#asset-ltv-trend-latest", "37.8%")
-    assert has_element?(view, "#asset-ltv-trend-delta", "-2.4 pts")
-
-    view
-    |> element("#asset-row-asset-010")
-    |> render_click()
-
-    assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
-    assert has_element?(view, "#asset-ltv-trend-latest", "80.1%")
-    assert has_element?(view, "#asset-ltv-trend-delta", "+5.6 pts")
+    assert_redirect(view, ~p"/assets/asset-003")
   end
 
   test "filters monitored assets by chain", %{conn: conn} do
@@ -121,7 +91,6 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-count", "2 monitored")
     assert has_element?(view, "#asset-row-asset-005")
     assert has_element?(view, "#asset-row-asset-010")
-    assert has_element?(view, "#asset-inspection", "Genesis Mana Vault")
     refute has_element?(view, "#asset-row-asset-001")
   end
 
@@ -142,7 +111,6 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-count", "8 monitored")
     assert has_element?(view, "#asset-row-asset-001", "Elevated risk")
     assert has_element?(view, "#asset-row-asset-012", "Illiquid market")
-    assert has_element?(view, "#asset-inspection", "Aegis Dragon Helm")
     refute has_element?(view, "#asset-row-asset-002")
 
     view
@@ -158,7 +126,6 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     assert has_element?(view, "#asset-count", "1 monitored")
     assert has_element?(view, "#asset-row-asset-002", "Liquidation candidate")
-    assert has_element?(view, "#asset-inspection", "Citadel Founder Parcel")
     refute has_element?(view, "#asset-row-asset-001")
   end
 
@@ -179,7 +146,6 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     assert has_element?(view, "#asset-count", "1 monitored")
     assert has_element?(view, "#asset-row-asset-010")
-    assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
     refute has_element?(view, "#asset-row-asset-002")
   end
 
@@ -194,7 +160,6 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     assert has_element?(view, "#asset-count", "1 monitored")
     assert has_element?(view, "#asset-row-asset-010")
-    assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
     refute has_element?(view, "#asset-row-asset-001")
   end
 
@@ -235,153 +200,6 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-count", "12 monitored")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
-    assert has_element?(view, "#asset-inspection", "Aegis Dragon Helm")
-  end
-
-  test "selects an asset for inspection", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
-
-    assert has_element?(view, "#asset-inspection", "Aegis Dragon Helm")
-
-    view
-    |> element("#asset-row-asset-010")
-    |> render_click()
-
-    assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
-    assert has_element?(view, "#asset-inspection", "$7,020")
-    assert has_element?(view, "#asset-inspection", "94/100")
-    assert has_element?(view, "#asset-inspection", "Stale")
-    assert has_element?(view, "#asset-inspection", "12m ago")
-    assert has_element?(view, "#asset-inspection", "Thin")
-    assert has_element?(view, "#asset-inspection", "$5,900 depth")
-    assert has_element?(view, "#risk-recommendation-label", "Manual review")
-    assert has_element?(view, "#risk-recommendation-reason-stale_oracle", "Stale oracle")
-  end
-
-  test "shows manual review when a fresh moderate asset is illiquid", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
-
-    view
-    |> element("#asset-row-asset-012")
-    |> render_click()
-
-    assert has_element?(view, "#asset-inspection", "Stormforged Battle Pass")
-    assert has_element?(view, "#asset-inspection", "Fresh")
-    assert has_element?(view, "#asset-inspection", "Illiquid")
-    assert has_element?(view, "#asset-inspection", "$3,900 depth")
-    assert has_element?(view, "#risk-recommendation-label", "Manual review")
-    assert has_element?(view, "#risk-recommendation-reason-illiquid_market", "Illiquid market")
-  end
-
-  test "updates operator review state without changing system recommendation", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
-
-    assert has_element?(view, "#risk-recommendation-label", "Manual review")
-    assert has_element?(view, "#operator-review-state-label", "Unreviewed")
-    refute has_element?(view, "#mark-asset-reviewed[disabled]")
-    refute has_element?(view, "#escalate-asset-review[disabled]")
-
-    view
-    |> element("#mark-asset-reviewed")
-    |> render_click()
-
-    assert has_element?(view, "#risk-recommendation-label", "Manual review")
-    assert has_element?(view, "#operator-review-state-label", "Reviewed")
-    assert has_element?(view, "#mark-asset-reviewed[disabled]")
-    assert has_element?(view, "#event-row-event-review-reviewed-asset-001")
-    assert has_element?(view, "#event-row-event-review-reviewed-asset-001", "Position reviewed")
-
-    view
-    |> element("#asset-row-asset-003")
-    |> render_click()
-
-    assert has_element?(view, "#asset-inspection", "Neon Pulse Racer")
-    assert has_element?(view, "#risk-recommendation-label", "Watch")
-    assert has_element?(view, "#operator-review-state-label", "Unreviewed")
-    refute has_element?(view, "#escalate-asset-review[disabled]")
-
-    view
-    |> element("#escalate-asset-review")
-    |> render_click()
-
-    assert has_element?(view, "#risk-recommendation-label", "Watch")
-    assert has_element?(view, "#operator-review-state-label", "Escalated")
-    assert has_element?(view, "#escalate-asset-review[disabled]")
-    assert has_element?(view, "#event-row-event-review-escalated-asset-003")
-    assert has_element?(view, "#event-row-event-review-escalated-asset-003", "Review escalated")
-  end
-
-  test "resets operator review state when a reviewed asset scenario changes", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
-
-    view
-    |> element("#mark-asset-reviewed")
-    |> render_click()
-
-    assert has_element?(view, "#operator-review-state-label", "Reviewed")
-
-    view
-    |> element("#apply-price-shock")
-    |> render_click()
-
-    assert has_element?(view, "#risk-recommendation-label", "Manual review")
-    assert has_element?(view, "#operator-review-state-label", "Unreviewed")
-  end
-
-  test "applies a price shock to the selected asset", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
-
-    assert has_element?(view, "#asset-row-asset-001", "$4,860")
-    assert has_element?(view, "#asset-row-asset-001", "59.7%")
-    refute has_element?(view, "#apply-price-shock[disabled]")
-    assert has_element?(view, "#reset-asset-scenario[disabled]")
-
-    view
-    |> element("#apply-price-shock")
-    |> render_click()
-
-    assert has_element?(view, "#asset-row-asset-001", "$4,277")
-    assert has_element?(view, "#asset-row-asset-001", "67.8%")
-    assert has_element?(view, "#asset-inspection", "$4,277")
-    assert has_element?(view, "#asset-inspection", "80/100")
-    assert has_element?(view, "#asset-ltv-trend-latest", "67.8%")
-    assert has_element?(view, "#asset-ltv-trend-delta", "+11.3 pts")
-    assert has_element?(view, "#risk-reason-ltv_pressure", "Rising LTV")
-    assert has_element?(view, "#risk-reason-ltv_pressure", "67.8%")
-    assert has_element?(view, "#asset-summary-value", "$68,902")
-    assert has_element?(view, "#apply-price-shock[disabled]", "Shock applied")
-    assert has_element?(view, "#event-row-event-shock-asset-001")
-    assert has_element?(view, "#event-row-event-shock-asset-001", "Price shock applied")
-    assert has_element?(view, "#event-row-event-shock-asset-001", "67.8%")
-
-    render_click(view, :apply_price_shock)
-
-    assert has_element?(view, "#asset-row-asset-001", "$4,277")
-    assert has_element?(view, "#asset-summary-value", "$68,902")
-  end
-
-  test "resets a shocked asset scenario", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
-
-    view
-    |> element("#apply-price-shock")
-    |> render_click()
-
-    view
-    |> element("#reset-asset-scenario")
-    |> render_click()
-
-    assert has_element?(view, "#asset-row-asset-001", "$4,860")
-    assert has_element?(view, "#asset-row-asset-001", "59.7%")
-    assert has_element?(view, "#asset-inspection", "$4,860")
-    assert has_element?(view, "#asset-inspection", "70/100")
-    assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
-    assert has_element?(view, "#asset-ltv-trend-delta", "+3.2 pts")
-    assert has_element?(view, "#asset-summary-value", "$69,485")
-    refute has_element?(view, "#apply-price-shock[disabled]")
-    assert has_element?(view, "#reset-asset-scenario[disabled]")
-    assert has_element?(view, "#event-row-event-reset-asset-001")
-    assert has_element?(view, "#event-row-event-reset-asset-001", "Scenario reset")
   end
 
   test "pushes and pauses demo events", %{conn: conn} do
@@ -406,7 +224,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
   test "keeps the visible event feed bounded", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
-    for _ <- 1..3 do
+    for _index <- 1..3 do
       view
       |> element("#push-demo-event")
       |> render_click()

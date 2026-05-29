@@ -18,6 +18,7 @@ defmodule AssetMonitoringDashWeb.Router do
     pipe_through :browser
 
     live "/", DashboardLive, :show
+    live "/assets/:id", AssetLive, :show
   end
 
   scope "/api", AssetMonitoringDashWeb do

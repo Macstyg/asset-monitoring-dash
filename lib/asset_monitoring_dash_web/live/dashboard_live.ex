@@ -6,10 +6,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.EventFeed
-  alias AssetMonitoringDash.ReviewState
-  alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
   alias AssetMonitoringDashWeb.DashboardComponents.AssetSummary
   alias AssetMonitoringDashWeb.DashboardComponents.EventItem
   alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
@@ -35,8 +32,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:snapshot, snapshot)
       |> assign(:metric_cards, metric_cards(snapshot))
       |> assign(:all_assets, assets)
-      |> assign(:review_states, %{})
-      |> assign(:shocked_asset_ids, MapSet.new())
       |> assign(:asset_count, length(assets))
       |> assign(:asset_summary, Assets.summarize_assets(assets))
       |> assign(:event_count, length(events))
@@ -48,7 +43,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:risk_filter_options, Assets.risk_filter_options())
       |> assign(:action_filter_options, Assets.action_filter_options())
       |> assign(:visible_events, events)
-      |> assign_selected_asset(List.first(assets))
       |> stream(:assets, assets_for_table(assets))
       |> stream(:events, events)
 
@@ -61,7 +55,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   def handle_event("filter_assets", %{"filters" => params}, socket) do
     filters = Assets.normalize_filters(params, socket.assigns.asset_filters)
     assets = Assets.filter_assets(socket.assigns.all_assets, filters)
-    selected_asset = selected_asset_for_filter(socket.assigns.selected_asset, assets)
 
     socket =
       socket
@@ -69,7 +62,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_summary, Assets.summarize_assets(assets))
       |> assign(:asset_filters, filters)
       |> assign(:filter_form, filter_form(filters))
-      |> assign_selected_asset(selected_asset)
       |> stream(:assets, assets_for_table(assets), reset: true)
 
     {:noreply, socket}
@@ -86,7 +78,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_summary, Assets.summarize_assets(assets))
       |> assign(:asset_filters, filters)
       |> assign(:filter_form, filter_form(filters))
-      |> assign_selected_asset(List.first(assets))
       |> stream(:assets, assets_for_table(assets), reset: true)
 
     {:noreply, socket}
@@ -94,29 +85,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_event("select_asset", %{"id" => asset_id}, socket) do
-    selected_asset = Assets.get_asset(socket.assigns.all_assets, asset_id)
-
-    {:noreply, select_asset(socket, selected_asset)}
-  end
-
-  @impl true
-  def handle_event("apply_price_shock", _params, socket) do
-    {:noreply, apply_price_shock(socket)}
-  end
-
-  @impl true
-  def handle_event("reset_asset_scenario", _params, socket) do
-    {:noreply, reset_asset_scenario(socket)}
-  end
-
-  @impl true
-  def handle_event("mark_asset_reviewed", _params, socket) do
-    {:noreply, mark_asset_reviewed(socket)}
-  end
-
-  @impl true
-  def handle_event("escalate_asset_review", _params, socket) do
-    {:noreply, escalate_asset_review(socket)}
+    {:noreply, push_navigate(socket, to: ~p"/assets/#{asset_id}")}
   end
 
   @impl true
@@ -189,174 +158,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       },
       as: :filters
     )
-  end
-
-  defp selected_asset_for_filter(nil, assets), do: List.first(assets)
-
-  defp selected_asset_for_filter(selected_asset, assets) do
-    Enum.find(assets, &(&1.id == selected_asset.id)) || List.first(assets)
-  end
-
-  defp select_asset(socket, nil), do: socket
-
-  defp select_asset(socket, selected_asset) do
-    socket
-    |> assign_selected_asset(selected_asset)
-    |> refresh_visible_assets()
-  end
-
-  defp apply_price_shock(%{assigns: %{selected_asset: nil}} = socket), do: socket
-
-  defp apply_price_shock(socket) do
-    already_shocked? =
-      MapSet.member?(
-        socket.assigns.shocked_asset_ids,
-        socket.assigns.selected_asset.id
-      )
-
-    apply_price_shock(socket, already_shocked?)
-  end
-
-  defp apply_price_shock(socket, true), do: socket
-
-  defp apply_price_shock(socket, false) do
-    asset_id = socket.assigns.selected_asset.id
-
-    all_assets =
-      Assets.apply_price_drop(
-        socket.assigns.all_assets,
-        asset_id,
-        12
-      )
-
-    selected_asset = Assets.get_asset(all_assets, asset_id)
-    feed = EventFeed.push_price_shock_event(socket.assigns.visible_events, selected_asset, 12)
-    review_states = ReviewState.reset(socket.assigns.review_states, asset_id)
-
-    socket
-    |> assign(:all_assets, all_assets)
-    |> assign(:review_states, review_states)
-    |> assign(:shocked_asset_ids, MapSet.put(socket.assigns.shocked_asset_ids, asset_id))
-    |> assign(:event_count, length(feed.visible_events))
-    |> assign(:visible_events, feed.visible_events)
-    |> assign_selected_asset(selected_asset)
-    |> stream(:events, feed.visible_events, reset: true)
-    |> refresh_visible_assets()
-  end
-
-  defp reset_asset_scenario(%{assigns: %{selected_asset: nil}} = socket), do: socket
-
-  defp reset_asset_scenario(socket) do
-    shocked? =
-      MapSet.member?(
-        socket.assigns.shocked_asset_ids,
-        socket.assigns.selected_asset.id
-      )
-
-    reset_asset_scenario(socket, shocked?)
-  end
-
-  defp reset_asset_scenario(socket, false), do: socket
-
-  defp reset_asset_scenario(socket, true) do
-    asset_id = socket.assigns.selected_asset.id
-    all_assets = Assets.reset_asset(socket.assigns.all_assets, asset_id)
-    selected_asset = Assets.get_asset(all_assets, asset_id)
-    feed = EventFeed.push_scenario_reset_event(socket.assigns.visible_events, selected_asset)
-    review_states = ReviewState.reset(socket.assigns.review_states, asset_id)
-
-    socket
-    |> assign(:all_assets, all_assets)
-    |> assign(:review_states, review_states)
-    |> assign(:shocked_asset_ids, MapSet.delete(socket.assigns.shocked_asset_ids, asset_id))
-    |> assign(:event_count, length(feed.visible_events))
-    |> assign(:visible_events, feed.visible_events)
-    |> assign_selected_asset(selected_asset)
-    |> stream(:events, feed.visible_events, reset: true)
-    |> refresh_visible_assets()
-  end
-
-  defp mark_asset_reviewed(%{assigns: %{selected_asset: nil}} = socket), do: socket
-
-  defp mark_asset_reviewed(socket) do
-    asset = socket.assigns.selected_asset
-
-    review_states =
-      ReviewState.mark_reviewed(socket.assigns.review_states, asset.id)
-
-    review_state = ReviewState.state_for(asset.id, review_states)
-    feed = EventFeed.push_review_event(socket.assigns.visible_events, asset, review_state)
-
-    socket
-    |> assign(:review_states, review_states)
-    |> assign(:event_count, length(feed.visible_events))
-    |> assign(:visible_events, feed.visible_events)
-    |> assign_selected_asset(asset)
-    |> stream(:events, feed.visible_events, reset: true)
-  end
-
-  defp escalate_asset_review(%{assigns: %{selected_asset: nil}} = socket), do: socket
-
-  defp escalate_asset_review(socket) do
-    asset = socket.assigns.selected_asset
-
-    review_states =
-      ReviewState.escalate(socket.assigns.review_states, asset.id)
-
-    review_state = ReviewState.state_for(asset.id, review_states)
-    feed = EventFeed.push_review_event(socket.assigns.visible_events, asset, review_state)
-
-    socket
-    |> assign(:review_states, review_states)
-    |> assign(:event_count, length(feed.visible_events))
-    |> assign(:visible_events, feed.visible_events)
-    |> assign_selected_asset(asset)
-    |> stream(:events, feed.visible_events, reset: true)
-  end
-
-  defp refresh_visible_assets(socket) do
-    assets = Assets.filter_assets(socket.assigns.all_assets, socket.assigns.asset_filters)
-
-    socket
-    |> assign(:asset_count, length(assets))
-    |> assign(:asset_summary, Assets.summarize_assets(assets))
-    |> stream(:assets, assets_for_table(assets), reset: true)
-  end
-
-  defp assign_selected_asset(socket, nil) do
-    socket
-    |> assign(:selected_asset, nil)
-    |> assign(:selected_asset_id, nil)
-    |> assign(:selected_asset_shocked?, false)
-    |> assign(:selected_asset_health_factor, nil)
-    |> assign(:selected_asset_ltv_trend, [])
-    |> assign(:selected_asset_risk_explanation, nil)
-    |> assign(:selected_asset_risk_recommendation, nil)
-    |> assign(:selected_asset_review_state, nil)
-    |> assign(:selected_asset_reviewed?, false)
-    |> assign(:selected_asset_escalated?, false)
-  end
-
-  defp assign_selected_asset(socket, asset) do
-    shocked_asset_ids = Map.get(socket.assigns, :shocked_asset_ids, MapSet.new())
-    review_states = Map.get(socket.assigns, :review_states, %{})
-    risk_recommendation = RiskRecommendation.recommendation_for(asset)
-    review_state = ReviewState.state_for(asset.id, review_states)
-
-    socket
-    |> assign(:selected_asset, asset)
-    |> assign(:selected_asset_id, asset.id)
-    |> assign(:selected_asset_shocked?, MapSet.member?(shocked_asset_ids, asset.id))
-    |> assign(:selected_asset_risk_recommendation, risk_recommendation)
-    |> assign(:selected_asset_review_state, review_state)
-    |> assign(:selected_asset_reviewed?, review_state.id == :reviewed)
-    |> assign(:selected_asset_escalated?, review_state.id == :escalated)
-    |> assign(
-      :selected_asset_health_factor,
-      asset |> Risk.health_factor() |> Formatters.decimal()
-    )
-    |> assign(:selected_asset_ltv_trend, Assets.ltv_trend(asset))
-    |> assign(:selected_asset_risk_explanation, Risk.explanation(asset))
   end
 
   defp assets_for_table(assets) do
