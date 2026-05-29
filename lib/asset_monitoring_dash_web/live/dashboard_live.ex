@@ -209,11 +209,15 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       )
 
     selected_asset = Assets.get_asset(all_assets, asset_id)
+    feed = EventFeed.push_price_shock_event(socket.assigns.visible_events, selected_asset, 12)
 
     socket
     |> assign(:all_assets, all_assets)
     |> assign(:shocked_asset_ids, MapSet.put(socket.assigns.shocked_asset_ids, asset_id))
+    |> assign(:event_count, length(feed.visible_events))
+    |> assign(:visible_events, feed.visible_events)
     |> assign_selected_asset(selected_asset)
+    |> stream(:events, feed.visible_events, reset: true)
     |> refresh_visible_assets()
   end
 

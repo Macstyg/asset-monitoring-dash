@@ -190,6 +190,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-inspection", "80/100")
     assert has_element?(view, "#asset-summary-value", "$68,902")
     assert has_element?(view, "#apply-price-shock[disabled]", "Shock applied")
+    assert has_element?(view, "#event-row-event-shock-asset-001")
+    assert has_element?(view, "#event-row-event-shock-asset-001", "Price shock applied")
+    assert has_element?(view, "#event-row-event-shock-asset-001", "67.8%")
 
     render_click(view, :apply_price_shock)
 

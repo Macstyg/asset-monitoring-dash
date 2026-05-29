@@ -25,6 +25,27 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert length(feed.visible_events) == 6
   end
 
+  test "pushes a price shock event to explain a scenario change" do
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon",
+      ltv_percent: 67.8
+    }
+
+    feed = EventFeed.push_price_shock_event(EventFeed.initial_events(), asset, 12)
+
+    assert [%{id: "event-shock-asset-001", time_label: "now"} = event | _events] =
+             feed.visible_events
+
+    assert event.title == "Price shock applied"
+    assert event.detail == "Aegis Dragon Helm repriced 12% lower; LTV is now 67.8%."
+    assert event.chain == "Polygon"
+    assert event.status == "risk"
+    assert event.tone == :danger
+    assert length(feed.visible_events) == 6
+  end
+
   test "keeps generated event labels relative and bounds visible history" do
     feed =
       0..2
