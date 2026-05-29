@@ -2,10 +2,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   use AssetMonitoringDashWeb, :live_view
 
   @event_tick_interval_ms 4_000
-  @max_visible_events 6
 
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.DemoData
+  alias AssetMonitoringDash.EventFeed
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
   alias AssetMonitoringDashWeb.DashboardComponents.EventItem
@@ -21,7 +21,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   def mount(_params, _session, socket) do
     snapshot = DemoData.portfolio_snapshot()
     assets = Assets.list_assets()
-    events = DemoData.live_events()
+    events = EventFeed.initial_events()
 
     socket =
       socket
@@ -191,35 +191,18 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   defp push_demo_event(socket) do
-    event = DemoData.next_live_event(socket.assigns.next_event_index)
-
-    visible_events =
-      [event | socket.assigns.visible_events]
-      |> Enum.take(@max_visible_events)
-      |> refresh_live_event_labels()
+    feed =
+      EventFeed.push_demo_event(
+        socket.assigns.visible_events,
+        socket.assigns.next_event_index
+      )
 
     socket
-    |> assign(:event_count, length(visible_events))
-    |> assign(:next_event_index, socket.assigns.next_event_index + 1)
-    |> assign(:visible_events, visible_events)
-    |> stream(:events, visible_events, reset: true)
+    |> assign(:event_count, length(feed.visible_events))
+    |> assign(:next_event_index, feed.next_event_index)
+    |> assign(:visible_events, feed.visible_events)
+    |> stream(:events, feed.visible_events, reset: true)
   end
-
-  defp refresh_live_event_labels(events) do
-    events
-    |> Enum.with_index()
-    |> Enum.map(fn {event, index} -> refresh_live_event_label(event, index) end)
-  end
-
-  defp refresh_live_event_label(%{id: "event-live-" <> _id} = event, 0) do
-    %{event | time_label: "now"}
-  end
-
-  defp refresh_live_event_label(%{id: "event-live-" <> _id} = event, index) do
-    %{event | time_label: "#{index * 4}s ago"}
-  end
-
-  defp refresh_live_event_label(event, _index), do: event
 
   defp push_scheduled_demo_event(%{assigns: %{feed_paused: true}} = socket), do: socket
 
