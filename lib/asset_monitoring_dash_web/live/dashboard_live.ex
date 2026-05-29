@@ -271,6 +271,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:selected_asset_id, nil)
     |> assign(:selected_asset_shocked?, false)
     |> assign(:selected_asset_health_factor, nil)
+    |> assign(:selected_asset_ltv_trend, [])
     |> assign(:selected_asset_risk_explanation, nil)
   end
 
@@ -285,6 +286,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       :selected_asset_health_factor,
       asset |> Risk.health_factor() |> Formatters.decimal()
     )
+    |> assign(:selected_asset_ltv_trend, Assets.ltv_trend(asset))
     |> assign(:selected_asset_risk_explanation, Risk.explanation(asset))
   end
 

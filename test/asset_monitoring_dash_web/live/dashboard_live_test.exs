@@ -30,6 +30,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, "#asset-inspection")
     assert has_element?(view, "#risk-explanation")
+    assert has_element?(view, "#asset-ltv-trend")
+    assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
+    assert has_element?(view, "#asset-ltv-trend-delta", "+3.2 pts")
     assert has_element?(view, "#risk-explanation-headline", "Collateral buffer needs attention.")
     assert has_element?(view, "#risk-reason-ltv_pressure")
     assert has_element?(view, "#risk-reason-health_factor")
@@ -70,6 +73,26 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-count", "12 monitored")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
+  end
+
+  test "updates the selected asset trend when a row is selected", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#asset-row-asset-003")
+    |> render_click()
+
+    assert has_element?(view, "#asset-inspection", "Neon Pulse Racer")
+    assert has_element?(view, "#asset-ltv-trend-latest", "37.8%")
+    assert has_element?(view, "#asset-ltv-trend-delta", "-2.4 pts")
+
+    view
+    |> element("#asset-row-asset-010")
+    |> render_click()
+
+    assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
+    assert has_element?(view, "#asset-ltv-trend-latest", "80.1%")
+    assert has_element?(view, "#asset-ltv-trend-delta", "+5.6 pts")
   end
 
   test "filters monitored assets by chain", %{conn: conn} do
@@ -194,6 +217,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-001", "67.8%")
     assert has_element?(view, "#asset-inspection", "$4,277")
     assert has_element?(view, "#asset-inspection", "80/100")
+    assert has_element?(view, "#asset-ltv-trend-latest", "67.8%")
+    assert has_element?(view, "#asset-ltv-trend-delta", "+11.3 pts")
     assert has_element?(view, "#risk-reason-ltv_pressure", "Rising LTV")
     assert has_element?(view, "#risk-reason-ltv_pressure", "67.8%")
     assert has_element?(view, "#asset-summary-value", "$68,902")
@@ -223,6 +248,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-001", "59.7%")
     assert has_element?(view, "#asset-inspection", "$4,860")
     assert has_element?(view, "#asset-inspection", "70/100")
+    assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
+    assert has_element?(view, "#asset-ltv-trend-delta", "+3.2 pts")
     assert has_element?(view, "#asset-summary-value", "$69,485")
     refute has_element?(view, "#apply-price-shock[disabled]")
     assert has_element?(view, "#reset-asset-scenario[disabled]")

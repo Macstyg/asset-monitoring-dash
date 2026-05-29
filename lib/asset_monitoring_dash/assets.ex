@@ -19,6 +19,20 @@ defmodule AssetMonitoringDash.Assets do
     {"Critical", "Critical"}
   ]
   @at_risk_bands ["Elevated", "Critical"]
+  @ltv_trend_offsets %{
+    "asset-001" => [-3.2, -2.4, -1.9, -1.1, -0.8, -0.3],
+    "asset-002" => [-1.0, 0.7, -0.2, 1.6, 2.1, 1.2],
+    "asset-003" => [2.4, 1.8, 1.1, 0.5, -0.1, -0.4],
+    "asset-004" => [0.4, -0.7, -1.4, -0.9, -1.7, -2.1],
+    "asset-005" => [-4.8, -2.9, -3.7, -1.8, -2.4, -0.9],
+    "asset-006" => [-0.4, 0.2, -0.2, 0.1, -0.1, 0.3],
+    "asset-007" => [1.8, 0.9, 1.3, 2.6, 1.7, 0.8],
+    "asset-008" => [-1.8, -0.6, 0.4, -0.2, 0.8, 1.5],
+    "asset-009" => [3.7, 2.6, 1.9, 1.1, 0.4, -0.2],
+    "asset-010" => [-5.6, -3.1, -4.4, -1.7, 0.9, 2.8],
+    "asset-011" => [0.6, 0.4, 0.3, 0.1, -0.2, -0.3],
+    "asset-012" => [-0.9, -1.5, -0.4, 0.6, -0.1, 0.9]
+  }
 
   def list_assets do
     Enum.map(DemoData.monitored_assets(), &normalize_risk_fields/1)
@@ -51,6 +65,17 @@ defmodule AssetMonitoringDash.Assets do
     original_asset = get_asset(asset_id)
 
     Enum.map(assets, &reset_asset_value(&1, asset_id, original_asset))
+  end
+
+  def ltv_trend(asset) do
+    baseline_asset = get_asset(asset.id) || asset
+    baseline_ltv = baseline_asset.ltv_percent
+
+    baseline_asset.id
+    |> ltv_trend_offsets()
+    |> Enum.zip(["6d", "5d", "4d", "3d", "2d", "1d"])
+    |> Enum.map(fn {offset, label} -> trend_point(label, baseline_ltv + offset) end)
+    |> Kernel.++([trend_point("Now", asset.ltv_percent)])
   end
 
   def summarize_assets(assets) do
@@ -138,6 +163,18 @@ defmodule AssetMonitoringDash.Assets do
 
   defp normalize_chain_filter_value(nil), do: "All chains"
   defp normalize_chain_filter_value(chain), do: chain
+
+  defp ltv_trend_offsets(asset_id) do
+    Map.get(@ltv_trend_offsets, asset_id, [-2.0, -1.5, -1.1, -0.7, -0.4, -0.2])
+  end
+
+  defp trend_point(label, value) do
+    %{label: label, value: value |> clamp_ltv() |> Float.round(1)}
+  end
+
+  defp clamp_ltv(value) when value < 0.0, do: 0.0
+  defp clamp_ltv(value) when value > 100.0, do: 100.0
+  defp clamp_ltv(value), do: value
 
   defp normalize_risk_fields(asset) do
     ltv_percent = Float.round(Risk.ltv_percent(asset), 1)

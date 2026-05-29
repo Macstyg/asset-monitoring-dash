@@ -73,6 +73,30 @@ defmodule AssetMonitoringDash.AssetsTest do
              Assets.get_asset(assets, "asset-001")
   end
 
+  test "builds an LTV trend with the current asset as the latest point" do
+    asset =
+      Assets.list_assets()
+      |> Assets.apply_price_drop("asset-001", 12)
+      |> Assets.get_asset("asset-001")
+
+    trend = Assets.ltv_trend(asset)
+
+    assert length(trend) == 7
+    assert List.first(trend) == %{label: "6d", value: 56.5}
+    assert List.last(trend) == %{label: "Now", value: 67.8}
+  end
+
+  test "uses different LTV trend shapes for different assets" do
+    improving_asset = Assets.get_asset("asset-003")
+    volatile_asset = Assets.get_asset("asset-010")
+
+    improving_trend = Assets.ltv_trend(improving_asset)
+    volatile_trend = Assets.ltv_trend(volatile_asset)
+
+    assert Enum.map(improving_trend, & &1.value) == [40.2, 39.6, 38.9, 38.3, 37.7, 37.4, 37.8]
+    assert Enum.map(volatile_trend, & &1.value) == [74.5, 77.0, 75.7, 78.4, 81.0, 82.9, 80.1]
+  end
+
   test "summarizes a list of visible assets" do
     summary =
       Assets.default_filters()
