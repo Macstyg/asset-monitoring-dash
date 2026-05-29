@@ -163,7 +163,9 @@
             asset={@selected_asset}
             health_factor={@selected_asset_health_factor}
             ltv_trend={@selected_asset_ltv_trend}
+            risk_recommendation={@selected_asset_risk_recommendation}
             risk_explanation={@selected_asset_risk_explanation}
+            review_state={@selected_asset_review_state}
           >
             <:actions>
               <Button.render
@@ -179,6 +181,20 @@
                 disabled={!@selected_asset_shocked?}
               >
                 Reset scenario
+              </Button.render>
+              <Button.render
+                id="mark-asset-reviewed"
+                phx-click="mark_asset_reviewed"
+                disabled={@selected_asset_reviewed?}
+              >
+                Mark reviewed
+              </Button.render>
+              <Button.render
+                id="escalate-asset-review"
+                phx-click="escalate_asset_review"
+                disabled={@selected_asset_escalated?}
+              >
+                Escalate
               </Button.render>
             </:actions>
           </AssetInspection.render>

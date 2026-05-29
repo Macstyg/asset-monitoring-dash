@@ -49,6 +49,15 @@ defmodule AssetMonitoringDash.EventFeed do
     push_event(visible_events, event)
   end
 
+  def push_review_event(visible_events, asset, review_state) do
+    event =
+      asset
+      |> review_event(review_state)
+      |> Map.put(:time_label, "now")
+
+    push_event(visible_events, event)
+  end
+
   defp push_event(visible_events, event) do
     visible_events =
       [event | visible_events]
@@ -90,5 +99,35 @@ defmodule AssetMonitoringDash.EventFeed do
     %{event | time_label: "#{index * @event_tick_interval_seconds}s ago"}
   end
 
+  defp refresh_live_event_label(%{id: "event-review-" <> _id} = event, 0) do
+    %{event | time_label: "now"}
+  end
+
+  defp refresh_live_event_label(%{id: "event-review-" <> _id} = event, index) do
+    %{event | time_label: "#{index * @event_tick_interval_seconds}s ago"}
+  end
+
   defp refresh_live_event_label(event, _index), do: event
+
+  defp review_event(asset, %{id: :reviewed}) do
+    %{
+      id: "event-review-reviewed-#{asset.id}",
+      title: "Position reviewed",
+      detail: "#{asset.name} marked reviewed by an operator.",
+      chain: asset.chain,
+      status: "reviewed",
+      tone: :success
+    }
+  end
+
+  defp review_event(asset, %{id: :escalated}) do
+    %{
+      id: "event-review-escalated-#{asset.id}",
+      title: "Review escalated",
+      detail: "#{asset.name} escalated for follow-up.",
+      chain: asset.chain,
+      status: "review",
+      tone: :warning
+    }
+  end
 end

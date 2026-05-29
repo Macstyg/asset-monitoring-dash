@@ -29,6 +29,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, "#asset-inspection")
+    assert has_element?(view, "#review-workflow-panel")
+    assert has_element?(view, "#risk-recommendation-label", "Manual review")
+    assert has_element?(view, "#operator-review-state-label", "Unreviewed")
     assert has_element?(view, "#risk-explanation")
     assert has_element?(view, "#asset-ltv-trend")
     assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
@@ -199,6 +202,61 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
     assert has_element?(view, "#asset-inspection", "$7,020")
     assert has_element?(view, "#asset-inspection", "94/100")
+  end
+
+  test "updates operator review state without changing system recommendation", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#risk-recommendation-label", "Manual review")
+    assert has_element?(view, "#operator-review-state-label", "Unreviewed")
+    refute has_element?(view, "#mark-asset-reviewed[disabled]")
+    refute has_element?(view, "#escalate-asset-review[disabled]")
+
+    view
+    |> element("#mark-asset-reviewed")
+    |> render_click()
+
+    assert has_element?(view, "#risk-recommendation-label", "Manual review")
+    assert has_element?(view, "#operator-review-state-label", "Reviewed")
+    assert has_element?(view, "#mark-asset-reviewed[disabled]")
+    assert has_element?(view, "#event-row-event-review-reviewed-asset-001")
+    assert has_element?(view, "#event-row-event-review-reviewed-asset-001", "Position reviewed")
+
+    view
+    |> element("#asset-row-asset-003")
+    |> render_click()
+
+    assert has_element?(view, "#asset-inspection", "Neon Pulse Racer")
+    assert has_element?(view, "#risk-recommendation-label", "Watch")
+    assert has_element?(view, "#operator-review-state-label", "Unreviewed")
+    refute has_element?(view, "#escalate-asset-review[disabled]")
+
+    view
+    |> element("#escalate-asset-review")
+    |> render_click()
+
+    assert has_element?(view, "#risk-recommendation-label", "Watch")
+    assert has_element?(view, "#operator-review-state-label", "Escalated")
+    assert has_element?(view, "#escalate-asset-review[disabled]")
+    assert has_element?(view, "#event-row-event-review-escalated-asset-003")
+    assert has_element?(view, "#event-row-event-review-escalated-asset-003", "Review escalated")
+  end
+
+  test "resets operator review state when a reviewed asset scenario changes", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#mark-asset-reviewed")
+    |> render_click()
+
+    assert has_element?(view, "#operator-review-state-label", "Reviewed")
+
+    view
+    |> element("#apply-price-shock")
+    |> render_click()
+
+    assert has_element?(view, "#risk-recommendation-label", "Manual review")
+    assert has_element?(view, "#operator-review-state-label", "Unreviewed")
   end
 
   test "applies a price shock to the selected asset", %{conn: conn} do

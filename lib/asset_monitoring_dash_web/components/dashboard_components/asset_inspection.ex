@@ -6,6 +6,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
   use Phoenix.Component
 
   alias AssetMonitoringDashWeb.DashboardComponents.AssetTrend
+  alias AssetMonitoringDashWeb.DashboardComponents.ReviewWorkflowPanel
   alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.EntityIdentity
@@ -13,7 +14,9 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
   attr :asset, :map, required: true
   attr :health_factor, :string, required: true
   attr :ltv_trend, :list, required: true
+  attr :risk_recommendation, :map, required: true
   attr :risk_explanation, :map, required: true
+  attr :review_state, :map, required: true
 
   slot :actions
 
@@ -83,6 +86,11 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
           </div>
         </div>
       </div>
+
+      <ReviewWorkflowPanel.render
+        recommendation={@risk_recommendation}
+        review_state={@review_state}
+      />
 
       <AssetTrend.render points={@ltv_trend} />
 
