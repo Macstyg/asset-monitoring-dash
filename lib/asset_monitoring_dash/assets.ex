@@ -20,7 +20,9 @@ defmodule AssetMonitoringDash.Assets do
   ]
   @at_risk_bands ["Elevated", "Critical"]
 
-  def list_assets, do: DemoData.monitored_assets()
+  def list_assets do
+    Enum.map(DemoData.monitored_assets(), &normalize_risk_fields/1)
+  end
 
   def list_assets(filters) do
     filter_assets(list_assets(), filters)
@@ -136,6 +138,18 @@ defmodule AssetMonitoringDash.Assets do
 
   defp normalize_chain_filter_value(nil), do: "All chains"
   defp normalize_chain_filter_value(chain), do: chain
+
+  defp normalize_risk_fields(asset) do
+    ltv_percent = Float.round(Risk.ltv_percent(asset), 1)
+    risk_score = Risk.risk_score(%{asset | ltv_percent: ltv_percent})
+
+    %{
+      asset
+      | ltv_percent: ltv_percent,
+        risk_score: risk_score,
+        risk_band: Risk.risk_band(risk_score)
+    }
+  end
 
   defp apply_asset_price_drop(%{id: asset_id} = asset, asset_id, drop_percent) do
     value_multiplier = 1 - drop_percent / 100

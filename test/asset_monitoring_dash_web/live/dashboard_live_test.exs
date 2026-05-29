@@ -175,7 +175,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
     assert has_element?(view, "#asset-inspection", "$7,020")
-    assert has_element?(view, "#asset-inspection", "92/100")
+    assert has_element?(view, "#asset-inspection", "94/100")
   end
 
   test "applies a price shock to the selected asset", %{conn: conn} do
@@ -222,7 +222,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-001", "$4,860")
     assert has_element?(view, "#asset-row-asset-001", "59.7%")
     assert has_element?(view, "#asset-inspection", "$4,860")
-    assert has_element?(view, "#asset-inspection", "64/100")
+    assert has_element?(view, "#asset-inspection", "70/100")
     assert has_element?(view, "#asset-summary-value", "$69,485")
     refute has_element?(view, "#apply-price-shock[disabled]")
     assert has_element?(view, "#reset-asset-scenario[disabled]")

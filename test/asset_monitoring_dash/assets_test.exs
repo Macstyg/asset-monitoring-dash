@@ -12,6 +12,14 @@ defmodule AssetMonitoringDash.AssetsTest do
       assert Enum.any?(assets, &(&1.id == "asset-010"))
     end
 
+    test "derives loan risk fields from current value and loan value" do
+      asset = Assets.get_asset("asset-001")
+
+      assert asset.ltv_percent == 59.7
+      assert asset.risk_score == 70
+      assert asset.risk_band == "Elevated"
+    end
+
     test "filters by risk band" do
       filters = %{Assets.default_filters() | risk: "Critical"}
 
@@ -61,7 +69,7 @@ defmodule AssetMonitoringDash.AssetsTest do
       |> Assets.apply_price_drop("asset-001", 12)
       |> Assets.reset_asset("asset-001")
 
-    assert %{current_value_usd: 4_860, ltv_percent: 59.7, risk_score: 64} =
+    assert %{current_value_usd: 4_860, ltv_percent: 59.7, risk_score: 70} =
              Assets.get_asset(assets, "asset-001")
   end
 
