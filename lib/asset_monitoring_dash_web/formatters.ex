@@ -18,6 +18,16 @@ defmodule AssetMonitoringDashWeb.Formatters do
   def signed_percent(value) when value > 0, do: "+#{decimal(value)}%"
   def signed_percent(value), do: "#{decimal(value)}%"
 
+  def duration_seconds(value) when is_integer(value) and value < 60, do: "#{value}s"
+
+  def duration_seconds(value) when is_integer(value) and value < 3_600 do
+    "#{div(value, 60)}m"
+  end
+
+  def duration_seconds(value) when is_integer(value) do
+    "#{div(value, 3_600)}h"
+  end
+
   def decimal(value) do
     :erlang.float_to_binary(value / 1, decimals: 1)
   end

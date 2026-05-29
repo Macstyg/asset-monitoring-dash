@@ -20,6 +20,13 @@ defmodule AssetMonitoringDash.AssetsTest do
       assert asset.risk_band == "Elevated"
     end
 
+    test "derives oracle status from freshness seconds" do
+      assert Assets.oracle_status(24) == "Fresh"
+      assert Assets.oracle_status(184) == "Delayed"
+      assert Assets.oracle_status(620) == "Stale"
+      assert Assets.get_asset("asset-004").oracle_status == "Stale"
+    end
+
     test "filters by risk band" do
       filters = %{Assets.default_filters() | risk: "Critical"}
 

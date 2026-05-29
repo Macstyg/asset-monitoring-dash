@@ -46,6 +46,15 @@ defmodule AssetMonitoringDash.RiskRecommendation do
   def recommendation(:manual_review), do: @recommendations.manual_review
   def recommendation(:liquidation_candidate), do: @recommendations.liquidation_candidate
 
+  defp recommendation_id(%{oracle_status: "Stale", risk_band: risk_band})
+       when risk_band in ["Moderate", "Elevated", "Critical"],
+       do: :manual_review
+
+  defp recommendation_id(%{oracle_status: "Stale"}), do: :watch
+
+  defp recommendation_id(%{oracle_status: "Delayed", risk_band: "Critical"}),
+    do: :manual_review
+
   defp recommendation_id(%{risk_band: "Critical"} = asset) do
     asset
     |> Risk.health_factor()

@@ -32,6 +32,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#review-workflow-panel")
     assert has_element?(view, "#risk-recommendation-label", "Manual review")
     assert has_element?(view, "#operator-review-state-label", "Unreviewed")
+    assert has_element?(view, "#asset-inspection", "Oracle")
+    assert has_element?(view, "#asset-inspection", "Fresh")
+    assert has_element?(view, "#asset-inspection", "24s ago")
     assert has_element?(view, "#risk-explanation")
     assert has_element?(view, "#asset-ltv-trend")
     assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
@@ -202,6 +205,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
     assert has_element?(view, "#asset-inspection", "$7,020")
     assert has_element?(view, "#asset-inspection", "94/100")
+    assert has_element?(view, "#asset-inspection", "Stale")
+    assert has_element?(view, "#asset-inspection", "12m ago")
+    assert has_element?(view, "#risk-recommendation-label", "Manual review")
   end
 
   test "updates operator review state without changing system recommendation", %{conn: conn} do

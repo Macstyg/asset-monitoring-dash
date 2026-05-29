@@ -19,6 +19,8 @@ defmodule AssetMonitoringDash.Assets do
     {"Critical", "Critical"}
   ]
   @at_risk_bands ["Elevated", "Critical"]
+  @fresh_oracle_max_seconds 60
+  @delayed_oracle_max_seconds 300
   @ltv_trend_offsets %{
     "asset-001" => [-3.2, -2.4, -1.9, -1.1, -0.8, -0.3],
     "asset-002" => [-1.0, 0.7, -0.2, 1.6, 2.1, 1.2],
@@ -110,6 +112,14 @@ defmodule AssetMonitoringDash.Assets do
     [{"All chains", "All chains"} | Enum.map(chains, &{&1, &1})]
   end
 
+  def oracle_status(freshness_seconds) when freshness_seconds <= @fresh_oracle_max_seconds,
+    do: "Fresh"
+
+  def oracle_status(freshness_seconds) when freshness_seconds <= @delayed_oracle_max_seconds,
+    do: "Delayed"
+
+  def oracle_status(_freshness_seconds), do: "Stale"
+
   defp filter_assets_by_query(assets, ""), do: assets
 
   defp filter_assets_by_query(assets, query) do
@@ -180,12 +190,13 @@ defmodule AssetMonitoringDash.Assets do
     ltv_percent = Float.round(Risk.ltv_percent(asset), 1)
     risk_score = Risk.risk_score(%{asset | ltv_percent: ltv_percent})
 
-    %{
-      asset
-      | ltv_percent: ltv_percent,
-        risk_score: risk_score,
-        risk_band: Risk.risk_band(risk_score)
-    }
+    asset
+    |> Map.merge(%{
+      ltv_percent: ltv_percent,
+      risk_score: risk_score,
+      risk_band: Risk.risk_band(risk_score)
+    })
+    |> Map.put(:oracle_status, oracle_status(asset.oracle_freshness_seconds))
   end
 
   defp apply_asset_price_drop(%{id: asset_id} = asset, asset_id, drop_percent) do
@@ -195,12 +206,13 @@ defmodule AssetMonitoringDash.Assets do
     ltv_percent = Float.round(Risk.ltv_percent(repriced_asset), 1)
     risk_score = Risk.risk_score(repriced_asset)
 
-    %{
-      repriced_asset
-      | ltv_percent: ltv_percent,
-        risk_score: risk_score,
-        risk_band: Risk.risk_band(risk_score)
-    }
+    repriced_asset
+    |> Map.merge(%{
+      ltv_percent: ltv_percent,
+      risk_score: risk_score,
+      risk_band: Risk.risk_band(risk_score)
+    })
+    |> Map.put(:oracle_status, oracle_status(repriced_asset.oracle_freshness_seconds))
   end
 
   defp apply_asset_price_drop(asset, _asset_id, _drop_percent), do: asset

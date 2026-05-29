@@ -69,6 +69,20 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
             {@health_factor}
           </dd>
         </div>
+        <div class="rounded-app border border-app-border bg-app-surface-2 p-3">
+          <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Oracle</dt>
+          <dd class="mt-2 flex flex-wrap items-center gap-2">
+            <span class={[
+              "rounded-full px-2 py-0.5 font-mono text-xs font-semibold ring-1 ring-inset",
+              oracle_class(@asset.oracle_status)
+            ]}>
+              {@asset.oracle_status}
+            </span>
+            <span class="font-mono text-xs text-app-muted">
+              {Formatters.duration_seconds(@asset.oracle_freshness_seconds)} ago
+            </span>
+          </dd>
+        </div>
       </dl>
 
       <div class="mt-4 rounded-app border border-app-border bg-app-surface-2 p-3">
@@ -134,4 +148,9 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
   defp reason_class(:warning), do: "bg-app-warn/10 text-app-warn ring-app-warn/25"
   defp reason_class(:success), do: "bg-app-accent/10 text-app-accent ring-app-accent/20"
   defp reason_class(:neutral), do: "bg-app-bg text-app-muted ring-app-border"
+
+  defp oracle_class("Fresh"), do: "bg-app-accent/10 text-app-accent ring-app-accent/20"
+  defp oracle_class("Delayed"), do: "bg-app-warn/10 text-app-warn ring-app-warn/25"
+  defp oracle_class("Stale"), do: "bg-app-danger/10 text-app-danger ring-app-danger/25"
+  defp oracle_class(_status), do: "bg-app-bg text-app-muted ring-app-border"
 end
