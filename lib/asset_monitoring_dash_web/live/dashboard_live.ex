@@ -31,6 +31,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:page_title, "Asset Risk Cockpit")
       |> assign(:snapshot, snapshot)
       |> assign(:metric_cards, metric_cards(snapshot))
+      |> assign(:all_assets, assets)
+      |> assign(:shocked_asset_ids, MapSet.new())
       |> assign(:asset_count, length(assets))
       |> assign(:asset_summary, Assets.summarize_assets(assets))
       |> assign(:event_count, length(events))
@@ -53,7 +55,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_event("filter_assets", %{"filters" => params}, socket) do
     filters = Assets.normalize_filters(params, socket.assigns.asset_filters)
-    assets = Assets.list_assets(filters)
+    assets = Assets.filter_assets(socket.assigns.all_assets, filters)
     selected_asset = selected_asset_for_filter(socket.assigns.selected_asset, assets)
 
     socket =
@@ -71,7 +73,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_event("reset_asset_filters", _params, socket) do
     filters = Assets.default_filters()
-    assets = Assets.list_assets(filters)
+    assets = Assets.filter_assets(socket.assigns.all_assets, filters)
 
     socket =
       socket
@@ -87,9 +89,14 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_event("select_asset", %{"id" => asset_id}, socket) do
-    selected_asset = Assets.get_asset(asset_id)
+    selected_asset = Assets.get_asset(socket.assigns.all_assets, asset_id)
 
     {:noreply, select_asset(socket, selected_asset)}
+  end
+
+  @impl true
+  def handle_event("apply_price_shock", _params, socket) do
+    {:noreply, apply_price_shock(socket)}
   end
 
   @impl true
@@ -174,20 +181,66 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp select_asset(socket, selected_asset) do
     socket
     |> assign_selected_asset(selected_asset)
-    |> stream(:assets, Assets.list_assets(socket.assigns.asset_filters), reset: true)
+    |> refresh_visible_assets()
+  end
+
+  defp apply_price_shock(%{assigns: %{selected_asset: nil}} = socket), do: socket
+
+  defp apply_price_shock(socket) do
+    already_shocked? =
+      MapSet.member?(
+        socket.assigns.shocked_asset_ids,
+        socket.assigns.selected_asset.id
+      )
+
+    apply_price_shock(socket, already_shocked?)
+  end
+
+  defp apply_price_shock(socket, true), do: socket
+
+  defp apply_price_shock(socket, false) do
+    asset_id = socket.assigns.selected_asset.id
+
+    all_assets =
+      Assets.apply_price_drop(
+        socket.assigns.all_assets,
+        asset_id,
+        12
+      )
+
+    selected_asset = Assets.get_asset(all_assets, asset_id)
+
+    socket
+    |> assign(:all_assets, all_assets)
+    |> assign(:shocked_asset_ids, MapSet.put(socket.assigns.shocked_asset_ids, asset_id))
+    |> assign_selected_asset(selected_asset)
+    |> refresh_visible_assets()
+  end
+
+  defp refresh_visible_assets(socket) do
+    assets = Assets.filter_assets(socket.assigns.all_assets, socket.assigns.asset_filters)
+
+    socket
+    |> assign(:asset_count, length(assets))
+    |> assign(:asset_summary, Assets.summarize_assets(assets))
+    |> stream(:assets, assets, reset: true)
   end
 
   defp assign_selected_asset(socket, nil) do
     socket
     |> assign(:selected_asset, nil)
     |> assign(:selected_asset_id, nil)
+    |> assign(:selected_asset_shocked?, false)
     |> assign(:selected_asset_health_factor, nil)
   end
 
   defp assign_selected_asset(socket, asset) do
+    shocked_asset_ids = Map.get(socket.assigns, :shocked_asset_ids, MapSet.new())
+
     socket
     |> assign(:selected_asset, asset)
     |> assign(:selected_asset_id, asset.id)
+    |> assign(:selected_asset_shocked?, MapSet.member?(shocked_asset_ids, asset.id))
     |> assign(
       :selected_asset_health_factor,
       asset |> Risk.health_factor() |> Formatters.decimal()

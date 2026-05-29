@@ -162,7 +162,17 @@
             :if={@selected_asset}
             asset={@selected_asset}
             health_factor={@selected_asset_health_factor}
-          />
+          >
+            <:actions>
+              <Button.render
+                id="apply-price-shock"
+                phx-click="apply_price_shock"
+                disabled={@selected_asset_shocked?}
+              >
+                {if(@selected_asset_shocked?, do: "Shock applied", else: "Apply 12% price shock")}
+              </Button.render>
+            </:actions>
+          </AssetInspection.render>
 
           <section
             id="event-feed"

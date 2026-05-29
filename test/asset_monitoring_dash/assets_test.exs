@@ -36,6 +36,25 @@ defmodule AssetMonitoringDash.AssetsTest do
     assert is_nil(Assets.get_asset("missing-asset"))
   end
 
+  test "gets one asset by id from a supplied asset book" do
+    assets = Assets.list_assets()
+
+    assert %{name: "Aegis Dragon Helm"} = Assets.get_asset(assets, "asset-001")
+    assert is_nil(Assets.get_asset(assets, "missing-asset"))
+  end
+
+  test "applies a price drop and recalculates loan risk fields" do
+    [asset] =
+      Assets.list_assets()
+      |> Assets.apply_price_drop("asset-001", 12)
+      |> Enum.filter(&(&1.id == "asset-001"))
+
+    assert asset.current_value_usd == 4_277
+    assert asset.ltv_percent == 67.8
+    assert asset.risk_score == 80
+    assert asset.risk_band == "Elevated"
+  end
+
   test "summarizes a list of visible assets" do
     summary =
       Assets.default_filters()

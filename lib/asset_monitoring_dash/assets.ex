@@ -8,6 +8,7 @@ defmodule AssetMonitoringDash.Assets do
   """
 
   alias AssetMonitoringDash.DemoData
+  alias AssetMonitoringDash.Risk
 
   @default_filters %{query: "", risk: "All", chain: "All chains"}
   @risk_filter_options [
@@ -22,7 +23,11 @@ defmodule AssetMonitoringDash.Assets do
   def list_assets, do: DemoData.monitored_assets()
 
   def list_assets(filters) do
-    list_assets()
+    filter_assets(list_assets(), filters)
+  end
+
+  def filter_assets(assets, filters) do
+    assets
     |> filter_assets_by_query(filters.query)
     |> filter_assets_by_risk(filters.risk)
     |> filter_assets_by_chain(filters.chain)
@@ -30,6 +35,14 @@ defmodule AssetMonitoringDash.Assets do
 
   def get_asset(asset_id) do
     Enum.find(list_assets(), &(&1.id == asset_id))
+  end
+
+  def get_asset(assets, asset_id) do
+    Enum.find(assets, &(&1.id == asset_id))
+  end
+
+  def apply_price_drop(assets, asset_id, drop_percent) do
+    Enum.map(assets, &apply_asset_price_drop(&1, asset_id, drop_percent))
   end
 
   def summarize_assets(assets) do
@@ -117,6 +130,23 @@ defmodule AssetMonitoringDash.Assets do
 
   defp normalize_chain_filter_value(nil), do: "All chains"
   defp normalize_chain_filter_value(chain), do: chain
+
+  defp apply_asset_price_drop(%{id: asset_id} = asset, asset_id, drop_percent) do
+    value_multiplier = 1 - drop_percent / 100
+    current_value_usd = round(asset.current_value_usd * value_multiplier)
+    repriced_asset = %{asset | current_value_usd: current_value_usd}
+    ltv_percent = Float.round(Risk.ltv_percent(repriced_asset), 1)
+    risk_score = Risk.risk_score(repriced_asset)
+
+    %{
+      repriced_asset
+      | ltv_percent: ltv_percent,
+        risk_score: risk_score,
+        risk_band: Risk.risk_band(risk_score)
+    }
+  end
+
+  defp apply_asset_price_drop(asset, _asset_id, _drop_percent), do: asset
 
   defp total_value_usd(assets) do
     Enum.sum(Enum.map(assets, & &1.current_value_usd))

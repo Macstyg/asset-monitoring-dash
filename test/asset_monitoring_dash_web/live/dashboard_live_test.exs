@@ -173,6 +173,30 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-inspection", "92/100")
   end
 
+  test "applies a price shock to the selected asset", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#asset-row-asset-001", "$4,860")
+    assert has_element?(view, "#asset-row-asset-001", "59.7%")
+    refute has_element?(view, "#apply-price-shock[disabled]")
+
+    view
+    |> element("#apply-price-shock")
+    |> render_click()
+
+    assert has_element?(view, "#asset-row-asset-001", "$4,277")
+    assert has_element?(view, "#asset-row-asset-001", "67.8%")
+    assert has_element?(view, "#asset-inspection", "$4,277")
+    assert has_element?(view, "#asset-inspection", "80/100")
+    assert has_element?(view, "#asset-summary-value", "$68,902")
+    assert has_element?(view, "#apply-price-shock[disabled]", "Shock applied")
+
+    render_click(view, :apply_price_shock)
+
+    assert has_element?(view, "#asset-row-asset-001", "$4,277")
+    assert has_element?(view, "#asset-summary-value", "$68,902")
+  end
+
   test "pushes and pauses demo events", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 

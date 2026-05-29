@@ -12,6 +12,8 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
   attr :asset, :map, required: true
   attr :health_factor, :string, required: true
 
+  slot :actions
+
   def render(assigns) do
     ~H"""
     <section
@@ -24,6 +26,10 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
           <p class="mt-1 text-sm text-app-muted">Collateral position detail and review signals.</p>
         </div>
         <RiskBadge.render label={@asset.risk_band} />
+      </div>
+
+      <div :if={@actions != []} class="mt-4 flex flex-wrap gap-2">
+        {render_slot(@actions)}
       </div>
 
       <EntityIdentity.render
