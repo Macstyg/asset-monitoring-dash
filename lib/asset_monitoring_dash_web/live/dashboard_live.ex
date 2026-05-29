@@ -4,6 +4,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @event_tick_interval_ms 4_000
   @max_visible_events 6
 
+  alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
@@ -19,7 +20,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     snapshot = DemoData.portfolio_snapshot()
-    assets = DemoData.monitored_assets()
+    assets = Assets.list_assets()
     events = DemoData.live_events()
 
     socket =
@@ -33,10 +34,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:event_count, length(events))
       |> assign(:feed_paused, false)
       |> assign(:next_event_index, 0)
-      |> assign(:chain_filter_options, chain_filter_options(assets))
-      |> assign(:asset_filters, default_asset_filters())
-      |> assign(:filter_form, filter_form(default_asset_filters()))
-      |> assign(:risk_filter_options, risk_filter_options())
+      |> assign(:chain_filter_options, Assets.chain_filter_options())
+      |> assign(:asset_filters, Assets.default_filters())
+      |> assign(:filter_form, filter_form(Assets.default_filters()))
+      |> assign(:risk_filter_options, Assets.risk_filter_options())
       |> assign(:visible_events, events)
       |> assign_selected_asset(List.first(assets))
       |> stream(:assets, assets)
@@ -49,8 +50,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_event("filter_assets", %{"filters" => params}, socket) do
-    filters = normalize_asset_filters(params, socket.assigns.asset_filters)
-    assets = filtered_assets(filters)
+    filters = Assets.normalize_filters(params, socket.assigns.asset_filters)
+    assets = Assets.list_assets(filters)
     selected_asset = selected_asset_for_filter(socket.assigns.selected_asset, assets)
 
     socket =
@@ -66,8 +67,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_event("reset_asset_filters", _params, socket) do
-    filters = default_asset_filters()
-    assets = filtered_assets(filters)
+    filters = Assets.default_filters()
+    assets = Assets.list_assets(filters)
 
     socket =
       socket
@@ -82,7 +83,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_event("select_asset", %{"id" => asset_id}, socket) do
-    selected_asset = Enum.find(DemoData.monitored_assets(), &(&1.id == asset_id))
+    selected_asset = Assets.get_asset(asset_id)
 
     {:noreply, select_asset(socket, selected_asset)}
   end
@@ -147,95 +148,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     ]
   end
 
-  defp filtered_assets(filters) do
-    DemoData.monitored_assets()
-    |> filter_assets_by_query(filters.query)
-    |> filter_assets_by_risk(filters.risk)
-    |> filter_assets_by_chain(filters.chain)
-  end
-
-  defp filter_assets_by_query(assets, ""), do: assets
-
-  defp filter_assets_by_query(assets, query) do
-    Enum.filter(assets, &asset_matches_query?(&1, query))
-  end
-
-  defp asset_matches_query?(asset, query) do
-    [
-      asset.name,
-      asset.asset_type,
-      asset.chain,
-      asset.ecosystem,
-      asset.rarity,
-      asset.risk_band
-    ]
-    |> Enum.any?(&String.contains?(String.downcase(&1), query))
-  end
-
-  defp filter_assets_by_risk(assets, "All"), do: assets
-
-  defp filter_assets_by_risk(assets, risk_filter),
-    do: Enum.filter(assets, &(&1.risk_band == risk_filter))
-
-  defp filter_assets_by_chain(assets, "All chains"), do: assets
-
-  defp filter_assets_by_chain(assets, chain_filter),
-    do: Enum.filter(assets, &(&1.chain == chain_filter))
-
-  defp normalize_asset_filters(params, current_filters) do
-    %{
-      query: normalize_query(Map.get(params, "query", current_filters.query)),
-      risk: normalize_risk_filter(Map.get(params, "risk", current_filters.risk)),
-      chain: normalize_chain_filter(Map.get(params, "chain", current_filters.chain))
-    }
-  end
-
-  defp normalize_query(query) do
-    query
-    |> String.trim()
-    |> String.downcase()
-  end
-
-  defp normalize_risk_filter(risk)
-       when risk in ["All", "Low", "Moderate", "Elevated", "Critical"],
-       do: risk
-
-  defp normalize_risk_filter(_risk), do: "All"
-
-  defp normalize_chain_filter("All chains"), do: "All chains"
-
-  defp normalize_chain_filter(chain) do
-    DemoData.monitored_assets()
-    |> Enum.map(& &1.chain)
-    |> Enum.find(&(&1 == chain))
-    |> normalize_chain_filter_value()
-  end
-
-  defp normalize_chain_filter_value(nil), do: "All chains"
-  defp normalize_chain_filter_value(chain), do: chain
-
-  defp risk_filter_options do
-    [
-      {"All risk tiers", "All"},
-      {"Low", "Low"},
-      {"Moderate", "Moderate"},
-      {"Elevated", "Elevated"},
-      {"Critical", "Critical"}
-    ]
-  end
-
-  defp chain_filter_options(assets) do
-    chains =
-      assets
-      |> Enum.map(& &1.chain)
-      |> Enum.uniq()
-      |> Enum.sort()
-
-    [{"All chains", "All chains"} | Enum.map(chains, &{&1, &1})]
-  end
-
-  defp default_asset_filters, do: %{query: "", risk: "All", chain: "All chains"}
-
   defp filter_form(filters) do
     to_form(
       %{
@@ -258,7 +170,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp select_asset(socket, selected_asset) do
     socket
     |> assign_selected_asset(selected_asset)
-    |> stream(:assets, filtered_assets(socket.assigns.asset_filters), reset: true)
+    |> stream(:assets, Assets.list_assets(socket.assigns.asset_filters), reset: true)
   end
 
   defp assign_selected_asset(socket, nil) do
