@@ -84,6 +84,13 @@
               field={@filter_form[:chain]}
               options={@chain_filter_options}
             />
+            <Button.render
+              id="reset-asset-filters"
+              phx-click="reset_asset_filters"
+              class="h-11 rounded-app px-4"
+            >
+              Reset
+            </Button.render>
           </FilterBar.render>
 
           <Table.render

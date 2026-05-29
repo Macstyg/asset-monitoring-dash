@@ -20,7 +20,7 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
       for={@form}
       id={@id}
       class={[
-        "grid gap-3 lg:grid-cols-[minmax(240px,1fr)_180px_180px]",
+        "grid gap-3 lg:grid-cols-[minmax(240px,1fr)_180px_180px_auto]",
         @class
       ]}
       {@rest}

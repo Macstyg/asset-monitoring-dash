@@ -65,6 +65,22 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   @impl true
+  def handle_event("reset_asset_filters", _params, socket) do
+    filters = default_asset_filters()
+    assets = filtered_assets(filters)
+
+    socket =
+      socket
+      |> assign(:asset_count, length(assets))
+      |> assign(:asset_filters, filters)
+      |> assign(:filter_form, filter_form(filters))
+      |> assign_selected_asset(List.first(assets))
+      |> stream(:assets, assets, reset: true)
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("select_asset", %{"id" => asset_id}, socket) do
     selected_asset = Enum.find(DemoData.monitored_assets(), &(&1.id == asset_id))
 

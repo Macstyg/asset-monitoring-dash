@@ -20,6 +20,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#filters_query")
     assert has_element?(view, "#filters_risk")
     assert has_element?(view, "#filters_chain")
+    assert has_element?(view, "#reset-asset-filters")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, "#asset-inspection")
@@ -107,6 +108,27 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
     refute has_element?(view, "#asset-row-asset-001")
+  end
+
+  test "resets asset filters", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#asset-filters", %{
+      "filters" => %{"query" => "mech", "risk" => "Critical", "chain" => "Arbitrum"}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#asset-count", "1 monitored")
+
+    view
+    |> element("#reset-asset-filters")
+    |> render_click()
+
+    assert has_element?(view, "#asset-count", "12 monitored")
+    assert has_element?(view, "#asset-row-asset-001")
+    assert has_element?(view, "#asset-row-asset-010")
+    assert has_element?(view, "#asset-inspection", "Aegis Dragon Helm")
   end
 
   test "selects an asset for inspection", %{conn: conn} do
