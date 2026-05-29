@@ -27,6 +27,16 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.ReviewWorkflowPanel do
           <p id="risk-recommendation-detail" class="mt-2 text-xs leading-5 text-app-muted">
             {@recommendation.detail}
           </p>
+          <div id="risk-recommendation-reasons" class="mt-3 space-y-2">
+            <div
+              :for={reason <- @recommendation.reasons}
+              id={"risk-recommendation-reason-#{reason.id}"}
+              class="rounded-app border border-app-border bg-app-bg px-3 py-2"
+            >
+              <p class="text-xs font-semibold text-app-fg">{reason.label}</p>
+              <p class="mt-1 text-xs leading-5 text-app-muted">{reason.detail}</p>
+            </div>
+          </div>
         </div>
 
         <div>

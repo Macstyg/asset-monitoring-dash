@@ -14,6 +14,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDashWeb.DashboardComponents.EventItem
   alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
   alias AssetMonitoringDashWeb.Formatters
+  alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.EntityIdentity
@@ -47,7 +48,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:risk_filter_options, Assets.risk_filter_options())
       |> assign(:visible_events, events)
       |> assign_selected_asset(List.first(assets))
-      |> stream(:assets, assets)
+      |> stream(:assets, assets_for_table(assets))
       |> stream(:events, events)
 
     schedule_event_tick_for_connection(connected?(socket))
@@ -68,7 +69,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_filters, filters)
       |> assign(:filter_form, filter_form(filters))
       |> assign_selected_asset(selected_asset)
-      |> stream(:assets, assets, reset: true)
+      |> stream(:assets, assets_for_table(assets), reset: true)
 
     {:noreply, socket}
   end
@@ -85,7 +86,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_filters, filters)
       |> assign(:filter_form, filter_form(filters))
       |> assign_selected_asset(List.first(assets))
-      |> stream(:assets, assets, reset: true)
+      |> stream(:assets, assets_for_table(assets), reset: true)
 
     {:noreply, socket}
   end
@@ -317,7 +318,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     socket
     |> assign(:asset_count, length(assets))
     |> assign(:asset_summary, Assets.summarize_assets(assets))
-    |> stream(:assets, assets, reset: true)
+    |> stream(:assets, assets_for_table(assets), reset: true)
   end
 
   defp assign_selected_asset(socket, nil) do
@@ -354,6 +355,19 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     )
     |> assign(:selected_asset_ltv_trend, Assets.ltv_trend(asset))
     |> assign(:selected_asset_risk_explanation, Risk.explanation(asset))
+  end
+
+  defp assets_for_table(assets) do
+    Enum.map(assets, &asset_for_table/1)
+  end
+
+  defp asset_for_table(asset) do
+    recommendation = RiskRecommendation.recommendation_for(asset)
+
+    Map.merge(asset, %{
+      risk_recommendation: recommendation,
+      recommendation_reason: List.first(recommendation.reasons)
+    })
   end
 
   defp push_demo_event(socket) do

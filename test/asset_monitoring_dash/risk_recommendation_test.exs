@@ -7,28 +7,31 @@ defmodule AssetMonitoringDash.RiskRecommendationTest do
   test "derives system recommendation from the selected asset risk" do
     low_risk_asset = %{risk_band: "Low", oracle_status: "Fresh", liquidity_status: "Deep"}
 
-    assert RiskRecommendation.recommendation_for(low_risk_asset).id == :clear
-    assert RiskRecommendation.recommendation_for(Assets.get_asset("asset-003")).id == :watch
+    assert %{id: :clear, reasons: [%{id: :low_risk}]} =
+             RiskRecommendation.recommendation_for(low_risk_asset)
 
-    assert RiskRecommendation.recommendation_for(Assets.get_asset("asset-001")).id ==
-             :manual_review
+    assert %{id: :watch, reasons: [%{id: :moderate_risk}]} =
+             RiskRecommendation.recommendation_for(Assets.get_asset("asset-003"))
 
-    assert RiskRecommendation.recommendation_for(Assets.get_asset("asset-002")).id ==
-             :liquidation_candidate
+    assert %{id: :manual_review, reasons: [%{id: :elevated_risk}]} =
+             RiskRecommendation.recommendation_for(Assets.get_asset("asset-001"))
+
+    assert %{id: :liquidation_candidate, reasons: [%{id: :critical_health}]} =
+             RiskRecommendation.recommendation_for(Assets.get_asset("asset-002"))
   end
 
   test "routes stale oracle data to manual review instead of automatic escalation" do
     assert Assets.get_asset("asset-010").risk_band == "Critical"
     assert Assets.get_asset("asset-010").oracle_status == "Stale"
 
-    assert RiskRecommendation.recommendation_for(Assets.get_asset("asset-010")).id ==
-             :manual_review
+    assert %{id: :manual_review, reasons: [%{id: :stale_oracle}]} =
+             RiskRecommendation.recommendation_for(Assets.get_asset("asset-010"))
 
     assert Assets.get_asset("asset-004").risk_band == "Moderate"
     assert Assets.get_asset("asset-004").oracle_status == "Stale"
 
-    assert RiskRecommendation.recommendation_for(Assets.get_asset("asset-004")).id ==
-             :manual_review
+    assert %{id: :manual_review, reasons: [%{id: :stale_oracle}]} =
+             RiskRecommendation.recommendation_for(Assets.get_asset("asset-004"))
   end
 
   test "routes illiquid markets to manual review even with fresh oracle data" do
@@ -38,7 +41,8 @@ defmodule AssetMonitoringDash.RiskRecommendationTest do
     assert asset.oracle_status == "Fresh"
     assert asset.liquidity_status == "Illiquid"
 
-    assert RiskRecommendation.recommendation_for(asset).id == :manual_review
+    assert %{id: :manual_review, reasons: [%{id: :illiquid_market}]} =
+             RiskRecommendation.recommendation_for(asset)
   end
 
   test "routes low risk illiquid markets to watch" do
@@ -48,6 +52,7 @@ defmodule AssetMonitoringDash.RiskRecommendationTest do
     assert asset.oracle_status == "Fresh"
     assert asset.liquidity_status == "Illiquid"
 
-    assert RiskRecommendation.recommendation_for(asset).id == :watch
+    assert %{id: :watch, reasons: [%{id: :illiquid_market}]} =
+             RiskRecommendation.recommendation_for(asset)
   end
 end

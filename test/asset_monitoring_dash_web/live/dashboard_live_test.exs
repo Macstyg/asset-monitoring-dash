@@ -28,9 +28,13 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#reset-asset-filters")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
+    assert has_element?(view, "#asset-row-asset-012", "Manual review")
+    assert has_element?(view, "#asset-row-asset-012", "Illiquid market")
     assert has_element?(view, "#asset-inspection")
     assert has_element?(view, "#review-workflow-panel")
     assert has_element?(view, "#risk-recommendation-label", "Manual review")
+    assert has_element?(view, "#risk-recommendation-reasons")
+    assert has_element?(view, "#risk-recommendation-reason-elevated_risk", "Elevated risk")
     assert has_element?(view, "#operator-review-state-label", "Unreviewed")
     assert has_element?(view, "#asset-inspection", "Oracle")
     assert has_element?(view, "#asset-inspection", "Fresh")
@@ -213,6 +217,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-inspection", "Thin")
     assert has_element?(view, "#asset-inspection", "$5,900 depth")
     assert has_element?(view, "#risk-recommendation-label", "Manual review")
+    assert has_element?(view, "#risk-recommendation-reason-stale_oracle", "Stale oracle")
   end
 
   test "shows manual review when a fresh moderate asset is illiquid", %{conn: conn} do
@@ -227,6 +232,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-inspection", "Illiquid")
     assert has_element?(view, "#asset-inspection", "$3,900 depth")
     assert has_element?(view, "#risk-recommendation-label", "Manual review")
+    assert has_element?(view, "#risk-recommendation-reason-illiquid_market", "Illiquid market")
   end
 
   test "updates operator review state without changing system recommendation", %{conn: conn} do
