@@ -8,6 +8,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.EventFeed
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
+  alias AssetMonitoringDashWeb.DashboardComponents.AssetSummary
   alias AssetMonitoringDashWeb.DashboardComponents.EventItem
   alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
   alias AssetMonitoringDashWeb.Formatters
@@ -31,6 +32,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:snapshot, snapshot)
       |> assign(:metric_cards, metric_cards(snapshot))
       |> assign(:asset_count, length(assets))
+      |> assign(:asset_summary, Assets.summarize_assets(assets))
       |> assign(:event_count, length(events))
       |> assign(:feed_paused, false)
       |> assign(:next_event_index, 0)
@@ -57,6 +59,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     socket =
       socket
       |> assign(:asset_count, length(assets))
+      |> assign(:asset_summary, Assets.summarize_assets(assets))
       |> assign(:asset_filters, filters)
       |> assign(:filter_form, filter_form(filters))
       |> assign_selected_asset(selected_asset)
@@ -73,6 +76,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     socket =
       socket
       |> assign(:asset_count, length(assets))
+      |> assign(:asset_summary, Assets.summarize_assets(assets))
       |> assign(:asset_filters, filters)
       |> assign(:filter_form, filter_form(filters))
       |> assign_selected_asset(List.first(assets))

@@ -36,6 +36,30 @@ defmodule AssetMonitoringDash.AssetsTest do
     assert is_nil(Assets.get_asset("missing-asset"))
   end
 
+  test "summarizes a list of visible assets" do
+    summary =
+      Assets.default_filters()
+      |> Map.put(:risk, "Critical")
+      |> Assets.list_assets()
+      |> Assets.summarize_assets()
+
+    assert summary.visible_count == 2
+    assert summary.total_value_usd == 29_910
+    assert summary.at_risk_count == 2
+    assert_in_delta summary.average_ltv_percent, 77.65, 0.001
+    assert summary.highest_ltv_percent == 80.1
+  end
+
+  test "summarizes an empty asset list" do
+    assert Assets.summarize_assets([]) == %{
+             visible_count: 0,
+             total_value_usd: 0,
+             at_risk_count: 0,
+             average_ltv_percent: 0.0,
+             highest_ltv_percent: 0.0
+           }
+  end
+
   test "normalizes invalid filter values back to defaults" do
     filters =
       Assets.normalize_filters(

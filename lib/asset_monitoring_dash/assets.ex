@@ -17,6 +17,7 @@ defmodule AssetMonitoringDash.Assets do
     {"Elevated", "Elevated"},
     {"Critical", "Critical"}
   ]
+  @at_risk_bands ["Elevated", "Critical"]
 
   def list_assets, do: DemoData.monitored_assets()
 
@@ -29,6 +30,16 @@ defmodule AssetMonitoringDash.Assets do
 
   def get_asset(asset_id) do
     Enum.find(list_assets(), &(&1.id == asset_id))
+  end
+
+  def summarize_assets(assets) do
+    %{
+      visible_count: length(assets),
+      total_value_usd: total_value_usd(assets),
+      at_risk_count: at_risk_count(assets),
+      average_ltv_percent: average_ltv_percent(assets),
+      highest_ltv_percent: highest_ltv_percent(assets)
+    }
   end
 
   def default_filters, do: @default_filters
@@ -106,4 +117,29 @@ defmodule AssetMonitoringDash.Assets do
 
   defp normalize_chain_filter_value(nil), do: "All chains"
   defp normalize_chain_filter_value(chain), do: chain
+
+  defp total_value_usd(assets) do
+    Enum.sum(Enum.map(assets, & &1.current_value_usd))
+  end
+
+  defp at_risk_count(assets) do
+    Enum.count(assets, &(&1.risk_band in @at_risk_bands))
+  end
+
+  defp average_ltv_percent([]), do: 0.0
+
+  defp average_ltv_percent(assets) do
+    assets
+    |> Enum.map(& &1.ltv_percent)
+    |> Enum.sum()
+    |> Kernel./(length(assets))
+  end
+
+  defp highest_ltv_percent([]), do: 0.0
+
+  defp highest_ltv_percent(assets) do
+    assets
+    |> Enum.map(& &1.ltv_percent)
+    |> Enum.max()
+  end
 end
