@@ -35,6 +35,20 @@ defmodule AssetMonitoringDash.EventFeed do
     push_event(visible_events, event)
   end
 
+  def push_scenario_reset_event(visible_events, asset) do
+    event = %{
+      id: "event-reset-#{asset.id}",
+      time_label: "now",
+      title: "Scenario reset",
+      detail: "#{asset.name} restored to the baseline demo valuation.",
+      chain: asset.chain,
+      status: "synced",
+      tone: :success
+    }
+
+    push_event(visible_events, event)
+  end
+
   defp push_event(visible_events, event) do
     visible_events =
       [event | visible_events]
@@ -65,6 +79,14 @@ defmodule AssetMonitoringDash.EventFeed do
   end
 
   defp refresh_live_event_label(%{id: "event-shock-" <> _id} = event, index) do
+    %{event | time_label: "#{index * @event_tick_interval_seconds}s ago"}
+  end
+
+  defp refresh_live_event_label(%{id: "event-reset-" <> _id} = event, 0) do
+    %{event | time_label: "now"}
+  end
+
+  defp refresh_live_event_label(%{id: "event-reset-" <> _id} = event, index) do
     %{event | time_label: "#{index * @event_tick_interval_seconds}s ago"}
   end
 

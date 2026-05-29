@@ -100,6 +100,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   @impl true
+  def handle_event("reset_asset_scenario", _params, socket) do
+    {:noreply, reset_asset_scenario(socket)}
+  end
+
+  @impl true
   def handle_event("push_demo_event", _params, socket) do
     {:noreply, push_demo_event(socket)}
   end
@@ -214,6 +219,36 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     socket
     |> assign(:all_assets, all_assets)
     |> assign(:shocked_asset_ids, MapSet.put(socket.assigns.shocked_asset_ids, asset_id))
+    |> assign(:event_count, length(feed.visible_events))
+    |> assign(:visible_events, feed.visible_events)
+    |> assign_selected_asset(selected_asset)
+    |> stream(:events, feed.visible_events, reset: true)
+    |> refresh_visible_assets()
+  end
+
+  defp reset_asset_scenario(%{assigns: %{selected_asset: nil}} = socket), do: socket
+
+  defp reset_asset_scenario(socket) do
+    shocked? =
+      MapSet.member?(
+        socket.assigns.shocked_asset_ids,
+        socket.assigns.selected_asset.id
+      )
+
+    reset_asset_scenario(socket, shocked?)
+  end
+
+  defp reset_asset_scenario(socket, false), do: socket
+
+  defp reset_asset_scenario(socket, true) do
+    asset_id = socket.assigns.selected_asset.id
+    all_assets = Assets.reset_asset(socket.assigns.all_assets, asset_id)
+    selected_asset = Assets.get_asset(all_assets, asset_id)
+    feed = EventFeed.push_scenario_reset_event(socket.assigns.visible_events, selected_asset)
+
+    socket
+    |> assign(:all_assets, all_assets)
+    |> assign(:shocked_asset_ids, MapSet.delete(socket.assigns.shocked_asset_ids, asset_id))
     |> assign(:event_count, length(feed.visible_events))
     |> assign(:visible_events, feed.visible_events)
     |> assign_selected_asset(selected_asset)

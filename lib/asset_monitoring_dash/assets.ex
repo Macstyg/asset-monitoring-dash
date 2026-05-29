@@ -45,6 +45,12 @@ defmodule AssetMonitoringDash.Assets do
     Enum.map(assets, &apply_asset_price_drop(&1, asset_id, drop_percent))
   end
 
+  def reset_asset(assets, asset_id) do
+    original_asset = get_asset(asset_id)
+
+    Enum.map(assets, &reset_asset_value(&1, asset_id, original_asset))
+  end
+
   def summarize_assets(assets) do
     %{
       visible_count: length(assets),
@@ -147,6 +153,10 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   defp apply_asset_price_drop(asset, _asset_id, _drop_percent), do: asset
+
+  defp reset_asset_value(%{id: asset_id} = asset, asset_id, nil), do: asset
+  defp reset_asset_value(%{id: asset_id}, asset_id, original_asset), do: original_asset
+  defp reset_asset_value(asset, _asset_id, _original_asset), do: asset
 
   defp total_value_usd(assets) do
     Enum.sum(Enum.map(assets, & &1.current_value_usd))

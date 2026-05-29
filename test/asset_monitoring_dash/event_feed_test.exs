@@ -46,6 +46,26 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert length(feed.visible_events) == 6
   end
 
+  test "pushes a scenario reset event to explain restored state" do
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon"
+    }
+
+    feed = EventFeed.push_scenario_reset_event(EventFeed.initial_events(), asset)
+
+    assert [%{id: "event-reset-asset-001", time_label: "now"} = event | _events] =
+             feed.visible_events
+
+    assert event.title == "Scenario reset"
+    assert event.detail == "Aegis Dragon Helm restored to the baseline demo valuation."
+    assert event.chain == "Polygon"
+    assert event.status == "synced"
+    assert event.tone == :success
+    assert length(feed.visible_events) == 6
+  end
+
   test "keeps generated event labels relative and bounds visible history" do
     feed =
       0..2

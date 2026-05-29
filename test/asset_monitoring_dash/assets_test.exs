@@ -55,6 +55,16 @@ defmodule AssetMonitoringDash.AssetsTest do
     assert asset.risk_band == "Elevated"
   end
 
+  test "resets one changed asset back to its baseline values" do
+    assets =
+      Assets.list_assets()
+      |> Assets.apply_price_drop("asset-001", 12)
+      |> Assets.reset_asset("asset-001")
+
+    assert %{current_value_usd: 4_860, ltv_percent: 59.7, risk_score: 64} =
+             Assets.get_asset(assets, "asset-001")
+  end
+
   test "summarizes a list of visible assets" do
     summary =
       Assets.default_filters()

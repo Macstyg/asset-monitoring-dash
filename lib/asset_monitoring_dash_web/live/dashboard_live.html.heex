@@ -171,6 +171,13 @@
               >
                 {if(@selected_asset_shocked?, do: "Shock applied", else: "Apply 12% price shock")}
               </Button.render>
+              <Button.render
+                id="reset-asset-scenario"
+                phx-click="reset_asset_scenario"
+                disabled={!@selected_asset_shocked?}
+              >
+                Reset scenario
+              </Button.render>
             </:actions>
           </AssetInspection.render>
 

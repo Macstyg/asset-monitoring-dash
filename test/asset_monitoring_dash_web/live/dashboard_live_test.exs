@@ -179,6 +179,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-001", "$4,860")
     assert has_element?(view, "#asset-row-asset-001", "59.7%")
     refute has_element?(view, "#apply-price-shock[disabled]")
+    assert has_element?(view, "#reset-asset-scenario[disabled]")
 
     view
     |> element("#apply-price-shock")
@@ -198,6 +199,28 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     assert has_element?(view, "#asset-row-asset-001", "$4,277")
     assert has_element?(view, "#asset-summary-value", "$68,902")
+  end
+
+  test "resets a shocked asset scenario", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#apply-price-shock")
+    |> render_click()
+
+    view
+    |> element("#reset-asset-scenario")
+    |> render_click()
+
+    assert has_element?(view, "#asset-row-asset-001", "$4,860")
+    assert has_element?(view, "#asset-row-asset-001", "59.7%")
+    assert has_element?(view, "#asset-inspection", "$4,860")
+    assert has_element?(view, "#asset-inspection", "64/100")
+    assert has_element?(view, "#asset-summary-value", "$69,485")
+    refute has_element?(view, "#apply-price-shock[disabled]")
+    assert has_element?(view, "#reset-asset-scenario[disabled]")
+    assert has_element?(view, "#event-row-event-reset-asset-001")
+    assert has_element?(view, "#event-row-event-reset-asset-001", "Scenario reset")
   end
 
   test "pushes and pauses demo events", %{conn: conn} do
