@@ -64,4 +64,16 @@ defmodule AssetMonitoringDash.DemoDataTest do
     assert Enum.any?(events, &(&1.tone == :danger))
     assert Enum.any?(events, &(&1.title == "Floor oracle moved"))
   end
+
+  test "next live event returns deterministic unique feed items" do
+    first = DemoData.next_live_event(0)
+    second = DemoData.next_live_event(1)
+
+    assert first.id == "event-live-1"
+    assert first.time_label == "now"
+    assert first.title == "Oracle heartbeat"
+
+    assert second.id == "event-live-2"
+    assert second.title == "Collateral value drop"
+  end
 end

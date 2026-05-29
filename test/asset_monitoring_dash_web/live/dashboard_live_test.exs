@@ -21,6 +21,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, "#asset-inspection")
     assert has_element?(view, "#event-feed")
+    assert has_element?(view, "#event-count", "5 events")
+    assert has_element?(view, "#event-feed-state", "streaming")
     assert has_element?(view, "#event-list")
     assert has_element?(view, "#event-row-event-001")
     assert has_element?(view, "#event-row-event-004")
@@ -60,5 +62,41 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-inspection", "Ancient Mech Core")
     assert has_element?(view, "#asset-inspection", "$7,020")
     assert has_element?(view, "#asset-inspection", "92/100")
+  end
+
+  test "pushes and pauses demo events", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#push-demo-event")
+    |> render_click()
+
+    assert has_element?(view, "#event-count", "6 events")
+    assert has_element?(view, "#event-row-event-live-1")
+    assert has_element?(view, "#event-list", "Oracle heartbeat")
+
+    view
+    |> element("#toggle-event-feed")
+    |> render_click()
+
+    assert has_element?(view, "#event-feed-state", "paused")
+    assert has_element?(view, "#toggle-event-feed", "Resume feed")
+  end
+
+  test "keeps the visible event feed bounded", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    for _ <- 1..3 do
+      view
+      |> element("#push-demo-event")
+      |> render_click()
+    end
+
+    assert has_element?(view, "#event-count", "6 events")
+    assert has_element?(view, "#event-row-event-live-3")
+    assert has_element?(view, "#event-row-event-live-3", "now")
+    assert has_element?(view, "#event-row-event-live-2", "4s ago")
+    assert has_element?(view, "#event-row-event-live-1", "8s ago")
+    refute has_element?(view, "#event-row-event-005")
   end
 end

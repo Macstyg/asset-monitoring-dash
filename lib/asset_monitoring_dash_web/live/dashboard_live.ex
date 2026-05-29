@@ -1,12 +1,16 @@
 defmodule AssetMonitoringDashWeb.DashboardLive do
   use AssetMonitoringDashWeb, :live_view
 
+  @event_tick_interval_ms 4_000
+  @max_visible_events 6
+
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
   alias AssetMonitoringDashWeb.DashboardComponents.EventItem
   alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
   alias AssetMonitoringDashWeb.Formatters
+  alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.EntityIdentity
   alias AssetMonitoringDashWeb.UI.Table
@@ -26,11 +30,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:metric_cards, metric_cards(snapshot))
       |> assign(:asset_count, length(assets))
       |> assign(:event_count, length(events))
+      |> assign(:feed_paused, false)
+      |> assign(:next_event_index, 0)
       |> assign(:risk_filter, "All")
       |> assign(:risk_filter_options, risk_filter_options())
+      |> assign(:visible_events, events)
       |> assign_selected_asset(List.first(assets))
       |> stream(:assets, assets)
       |> stream(:events, events)
+
+    schedule_event_tick_for_connection(connected?(socket))
 
     {:ok, socket}
   end
@@ -55,16 +64,26 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   def handle_event("select_asset", %{"id" => asset_id}, socket) do
     selected_asset = Enum.find(DemoData.monitored_assets(), &(&1.id == asset_id))
 
-    socket =
-      if selected_asset do
-        socket
-        |> assign_selected_asset(selected_asset)
-        |> stream(:assets, filtered_assets(socket.assigns.risk_filter), reset: true)
-      else
-        socket
-      end
+    {:noreply, select_asset(socket, selected_asset)}
+  end
 
-    {:noreply, socket}
+  @impl true
+  def handle_event("push_demo_event", _params, socket) do
+    {:noreply, push_demo_event(socket)}
+  end
+
+  @impl true
+  def handle_event("toggle_event_feed", _params, socket) do
+    feed_paused = !socket.assigns.feed_paused
+
+    schedule_event_tick_for_feed(feed_paused)
+
+    {:noreply, assign(socket, :feed_paused, feed_paused)}
+  end
+
+  @impl true
+  def handle_info(:push_demo_event, socket) do
+    {:noreply, push_scheduled_demo_event(socket)}
   end
 
   defp metric_cards(snapshot) do
@@ -129,6 +148,14 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     Enum.find(assets, &(&1.id == selected_asset.id)) || List.first(assets)
   end
 
+  defp select_asset(socket, nil), do: socket
+
+  defp select_asset(socket, selected_asset) do
+    socket
+    |> assign_selected_asset(selected_asset)
+    |> stream(:assets, filtered_assets(socket.assigns.risk_filter), reset: true)
+  end
+
   defp assign_selected_asset(socket, nil) do
     socket
     |> assign(:selected_asset, nil)
@@ -144,5 +171,53 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       :selected_asset_health_factor,
       asset |> Risk.health_factor() |> Formatters.decimal()
     )
+  end
+
+  defp push_demo_event(socket) do
+    event = DemoData.next_live_event(socket.assigns.next_event_index)
+
+    visible_events =
+      [event | socket.assigns.visible_events]
+      |> Enum.take(@max_visible_events)
+      |> refresh_live_event_labels()
+
+    socket
+    |> assign(:event_count, length(visible_events))
+    |> assign(:next_event_index, socket.assigns.next_event_index + 1)
+    |> assign(:visible_events, visible_events)
+    |> stream(:events, visible_events, reset: true)
+  end
+
+  defp refresh_live_event_labels(events) do
+    events
+    |> Enum.with_index()
+    |> Enum.map(fn {event, index} -> refresh_live_event_label(event, index) end)
+  end
+
+  defp refresh_live_event_label(%{id: "event-live-" <> _id} = event, 0) do
+    %{event | time_label: "now"}
+  end
+
+  defp refresh_live_event_label(%{id: "event-live-" <> _id} = event, index) do
+    %{event | time_label: "#{index * 4}s ago"}
+  end
+
+  defp refresh_live_event_label(event, _index), do: event
+
+  defp push_scheduled_demo_event(%{assigns: %{feed_paused: true}} = socket), do: socket
+
+  defp push_scheduled_demo_event(%{assigns: %{feed_paused: false}} = socket) do
+    schedule_event_tick()
+    push_demo_event(socket)
+  end
+
+  defp schedule_event_tick_for_connection(true), do: schedule_event_tick()
+  defp schedule_event_tick_for_connection(false), do: :ok
+
+  defp schedule_event_tick_for_feed(false), do: schedule_event_tick()
+  defp schedule_event_tick_for_feed(true), do: :ok
+
+  defp schedule_event_tick do
+    Process.send_after(self(), :push_demo_event, @event_tick_interval_ms)
   end
 end

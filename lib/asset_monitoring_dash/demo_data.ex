@@ -71,6 +71,15 @@ defmodule AssetMonitoringDash.DemoData do
     ]
   end
 
+  def next_live_event(index) when is_integer(index) and index >= 0 do
+    templates = live_event_templates()
+    template = Enum.at(templates, rem(index, length(templates)))
+
+    template
+    |> Map.put(:id, "event-live-#{index + 1}")
+    |> Map.put(:time_label, "now")
+  end
+
   def monitored_assets do
     [
       %{
@@ -240,6 +249,39 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 50.7,
         risk_score: 44,
         risk_band: "Moderate"
+      }
+    ]
+  end
+
+  defp live_event_templates do
+    [
+      %{
+        title: "Oracle heartbeat",
+        detail: "Polygon and Base floor feeds confirmed within the freshness window.",
+        chain: "Multi-chain",
+        status: "live",
+        tone: :success
+      },
+      %{
+        title: "Collateral value drop",
+        detail: "Ancient Mech Core marked 4.8% lower after a thin marketplace sale.",
+        chain: "Arbitrum",
+        status: "watch",
+        tone: :warning
+      },
+      %{
+        title: "Liquidation review",
+        detail: "Citadel Founder Parcel entered manual review at 75.2% LTV.",
+        chain: "Ethereum",
+        status: "risk",
+        tone: :danger
+      },
+      %{
+        title: "Borrower top-up",
+        detail: "Skyforge borrower added Ronin Warbeast collateral to improve health.",
+        chain: "Ronin",
+        status: "synced",
+        tone: :success
       }
     ]
   end
