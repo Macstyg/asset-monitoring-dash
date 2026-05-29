@@ -24,6 +24,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-filters")
     assert has_element?(view, "#filters_query")
     assert has_element?(view, "#filters_risk")
+    assert has_element?(view, "#filters_action")
     assert has_element?(view, "#filters_chain")
     assert has_element?(view, "#reset-asset-filters")
     assert has_element?(view, "#asset-row-asset-001")
@@ -121,6 +122,43 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-row-asset-005")
     assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, "#asset-inspection", "Genesis Mana Vault")
+    refute has_element?(view, "#asset-row-asset-001")
+  end
+
+  test "filters monitored assets by recommendation action", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#asset-filters", %{
+      "filters" => %{
+        "query" => "",
+        "risk" => "All",
+        "action" => "manual_review",
+        "chain" => "All chains"
+      }
+    })
+    |> render_change()
+
+    assert has_element?(view, "#asset-count", "8 monitored")
+    assert has_element?(view, "#asset-row-asset-001", "Elevated risk")
+    assert has_element?(view, "#asset-row-asset-012", "Illiquid market")
+    assert has_element?(view, "#asset-inspection", "Aegis Dragon Helm")
+    refute has_element?(view, "#asset-row-asset-002")
+
+    view
+    |> form("#asset-filters", %{
+      "filters" => %{
+        "query" => "",
+        "risk" => "All",
+        "action" => "liquidation_candidate",
+        "chain" => "All chains"
+      }
+    })
+    |> render_change()
+
+    assert has_element?(view, "#asset-count", "1 monitored")
+    assert has_element?(view, "#asset-row-asset-002", "Liquidation candidate")
+    assert has_element?(view, "#asset-inspection", "Citadel Founder Parcel")
     refute has_element?(view, "#asset-row-asset-001")
   end
 

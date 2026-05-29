@@ -46,6 +46,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_filters, Assets.default_filters())
       |> assign(:filter_form, filter_form(Assets.default_filters()))
       |> assign(:risk_filter_options, Assets.risk_filter_options())
+      |> assign(:action_filter_options, Assets.action_filter_options())
       |> assign(:visible_events, events)
       |> assign_selected_asset(List.first(assets))
       |> stream(:assets, assets_for_table(assets))
@@ -183,7 +184,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       %{
         "query" => filters.query,
         "risk" => filters.risk,
-        "chain" => filters.chain
+        "chain" => filters.chain,
+        "action" => filters.action
       },
       as: :filters
     )

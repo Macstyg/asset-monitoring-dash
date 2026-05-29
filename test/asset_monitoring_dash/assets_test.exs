@@ -46,6 +46,26 @@ defmodule AssetMonitoringDash.AssetsTest do
       assert Enum.map(Assets.list_assets(filters), & &1.id) == ["asset-005", "asset-010"]
     end
 
+    test "filters by system recommendation action" do
+      manual_review_ids =
+        Assets.default_filters()
+        |> Map.put(:action, "manual_review")
+        |> Assets.list_assets()
+        |> Enum.map(& &1.id)
+
+      assert "asset-001" in manual_review_ids
+      assert "asset-012" in manual_review_ids
+      refute "asset-002" in manual_review_ids
+
+      liquidation_ids =
+        Assets.default_filters()
+        |> Map.put(:action, "liquidation_candidate")
+        |> Assets.list_assets()
+        |> Enum.map(& &1.id)
+
+      assert liquidation_ids == ["asset-002"]
+    end
+
     test "combines risk, chain, and query filters" do
       filters = %{query: "mech", risk: "Critical", chain: "Arbitrum"}
 
@@ -142,11 +162,12 @@ defmodule AssetMonitoringDash.AssetsTest do
         Assets.default_filters()
       )
 
-    assert filters == %{query: "mech", risk: "All", chain: "All chains"}
+    assert filters == %{query: "mech", risk: "All", chain: "All chains", action: "All"}
   end
 
   test "builds filter options from monitored assets" do
     assert {"All risk tiers", "All"} in Assets.risk_filter_options()
+    assert {"Manual review", "manual_review"} in Assets.action_filter_options()
     assert {"Arbitrum", "Arbitrum"} in Assets.chain_filter_options()
     assert {"Polygon", "Polygon"} in Assets.chain_filter_options()
   end

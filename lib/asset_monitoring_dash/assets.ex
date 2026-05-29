@@ -9,14 +9,22 @@ defmodule AssetMonitoringDash.Assets do
 
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.Risk
+  alias AssetMonitoringDash.RiskRecommendation
 
-  @default_filters %{query: "", risk: "All", chain: "All chains"}
+  @default_filters %{query: "", risk: "All", chain: "All chains", action: "All"}
   @risk_filter_options [
     {"All risk tiers", "All"},
     {"Low", "Low"},
     {"Moderate", "Moderate"},
     {"Elevated", "Elevated"},
     {"Critical", "Critical"}
+  ]
+  @action_filter_options [
+    {"All actions", "All"},
+    {"Manual review", "manual_review"},
+    {"Liquidation candidate", "liquidation_candidate"},
+    {"Watch", "watch"},
+    {"Clear", "clear"}
   ]
   @at_risk_bands ["Elevated", "Critical"]
   @fresh_oracle_max_seconds 60
@@ -51,6 +59,7 @@ defmodule AssetMonitoringDash.Assets do
     |> filter_assets_by_query(filters.query)
     |> filter_assets_by_risk(filters.risk)
     |> filter_assets_by_chain(filters.chain)
+    |> filter_assets_by_action(Map.get(filters, :action, "All"))
   end
 
   def get_asset(asset_id) do
@@ -98,11 +107,16 @@ defmodule AssetMonitoringDash.Assets do
     %{
       query: normalize_query(Map.get(params, "query", current_filters.query)),
       risk: normalize_risk_filter(Map.get(params, "risk", current_filters.risk)),
-      chain: normalize_chain_filter(Map.get(params, "chain", current_filters.chain))
+      chain: normalize_chain_filter(Map.get(params, "chain", current_filters.chain)),
+      action:
+        normalize_action_filter(
+          Map.get(params, "action", Map.get(current_filters, :action, "All"))
+        )
     }
   end
 
   def risk_filter_options, do: @risk_filter_options
+  def action_filter_options, do: @action_filter_options
 
   def chain_filter_options do
     chains =
@@ -158,6 +172,18 @@ defmodule AssetMonitoringDash.Assets do
   defp filter_assets_by_chain(assets, chain_filter),
     do: Enum.filter(assets, &(&1.chain == chain_filter))
 
+  defp filter_assets_by_action(assets, "All"), do: assets
+
+  defp filter_assets_by_action(assets, action_filter) do
+    Enum.filter(assets, fn asset ->
+      asset
+      |> RiskRecommendation.recommendation_for()
+      |> Map.fetch!(:id)
+      |> Atom.to_string()
+      |> Kernel.==(action_filter)
+    end)
+  end
+
   defp normalize_query(nil), do: ""
 
   defp normalize_query(query) do
@@ -171,6 +197,12 @@ defmodule AssetMonitoringDash.Assets do
        do: risk
 
   defp normalize_risk_filter(_risk), do: "All"
+
+  defp normalize_action_filter(action)
+       when action in ["All", "clear", "watch", "manual_review", "liquidation_candidate"],
+       do: action
+
+  defp normalize_action_filter(_action), do: "All"
 
   defp normalize_chain_filter("All chains"), do: "All chains"
 

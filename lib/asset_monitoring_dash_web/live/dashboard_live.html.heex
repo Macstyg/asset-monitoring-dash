@@ -81,6 +81,10 @@
               options={@risk_filter_options}
             />
             <FilterBar.select
+              field={@filter_form[:action]}
+              options={@action_filter_options}
+            />
+            <FilterBar.select
               field={@filter_form[:chain]}
               options={@chain_filter_options}
             />
