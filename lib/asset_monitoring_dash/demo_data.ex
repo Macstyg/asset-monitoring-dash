@@ -95,7 +95,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 59.7,
         risk_score: 64,
         risk_band: "Elevated",
-        oracle_freshness_seconds: 24
+        oracle_freshness_seconds: 24,
+        market_depth_usd: 42_000
       },
       %{
         id: "asset-002",
@@ -110,7 +111,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 75.2,
         risk_score: 88,
         risk_band: "Critical",
-        oracle_freshness_seconds: 32
+        oracle_freshness_seconds: 32,
+        market_depth_usd: 110_000
       },
       %{
         id: "asset-003",
@@ -125,7 +127,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 37.8,
         risk_score: 29,
         risk_band: "Low",
-        oracle_freshness_seconds: 18
+        oracle_freshness_seconds: 18,
+        market_depth_usd: 18_500
       },
       %{
         id: "asset-004",
@@ -140,7 +143,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 50.3,
         risk_score: 46,
         risk_band: "Moderate",
-        oracle_freshness_seconds: 620
+        oracle_freshness_seconds: 620,
+        market_depth_usd: 4_200
       },
       %{
         id: "asset-005",
@@ -155,7 +159,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 68.2,
         risk_score: 71,
         risk_band: "Elevated",
-        oracle_freshness_seconds: 184
+        oracle_freshness_seconds: 184,
+        market_depth_usd: 12_800
       },
       %{
         id: "asset-006",
@@ -170,7 +175,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 38.7,
         risk_score: 34,
         risk_band: "Low",
-        oracle_freshness_seconds: 760
+        oracle_freshness_seconds: 760,
+        market_depth_usd: 2_200
       },
       %{
         id: "asset-007",
@@ -185,7 +191,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 62.7,
         risk_score: 66,
         risk_band: "Elevated",
-        oracle_freshness_seconds: 41
+        oracle_freshness_seconds: 41,
+        market_depth_usd: 58_000
       },
       %{
         id: "asset-008",
@@ -200,7 +207,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 51.9,
         risk_score: 49,
         risk_band: "Moderate",
-        oracle_freshness_seconds: 216
+        oracle_freshness_seconds: 216,
+        market_depth_usd: 6_400
       },
       %{
         id: "asset-009",
@@ -215,7 +223,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 59.8,
         risk_score: 58,
         risk_band: "Moderate",
-        oracle_freshness_seconds: 58
+        oracle_freshness_seconds: 58,
+        market_depth_usd: 2_750
       },
       %{
         id: "asset-010",
@@ -230,7 +239,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 80.1,
         risk_score: 92,
         risk_band: "Critical",
-        oracle_freshness_seconds: 725
+        oracle_freshness_seconds: 725,
+        market_depth_usd: 5_900
       },
       %{
         id: "asset-011",
@@ -245,7 +255,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 26.4,
         risk_score: 18,
         risk_band: "Low",
-        oracle_freshness_seconds: 36
+        oracle_freshness_seconds: 36,
+        market_depth_usd: 1_100
       },
       %{
         id: "asset-012",
@@ -260,7 +271,8 @@ defmodule AssetMonitoringDash.DemoData do
         ltv_percent: 50.7,
         risk_score: 44,
         risk_band: "Moderate",
-        oracle_freshness_seconds: 91
+        oracle_freshness_seconds: 58,
+        market_depth_usd: 3_900
       }
     ]
   end

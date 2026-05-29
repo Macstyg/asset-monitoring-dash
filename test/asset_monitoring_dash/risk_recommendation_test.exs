@@ -5,7 +5,9 @@ defmodule AssetMonitoringDash.RiskRecommendationTest do
   alias AssetMonitoringDash.RiskRecommendation
 
   test "derives system recommendation from the selected asset risk" do
-    assert RiskRecommendation.recommendation_for(Assets.get_asset("asset-011")).id == :clear
+    low_risk_asset = %{risk_band: "Low", oracle_status: "Fresh", liquidity_status: "Deep"}
+
+    assert RiskRecommendation.recommendation_for(low_risk_asset).id == :clear
     assert RiskRecommendation.recommendation_for(Assets.get_asset("asset-003")).id == :watch
 
     assert RiskRecommendation.recommendation_for(Assets.get_asset("asset-001")).id ==
@@ -27,5 +29,25 @@ defmodule AssetMonitoringDash.RiskRecommendationTest do
 
     assert RiskRecommendation.recommendation_for(Assets.get_asset("asset-004")).id ==
              :manual_review
+  end
+
+  test "routes illiquid markets to manual review even with fresh oracle data" do
+    asset = Assets.get_asset("asset-012")
+
+    assert asset.risk_band == "Moderate"
+    assert asset.oracle_status == "Fresh"
+    assert asset.liquidity_status == "Illiquid"
+
+    assert RiskRecommendation.recommendation_for(asset).id == :manual_review
+  end
+
+  test "routes low risk illiquid markets to watch" do
+    asset = Assets.get_asset("asset-011")
+
+    assert asset.risk_band == "Low"
+    assert asset.oracle_status == "Fresh"
+    assert asset.liquidity_status == "Illiquid"
+
+    assert RiskRecommendation.recommendation_for(asset).id == :watch
   end
 end

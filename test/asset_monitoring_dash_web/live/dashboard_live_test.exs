@@ -35,6 +35,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-inspection", "Oracle")
     assert has_element?(view, "#asset-inspection", "Fresh")
     assert has_element?(view, "#asset-inspection", "24s ago")
+    assert has_element?(view, "#asset-inspection", "Liquidity")
+    assert has_element?(view, "#asset-inspection", "Deep")
+    assert has_element?(view, "#asset-inspection", "$42,000 depth")
     assert has_element?(view, "#risk-explanation")
     assert has_element?(view, "#asset-ltv-trend")
     assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
@@ -207,6 +210,22 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-inspection", "94/100")
     assert has_element?(view, "#asset-inspection", "Stale")
     assert has_element?(view, "#asset-inspection", "12m ago")
+    assert has_element?(view, "#asset-inspection", "Thin")
+    assert has_element?(view, "#asset-inspection", "$5,900 depth")
+    assert has_element?(view, "#risk-recommendation-label", "Manual review")
+  end
+
+  test "shows manual review when a fresh moderate asset is illiquid", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#asset-row-asset-012")
+    |> render_click()
+
+    assert has_element?(view, "#asset-inspection", "Stormforged Battle Pass")
+    assert has_element?(view, "#asset-inspection", "Fresh")
+    assert has_element?(view, "#asset-inspection", "Illiquid")
+    assert has_element?(view, "#asset-inspection", "$3,900 depth")
     assert has_element?(view, "#risk-recommendation-label", "Manual review")
   end
 

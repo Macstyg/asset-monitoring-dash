@@ -83,6 +83,20 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
             </span>
           </dd>
         </div>
+        <div class="rounded-app border border-app-border bg-app-surface-2 p-3">
+          <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Liquidity</dt>
+          <dd class="mt-2 flex flex-wrap items-center gap-2">
+            <span class={[
+              "rounded-full px-2 py-0.5 font-mono text-xs font-semibold ring-1 ring-inset",
+              liquidity_class(@asset.liquidity_status)
+            ]}>
+              {@asset.liquidity_status}
+            </span>
+            <span class="font-mono text-xs text-app-muted">
+              {Formatters.usd(@asset.market_depth_usd)} depth
+            </span>
+          </dd>
+        </div>
       </dl>
 
       <div class="mt-4 rounded-app border border-app-border bg-app-surface-2 p-3">
@@ -153,4 +167,9 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
   defp oracle_class("Delayed"), do: "bg-app-warn/10 text-app-warn ring-app-warn/25"
   defp oracle_class("Stale"), do: "bg-app-danger/10 text-app-danger ring-app-danger/25"
   defp oracle_class(_status), do: "bg-app-bg text-app-muted ring-app-border"
+
+  defp liquidity_class("Deep"), do: "bg-app-accent/10 text-app-accent ring-app-accent/20"
+  defp liquidity_class("Thin"), do: "bg-app-warn/10 text-app-warn ring-app-warn/25"
+  defp liquidity_class("Illiquid"), do: "bg-app-danger/10 text-app-danger ring-app-danger/25"
+  defp liquidity_class(_status), do: "bg-app-bg text-app-muted ring-app-border"
 end

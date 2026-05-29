@@ -27,6 +27,13 @@ defmodule AssetMonitoringDash.AssetsTest do
       assert Assets.get_asset("asset-004").oracle_status == "Stale"
     end
 
+    test "derives liquidity status from market depth" do
+      assert Assets.liquidity_status(42_000) == "Deep"
+      assert Assets.liquidity_status(12_800) == "Thin"
+      assert Assets.liquidity_status(2_750) == "Illiquid"
+      assert Assets.get_asset("asset-009").liquidity_status == "Illiquid"
+    end
+
     test "filters by risk band" do
       filters = %{Assets.default_filters() | risk: "Critical"}
 

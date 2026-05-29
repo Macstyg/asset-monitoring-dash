@@ -21,6 +21,8 @@ defmodule AssetMonitoringDash.Assets do
   @at_risk_bands ["Elevated", "Critical"]
   @fresh_oracle_max_seconds 60
   @delayed_oracle_max_seconds 300
+  @deep_market_depth_min_usd 25_000
+  @thin_market_depth_min_usd 5_000
   @ltv_trend_offsets %{
     "asset-001" => [-3.2, -2.4, -1.9, -1.1, -0.8, -0.3],
     "asset-002" => [-1.0, 0.7, -0.2, 1.6, 2.1, 1.2],
@@ -120,6 +122,14 @@ defmodule AssetMonitoringDash.Assets do
 
   def oracle_status(_freshness_seconds), do: "Stale"
 
+  def liquidity_status(market_depth_usd) when market_depth_usd >= @deep_market_depth_min_usd,
+    do: "Deep"
+
+  def liquidity_status(market_depth_usd) when market_depth_usd >= @thin_market_depth_min_usd,
+    do: "Thin"
+
+  def liquidity_status(_market_depth_usd), do: "Illiquid"
+
   defp filter_assets_by_query(assets, ""), do: assets
 
   defp filter_assets_by_query(assets, query) do
@@ -197,6 +207,7 @@ defmodule AssetMonitoringDash.Assets do
       risk_band: Risk.risk_band(risk_score)
     })
     |> Map.put(:oracle_status, oracle_status(asset.oracle_freshness_seconds))
+    |> Map.put(:liquidity_status, liquidity_status(asset.market_depth_usd))
   end
 
   defp apply_asset_price_drop(%{id: asset_id} = asset, asset_id, drop_percent) do
@@ -213,6 +224,7 @@ defmodule AssetMonitoringDash.Assets do
       risk_band: Risk.risk_band(risk_score)
     })
     |> Map.put(:oracle_status, oracle_status(repriced_asset.oracle_freshness_seconds))
+    |> Map.put(:liquidity_status, liquidity_status(repriced_asset.market_depth_usd))
   end
 
   defp apply_asset_price_drop(asset, _asset_id, _drop_percent), do: asset
