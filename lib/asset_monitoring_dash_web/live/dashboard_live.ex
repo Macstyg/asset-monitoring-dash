@@ -271,6 +271,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:selected_asset_id, nil)
     |> assign(:selected_asset_shocked?, false)
     |> assign(:selected_asset_health_factor, nil)
+    |> assign(:selected_asset_risk_explanation, nil)
   end
 
   defp assign_selected_asset(socket, asset) do
@@ -284,6 +285,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       :selected_asset_health_factor,
       asset |> Risk.health_factor() |> Formatters.decimal()
     )
+    |> assign(:selected_asset_risk_explanation, Risk.explanation(asset))
   end
 
   defp push_demo_event(socket) do
