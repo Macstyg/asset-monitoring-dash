@@ -110,6 +110,21 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     refute has_element?(view, "#asset-row-asset-001")
   end
 
+  test "shows an empty state when asset filters have no matches", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#asset-filters", %{
+      "filters" => %{"query" => "missing asset", "risk" => "All", "chain" => "All chains"}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#asset-count", "0 monitored")
+    assert has_element?(view, "#asset-list-empty", "No assets match this filter.")
+    refute has_element?(view, "#asset-row-asset-001")
+    refute has_element?(view, "#asset-inspection")
+  end
+
   test "resets asset filters", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 

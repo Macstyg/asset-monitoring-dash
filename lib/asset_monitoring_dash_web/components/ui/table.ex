@@ -20,6 +20,7 @@ defmodule AssetMonitoringDashWeb.UI.Table do
     attr :align, :atom, values: [:left, :right]
   end
 
+  slot :empty, required: true
   slot :row, required: true
 
   def render(assigns) do
@@ -54,7 +55,7 @@ defmodule AssetMonitoringDashWeb.UI.Table do
           id={"#{@id}-empty"}
           class="hidden only:block px-4 py-8 text-center text-sm text-app-muted"
         >
-          No assets match this filter.
+          {render_slot(@empty)}
         </div>
 
         <div
