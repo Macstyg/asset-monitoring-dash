@@ -65,21 +65,26 @@
             </span>
           </div>
 
-          <div
-            id="risk-filter"
-            aria-label="Risk filter"
-            class="mt-5 flex flex-wrap gap-2"
+          <FilterBar.render
+            form={@filter_form}
+            id="asset-filters"
+            phx-change="filter_assets"
+            class="mt-5"
           >
-            <Button.render
-              :for={risk <- @risk_filter_options}
-              id={"risk-filter-#{String.downcase(risk)}"}
-              active={@risk_filter == risk}
-              phx-click="filter_risk"
-              phx-value-risk={risk}
-            >
-              {risk}
-            </Button.render>
-          </div>
+            <FilterBar.search
+              field={@filter_form[:query]}
+              placeholder="Search asset, chain, game, risk"
+              autocomplete="off"
+            />
+            <FilterBar.select
+              field={@filter_form[:risk]}
+              options={@risk_filter_options}
+            />
+            <FilterBar.select
+              field={@filter_form[:chain]}
+              options={@chain_filter_options}
+            />
+          </FilterBar.render>
 
           <Table.render
             id="asset-list"
