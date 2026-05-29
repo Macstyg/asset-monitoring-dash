@@ -33,6 +33,8 @@ defmodule AssetMonitoringDashWeb.ConnCase do
 
   setup tags do
     AssetMonitoringDash.DataCase.setup_sandbox(tags)
+    AssetMonitoringDash.ReviewStore.reset_all()
+
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

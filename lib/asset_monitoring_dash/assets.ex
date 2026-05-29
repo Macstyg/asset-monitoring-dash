@@ -8,23 +8,42 @@ defmodule AssetMonitoringDash.Assets do
   """
 
   alias AssetMonitoringDash.DemoData
+  alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
 
-  @default_filters %{query: "", risk: "All", chain: "All chains", action: "All"}
+  @default_filters %{
+    query: "",
+    risks: [],
+    chains: [],
+    actions: [],
+    operator_states: [],
+    risk_option_query: "",
+    chain_option_query: "",
+    action_option_query: "",
+    operator_state_option_query: ""
+  }
   @risk_filter_options [
-    {"All risk tiers", "All"},
-    {"Low", "Low"},
-    {"Moderate", "Moderate"},
-    {"Elevated", "Elevated"},
-    {"Critical", "Critical"}
+    %{label: "Low", value: "Low", icon_text: "L", tone: :success},
+    %{label: "Moderate", value: "Moderate", icon_text: "M", tone: :info},
+    %{label: "Elevated", value: "Elevated", icon_text: "E", tone: :warning},
+    %{label: "Critical", value: "Critical", icon_text: "C", tone: :danger}
   ]
   @action_filter_options [
-    {"All actions", "All"},
-    {"Manual review", "manual_review"},
-    {"Liquidation candidate", "liquidation_candidate"},
-    {"Watch", "watch"},
-    {"Clear", "clear"}
+    %{label: "Manual review", value: "manual_review", icon_text: "M", tone: :warning},
+    %{
+      label: "Liquidation candidate",
+      value: "liquidation_candidate",
+      icon_text: "L",
+      tone: :danger
+    },
+    %{label: "Watch", value: "watch", icon_text: "W", tone: :info},
+    %{label: "Clear", value: "clear", icon_text: "C", tone: :success}
+  ]
+  @operator_state_filter_options [
+    %{label: "Unreviewed", value: "unreviewed", icon_text: "U", tone: :neutral},
+    %{label: "Reviewed", value: "reviewed", icon_text: "R", tone: :success},
+    %{label: "Escalated", value: "escalated", icon_text: "E", tone: :warning}
   ]
   @at_risk_bands ["Elevated", "Critical"]
   @fresh_oracle_max_seconds 60
@@ -50,16 +69,20 @@ defmodule AssetMonitoringDash.Assets do
     Enum.map(DemoData.monitored_assets(), &normalize_risk_fields/1)
   end
 
-  def list_assets(filters) do
-    filter_assets(list_assets(), filters)
+  def list_assets(filters, review_states \\ %{}) do
+    filter_assets(list_assets(), filters, review_states)
   end
 
-  def filter_assets(assets, filters) do
+  def filter_assets(assets, filters, review_states \\ %{}) do
     assets
-    |> filter_assets_by_query(filters.query)
-    |> filter_assets_by_risk(filters.risk)
-    |> filter_assets_by_chain(filters.chain)
-    |> filter_assets_by_action(Map.get(filters, :action, "All"))
+    |> filter_assets_by_query(filter_value(filters, :query, ""))
+    |> filter_assets_by_risks(filter_values(filters, :risks, :risk, "All"))
+    |> filter_assets_by_chains(filter_values(filters, :chains, :chain, "All chains"))
+    |> filter_assets_by_actions(filter_values(filters, :actions, :action, "All"))
+    |> filter_assets_by_operator_states(
+      filter_values(filters, :operator_states, :operator_state, "All"),
+      review_states
+    )
   end
 
   def get_asset(asset_id) do
@@ -106,17 +129,49 @@ defmodule AssetMonitoringDash.Assets do
   def normalize_filters(params, current_filters) do
     %{
       query: normalize_query(Map.get(params, "query", current_filters.query)),
-      risk: normalize_risk_filter(Map.get(params, "risk", current_filters.risk)),
-      chain: normalize_chain_filter(Map.get(params, "chain", current_filters.chain)),
-      action:
-        normalize_action_filter(
-          Map.get(params, "action", Map.get(current_filters, :action, "All"))
-        )
+      risks:
+        normalize_filter_values(
+          params,
+          "risks",
+          "risk",
+          current_filter_values(current_filters, :risks, :risk, "All"),
+          filter_option_values(@risk_filter_options)
+        ),
+      chains:
+        normalize_filter_values(
+          params,
+          "chains",
+          "chain",
+          current_filter_values(current_filters, :chains, :chain, "All chains"),
+          chain_filter_values()
+        ),
+      actions:
+        normalize_filter_values(
+          params,
+          "actions",
+          "action",
+          current_filter_values(current_filters, :actions, :action, "All"),
+          filter_option_values(@action_filter_options)
+        ),
+      operator_states:
+        normalize_filter_values(
+          params,
+          "operator_states",
+          "operator_state",
+          current_filter_values(current_filters, :operator_states, :operator_state, "All"),
+          filter_option_values(@operator_state_filter_options)
+        ),
+      risk_option_query: normalize_query(Map.get(params, "risk_option_query", "")),
+      chain_option_query: normalize_query(Map.get(params, "chain_option_query", "")),
+      action_option_query: normalize_query(Map.get(params, "action_option_query", "")),
+      operator_state_option_query:
+        normalize_query(Map.get(params, "operator_state_option_query", ""))
     }
   end
 
   def risk_filter_options, do: @risk_filter_options
   def action_filter_options, do: @action_filter_options
+  def operator_state_filter_options, do: @operator_state_filter_options
 
   def chain_filter_options do
     chains =
@@ -125,7 +180,18 @@ defmodule AssetMonitoringDash.Assets do
       |> Enum.uniq()
       |> Enum.sort()
 
-    [{"All chains", "All chains"} | Enum.map(chains, &{&1, &1})]
+    Enum.map(chains, &%{label: &1, value: &1, icon: :chain})
+  end
+
+  def filter_options(options, ""), do: options
+
+  def filter_options(options, query) do
+    Enum.filter(options, fn option ->
+      option
+      |> Map.fetch!(:label)
+      |> String.downcase()
+      |> String.contains?(query)
+    end)
   end
 
   def oracle_status(freshness_seconds) when freshness_seconds <= @fresh_oracle_max_seconds,
@@ -162,25 +228,37 @@ defmodule AssetMonitoringDash.Assets do
     |> Enum.any?(&String.contains?(String.downcase(&1), query))
   end
 
-  defp filter_assets_by_risk(assets, "All"), do: assets
+  defp filter_assets_by_risks(assets, []), do: assets
 
-  defp filter_assets_by_risk(assets, risk_filter),
-    do: Enum.filter(assets, &(&1.risk_band == risk_filter))
+  defp filter_assets_by_risks(assets, risk_filters),
+    do: Enum.filter(assets, &(&1.risk_band in risk_filters))
 
-  defp filter_assets_by_chain(assets, "All chains"), do: assets
+  defp filter_assets_by_chains(assets, []), do: assets
 
-  defp filter_assets_by_chain(assets, chain_filter),
-    do: Enum.filter(assets, &(&1.chain == chain_filter))
+  defp filter_assets_by_chains(assets, chain_filters),
+    do: Enum.filter(assets, &(&1.chain in chain_filters))
 
-  defp filter_assets_by_action(assets, "All"), do: assets
+  defp filter_assets_by_actions(assets, []), do: assets
 
-  defp filter_assets_by_action(assets, action_filter) do
+  defp filter_assets_by_actions(assets, action_filters) do
     Enum.filter(assets, fn asset ->
       asset
       |> RiskRecommendation.recommendation_for()
       |> Map.fetch!(:id)
       |> Atom.to_string()
-      |> Kernel.==(action_filter)
+      |> then(&(&1 in action_filters))
+    end)
+  end
+
+  defp filter_assets_by_operator_states(assets, [], _review_states), do: assets
+
+  defp filter_assets_by_operator_states(assets, operator_state_filters, review_states) do
+    Enum.filter(assets, fn asset ->
+      asset.id
+      |> ReviewState.state_for(review_states)
+      |> Map.fetch!(:id)
+      |> Atom.to_string()
+      |> then(&(&1 in operator_state_filters))
     end)
   end
 
@@ -192,29 +270,46 @@ defmodule AssetMonitoringDash.Assets do
     |> String.downcase()
   end
 
-  defp normalize_risk_filter(risk)
-       when risk in ["All", "Low", "Moderate", "Elevated", "Critical"],
-       do: risk
-
-  defp normalize_risk_filter(_risk), do: "All"
-
-  defp normalize_action_filter(action)
-       when action in ["All", "clear", "watch", "manual_review", "liquidation_candidate"],
-       do: action
-
-  defp normalize_action_filter(_action), do: "All"
-
-  defp normalize_chain_filter("All chains"), do: "All chains"
-
-  defp normalize_chain_filter(chain) do
-    list_assets()
-    |> Enum.map(& &1.chain)
-    |> Enum.find(&(&1 == chain))
-    |> normalize_chain_filter_value()
+  defp normalize_filter_values(params, list_key, legacy_key, current_values, allowed_values) do
+    params
+    |> filter_param_values(list_key, legacy_key, current_values)
+    |> Enum.reject(&(&1 in [nil, "", "All", "All chains"]))
+    |> Enum.filter(&(&1 in allowed_values))
+    |> Enum.uniq()
   end
 
-  defp normalize_chain_filter_value(nil), do: "All chains"
-  defp normalize_chain_filter_value(chain), do: chain
+  defp filter_param_values(params, list_key, legacy_key, current_values) do
+    cond do
+      Map.has_key?(params, list_key) -> List.wrap(Map.get(params, list_key))
+      Map.has_key?(params, legacy_key) -> List.wrap(Map.get(params, legacy_key))
+      true -> current_values
+    end
+  end
+
+  defp current_filter_values(filters, list_key, legacy_key, all_value) do
+    filters
+    |> Map.get(list_key, legacy_filter_values(Map.get(filters, legacy_key, all_value), all_value))
+    |> List.wrap()
+  end
+
+  defp legacy_filter_values(value, all_value) when value in [nil, "", all_value], do: []
+  defp legacy_filter_values(value, _all_value), do: [value]
+
+  defp filter_values(filters, list_key, legacy_key, all_value) do
+    filters
+    |> Map.get(list_key, legacy_filter_values(Map.get(filters, legacy_key, all_value), all_value))
+    |> List.wrap()
+    |> Enum.reject(&(&1 in [nil, "", all_value]))
+  end
+
+  defp filter_value(filters, key, default), do: Map.get(filters, key, default)
+
+  defp filter_option_values(options), do: Enum.map(options, & &1.value)
+
+  defp chain_filter_values do
+    chain_filter_options()
+    |> filter_option_values()
+  end
 
   defp ltv_trend_offsets(asset_id) do
     Map.get(@ltv_trend_offsets, asset_id, [-2.0, -1.5, -1.1, -0.7, -0.4, -0.2])

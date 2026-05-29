@@ -35,21 +35,34 @@ defmodule AssetMonitoringDash.AssetsTest do
     end
 
     test "filters by risk band" do
-      filters = %{Assets.default_filters() | risk: "Critical"}
+      filters = %{Assets.default_filters() | risks: ["Critical"]}
 
       assert Enum.map(Assets.list_assets(filters), & &1.id) == ["asset-002", "asset-010"]
     end
 
     test "filters by chain" do
-      filters = %{Assets.default_filters() | chain: "Arbitrum"}
+      filters = %{Assets.default_filters() | chains: ["Arbitrum"]}
 
       assert Enum.map(Assets.list_assets(filters), & &1.id) == ["asset-005", "asset-010"]
+    end
+
+    test "filters by multiple selected values" do
+      filters = %{
+        Assets.default_filters()
+        | risks: ["Low", "Critical"],
+          chains: ["Ethereum", "Arbitrum"]
+      }
+
+      assert Enum.map(Assets.list_assets(filters), & &1.id) == [
+               "asset-002",
+               "asset-010"
+             ]
     end
 
     test "filters by system recommendation action" do
       manual_review_ids =
         Assets.default_filters()
-        |> Map.put(:action, "manual_review")
+        |> Map.put(:actions, ["manual_review"])
         |> Assets.list_assets()
         |> Enum.map(& &1.id)
 
@@ -59,11 +72,39 @@ defmodule AssetMonitoringDash.AssetsTest do
 
       liquidation_ids =
         Assets.default_filters()
-        |> Map.put(:action, "liquidation_candidate")
+        |> Map.put(:actions, ["liquidation_candidate"])
         |> Assets.list_assets()
         |> Enum.map(& &1.id)
 
       assert liquidation_ids == ["asset-002"]
+    end
+
+    test "filters by operator review state" do
+      review_states = %{"asset-001" => :reviewed, "asset-003" => :escalated}
+
+      reviewed_ids =
+        Assets.default_filters()
+        |> Map.put(:operator_states, ["reviewed"])
+        |> Assets.list_assets(review_states)
+        |> Enum.map(& &1.id)
+
+      escalated_ids =
+        Assets.default_filters()
+        |> Map.put(:operator_states, ["escalated"])
+        |> Assets.list_assets(review_states)
+        |> Enum.map(& &1.id)
+
+      unreviewed_ids =
+        Assets.default_filters()
+        |> Map.put(:operator_states, ["unreviewed"])
+        |> Assets.list_assets(review_states)
+        |> Enum.map(& &1.id)
+
+      assert reviewed_ids == ["asset-001"]
+      assert escalated_ids == ["asset-003"]
+      assert length(unreviewed_ids) == 10
+      refute "asset-001" in unreviewed_ids
+      refute "asset-003" in unreviewed_ids
     end
 
     test "combines risk, chain, and query filters" do
@@ -134,7 +175,7 @@ defmodule AssetMonitoringDash.AssetsTest do
   test "summarizes a list of visible assets" do
     summary =
       Assets.default_filters()
-      |> Map.put(:risk, "Critical")
+      |> Map.put(:risks, ["Critical"])
       |> Assets.list_assets()
       |> Assets.summarize_assets()
 
@@ -162,13 +203,39 @@ defmodule AssetMonitoringDash.AssetsTest do
         Assets.default_filters()
       )
 
-    assert filters == %{query: "mech", risk: "All", chain: "All chains", action: "All"}
+    assert filters == %{
+             query: "mech",
+             risks: [],
+             chains: [],
+             actions: [],
+             operator_states: [],
+             risk_option_query: "",
+             chain_option_query: "",
+             action_option_query: "",
+             operator_state_option_query: ""
+           }
   end
 
   test "builds filter options from monitored assets" do
-    assert {"All risk tiers", "All"} in Assets.risk_filter_options()
-    assert {"Manual review", "manual_review"} in Assets.action_filter_options()
-    assert {"Arbitrum", "Arbitrum"} in Assets.chain_filter_options()
-    assert {"Polygon", "Polygon"} in Assets.chain_filter_options()
+    assert %{label: "Critical", value: "Critical"} = List.last(Assets.risk_filter_options())
+
+    assert %{label: "Manual review", value: "manual_review"} =
+             List.first(Assets.action_filter_options())
+
+    assert %{
+             label: "Reviewed",
+             value: "reviewed",
+             icon_text: "R",
+             tone: :success
+           } in Assets.operator_state_filter_options()
+
+    assert %{label: "Arbitrum", value: "Arbitrum", icon: :chain} in Assets.chain_filter_options()
+    assert %{label: "Polygon", value: "Polygon", icon: :chain} in Assets.chain_filter_options()
+  end
+
+  test "filters option lists by search query" do
+    assert Assets.filter_options(Assets.chain_filter_options(), "poly") == [
+             %{label: "Polygon", value: "Polygon", icon: :chain}
+           ]
   end
 end

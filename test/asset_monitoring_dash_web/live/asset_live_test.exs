@@ -81,6 +81,32 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
            )
   end
 
+  test "persists operator state for dashboard filtering", %{conn: conn} do
+    {:ok, detail_view, _html} = live(conn, ~p"/assets/asset-001")
+
+    detail_view
+    |> element("#mark-asset-reviewed")
+    |> render_click()
+
+    {:ok, dashboard_view, _html} = live(conn, ~p"/")
+
+    dashboard_view
+    |> form("#asset-filters", %{
+      "filters" => %{
+        "query" => "",
+        "risks" => [""],
+        "actions" => [""],
+        "operator_states" => ["reviewed"],
+        "chains" => [""]
+      }
+    })
+    |> render_change()
+
+    assert has_element?(dashboard_view, "#asset-count", "1 monitored")
+    assert has_element?(dashboard_view, "#asset-row-asset-001", "Reviewed")
+    refute has_element?(dashboard_view, "#asset-row-asset-003")
+  end
+
   test "escalates a different asset inspection session", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/assets/asset-003")
 

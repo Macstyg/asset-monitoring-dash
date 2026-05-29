@@ -4,6 +4,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.EventFeed
   alias AssetMonitoringDash.ReviewState
+  alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
@@ -21,7 +22,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       |> stream_configure(:events, dom_id: &"asset-event-row-#{&1.id}")
       |> assign(:page_title, "Asset detail")
       |> assign(:all_assets, assets)
-      |> assign(:review_states, %{})
+      |> assign(:review_states, ReviewStore.all_states())
       |> assign(:shocked_asset_ids, MapSet.new())
       |> assign(:visible_events, [])
       |> assign(:event_count, 0)
@@ -87,7 +88,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     all_assets = Assets.apply_price_drop(socket.assigns.all_assets, asset_id, 12)
     asset = Assets.get_asset(all_assets, asset_id)
     feed = EventFeed.push_price_shock_event(socket.assigns.visible_events, asset, 12)
-    review_states = ReviewState.reset(socket.assigns.review_states, asset_id)
+    review_states = ReviewStore.reset(asset_id)
 
     socket
     |> assign(:all_assets, all_assets)
@@ -104,7 +105,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     all_assets = Assets.reset_asset(socket.assigns.all_assets, asset_id)
     asset = Assets.get_asset(all_assets, asset_id)
     feed = EventFeed.push_scenario_reset_event(socket.assigns.visible_events, asset)
-    review_states = ReviewState.reset(socket.assigns.review_states, asset_id)
+    review_states = ReviewStore.reset(asset_id)
 
     socket
     |> assign(:all_assets, all_assets)
@@ -116,7 +117,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   defp mark_asset_reviewed(socket) do
     asset = socket.assigns.asset
-    review_states = ReviewState.mark_reviewed(socket.assigns.review_states, asset.id)
+    review_states = ReviewStore.mark_reviewed(asset.id)
     review_state = ReviewState.state_for(asset.id, review_states)
     feed = EventFeed.push_review_event(socket.assigns.visible_events, asset, review_state)
 
@@ -128,7 +129,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   defp escalate_asset_review(socket) do
     asset = socket.assigns.asset
-    review_states = ReviewState.escalate(socket.assigns.review_states, asset.id)
+    review_states = ReviewStore.escalate(asset.id)
     review_state = ReviewState.state_for(asset.id, review_states)
     feed = EventFeed.push_review_event(socket.assigns.visible_events, asset, review_state)
 

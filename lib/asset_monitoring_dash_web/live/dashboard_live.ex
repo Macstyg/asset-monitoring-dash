@@ -6,8 +6,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.EventFeed
+  alias AssetMonitoringDash.ReviewState
+  alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDashWeb.DashboardComponents.AssetSummary
+  alias AssetMonitoringDashWeb.DashboardComponents.ChainIdentity
   alias AssetMonitoringDashWeb.DashboardComponents.EventItem
   alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
   alias AssetMonitoringDashWeb.Formatters
@@ -23,6 +26,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     snapshot = DemoData.portfolio_snapshot()
     assets = Assets.list_assets()
     events = EventFeed.initial_events()
+    review_states = ReviewStore.all_states()
 
     socket =
       socket
@@ -32,8 +36,12 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:snapshot, snapshot)
       |> assign(:metric_cards, metric_cards(snapshot))
       |> assign(:all_assets, assets)
+      |> assign(:review_states, review_states)
       |> assign(:asset_count, length(assets))
-      |> assign(:asset_summary, Assets.summarize_assets(assets))
+      |> assign(
+        :asset_summary,
+        Assets.summarize_assets(visible_assets(assets, Assets.default_filters(), review_states))
+      )
       |> assign(:event_count, length(events))
       |> assign(:feed_paused, false)
       |> assign(:next_event_index, 0)
@@ -42,8 +50,15 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:filter_form, filter_form(Assets.default_filters()))
       |> assign(:risk_filter_options, Assets.risk_filter_options())
       |> assign(:action_filter_options, Assets.action_filter_options())
+      |> assign(:operator_state_filter_options, Assets.operator_state_filter_options())
       |> assign(:visible_events, events)
-      |> stream(:assets, assets_for_table(assets))
+      |> stream(
+        :assets,
+        assets_for_table(
+          visible_assets(assets, Assets.default_filters(), review_states),
+          review_states
+        )
+      )
       |> stream(:events, events)
 
     schedule_event_tick_for_connection(connected?(socket))
@@ -54,7 +69,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_event("filter_assets", %{"filters" => params}, socket) do
     filters = Assets.normalize_filters(params, socket.assigns.asset_filters)
-    assets = Assets.filter_assets(socket.assigns.all_assets, filters)
+    assets = visible_assets(socket.assigns.all_assets, filters, socket.assigns.review_states)
 
     socket =
       socket
@@ -62,7 +77,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_summary, Assets.summarize_assets(assets))
       |> assign(:asset_filters, filters)
       |> assign(:filter_form, filter_form(filters))
-      |> stream(:assets, assets_for_table(assets), reset: true)
+      |> stream(:assets, assets_for_table(assets, socket.assigns.review_states), reset: true)
 
     {:noreply, socket}
   end
@@ -70,7 +85,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_event("reset_asset_filters", _params, socket) do
     filters = Assets.default_filters()
-    assets = Assets.filter_assets(socket.assigns.all_assets, filters)
+    assets = visible_assets(socket.assigns.all_assets, filters, socket.assigns.review_states)
 
     socket =
       socket
@@ -78,7 +93,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_summary, Assets.summarize_assets(assets))
       |> assign(:asset_filters, filters)
       |> assign(:filter_form, filter_form(filters))
-      |> stream(:assets, assets_for_table(assets), reset: true)
+      |> stream(:assets, assets_for_table(assets, socket.assigns.review_states), reset: true)
 
     {:noreply, socket}
   end
@@ -152,24 +167,39 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     to_form(
       %{
         "query" => filters.query,
-        "risk" => filters.risk,
-        "chain" => filters.chain,
-        "action" => filters.action
+        "risks" => filters.risks,
+        "chains" => filters.chains,
+        "actions" => filters.actions,
+        "operator_states" => filters.operator_states,
+        "risk_option_query" => filters.risk_option_query,
+        "chain_option_query" => filters.chain_option_query,
+        "action_option_query" => filters.action_option_query,
+        "operator_state_option_query" => filters.operator_state_option_query
       },
       as: :filters
     )
   end
 
-  defp assets_for_table(assets) do
-    Enum.map(assets, &asset_for_table/1)
+  defp visible_filter_options(options, query) do
+    Assets.filter_options(options, query)
   end
 
-  defp asset_for_table(asset) do
+  defp visible_assets(assets, filters, review_states) do
+    Assets.filter_assets(assets, filters, review_states)
+  end
+
+  defp assets_for_table(assets, review_states) do
+    Enum.map(assets, &asset_for_table(&1, review_states))
+  end
+
+  defp asset_for_table(asset, review_states) do
     recommendation = RiskRecommendation.recommendation_for(asset)
+    review_state = ReviewState.state_for(asset.id, review_states)
 
     Map.merge(asset, %{
       risk_recommendation: recommendation,
-      recommendation_reason: List.first(recommendation.reasons)
+      recommendation_reason: List.first(recommendation.reasons),
+      review_state: review_state
     })
   end
 

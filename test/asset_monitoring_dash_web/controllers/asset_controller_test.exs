@@ -24,7 +24,7 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
     response = json_response(conn, 200)
 
     assert response["meta"]["count"] == 2
-    assert response["meta"]["filters"]["risk"] == "Critical"
+    assert response["meta"]["filters"]["risks"] == ["Critical"]
     assert Enum.map(response["data"], & &1["id"]) == ["asset-002", "asset-010"]
   end
 
@@ -34,7 +34,7 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
 
     assert response["meta"]["count"] == 1
     assert response["meta"]["filters"]["query"] == "vault"
-    assert response["meta"]["filters"]["chain"] == "Arbitrum"
+    assert response["meta"]["filters"]["chains"] == ["Arbitrum"]
     assert [%{"id" => "asset-005"}] = response["data"]
   end
 end
