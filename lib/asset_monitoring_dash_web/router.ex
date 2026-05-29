@@ -20,10 +20,11 @@ defmodule AssetMonitoringDashWeb.Router do
     live "/", DashboardLive, :show
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", AssetMonitoringDashWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", AssetMonitoringDashWeb do
+    pipe_through :api
+
+    get "/assets", AssetController, :index
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:asset_monitoring_dash, :dev_routes) do
