@@ -3,7 +3,7 @@
     id="dashboard-shell"
     class="min-h-screen text-app-fg"
   >
-    <div class="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
+    <div class="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
       <div class="flex flex-col gap-4 border-b border-app-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div class="max-w-3xl">
           <p class="text-sm font-medium text-app-accent-2">Cross-chain game asset monitoring</p>
@@ -31,7 +31,7 @@
       <section
         id="metric-strip"
         aria-label="Portfolio metrics"
-        class="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+        class="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4"
       >
         <Card.render
           :for={card <- @metric_cards}
@@ -45,10 +45,10 @@
         />
       </section>
 
-      <section class="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.6fr)]">
+      <section class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.6fr)]">
         <div
           id="asset-monitor"
-          class="min-h-72 rounded-app border border-app-border bg-app-surface p-5 shadow-app-panel"
+          class="min-w-0 rounded-app border border-app-border bg-app-surface p-5 shadow-app-panel"
         >
           <div class="flex items-center justify-between gap-4">
             <div>
@@ -157,7 +157,7 @@
           </Table.render>
         </div>
 
-        <aside class="grid gap-4">
+        <aside class="grid min-w-0 gap-4">
           <AssetInspection.render
             :if={@selected_asset}
             asset={@selected_asset}

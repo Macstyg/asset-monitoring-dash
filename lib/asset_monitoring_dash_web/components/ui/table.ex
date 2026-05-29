@@ -29,7 +29,7 @@ defmodule AssetMonitoringDashWeb.UI.Table do
       id={@id}
       aria-label={@label}
       class={[
-        "overflow-x-auto rounded-app border border-app-border",
+        "max-w-full overflow-x-auto rounded-app border border-app-border",
         @class
       ]}
       {@rest}
@@ -49,6 +49,7 @@ defmodule AssetMonitoringDashWeb.UI.Table do
 
       <div
         id={"#{@id}-rows"}
+        class="min-w-0"
         phx-update="stream"
       >
         <div

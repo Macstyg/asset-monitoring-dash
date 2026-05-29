@@ -20,18 +20,18 @@ defmodule AssetMonitoringDashWeb.UI.Card do
     <article
       id={@id}
       class={[
-        "group min-h-32 rounded-app border border-app-border bg-app-surface px-5 py-4 shadow-app-panel transition duration-200 hover:-translate-y-0.5 hover:border-app-accent-2 hover:bg-app-surface-2",
+        "group min-h-32 min-w-0 rounded-app border border-app-border bg-app-surface px-5 py-4 shadow-app-panel transition duration-200 hover:-translate-y-0.5 hover:border-app-accent-2 hover:bg-app-surface-2",
         @class
       ]}
       {@rest}
     >
-      <div class="flex items-center justify-between gap-4">
-        <p class="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-app-muted">
+      <div class="flex min-w-0 items-center justify-between gap-4">
+        <p class="min-w-0 truncate font-mono text-xs font-semibold uppercase tracking-[0.14em] text-app-muted">
           {@label}
         </p>
         <p
           :if={@context}
-          class="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-app-muted"
+          class="shrink-0 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-app-muted"
         >
           {@context}
         </p>
@@ -42,7 +42,7 @@ defmodule AssetMonitoringDashWeb.UI.Card do
       </p>
 
       <div class={[
-        "mt-5 flex items-center gap-2 font-mono text-sm font-semibold leading-5",
+        "mt-5 flex min-w-0 items-center gap-2 font-mono text-sm font-semibold leading-5",
         signal_class(@delta_tone)
       ]}>
         <span aria-hidden="true">{signal_marker(@delta_tone)}</span>

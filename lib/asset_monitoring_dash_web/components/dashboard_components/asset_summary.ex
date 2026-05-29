@@ -14,10 +14,10 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetSummary do
     <section
       id="asset-summary"
       aria-label="Visible asset subset summary"
-      class="mt-5 rounded-app border border-app-border bg-app-surface-2/55 px-4 py-3"
+      class="mt-5 min-w-0 rounded-app border border-app-border bg-app-surface-2/55 px-4 py-3"
     >
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
+      <div class="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="min-w-0">
           <p class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">
             Visible subset
           </p>
@@ -26,8 +26,8 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetSummary do
           </p>
         </div>
 
-        <dl class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div class="min-w-28">
+        <dl class="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="min-w-0">
             <dt class="text-xs font-medium text-app-muted">Rows</dt>
             <dd
               id="asset-summary-visible-count"
@@ -37,7 +37,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetSummary do
             </dd>
           </div>
 
-          <div class="min-w-28">
+          <div class="min-w-0">
             <dt class="text-xs font-medium text-app-muted">Subset value</dt>
             <dd
               id="asset-summary-value"
@@ -47,7 +47,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetSummary do
             </dd>
           </div>
 
-          <div class="min-w-28">
+          <div class="min-w-0">
             <dt class="text-xs font-medium text-app-muted">Elevated+</dt>
             <dd
               id="asset-summary-at-risk"
@@ -57,7 +57,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetSummary do
             </dd>
           </div>
 
-          <div class="min-w-28">
+          <div class="min-w-0">
             <dt class="text-xs font-medium text-app-muted">Highest LTV</dt>
             <dd
               id="asset-summary-highest-ltv"
