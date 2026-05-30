@@ -27,6 +27,7 @@ defmodule AssetMonitoringDashWeb.AssetController do
     %{
       id: asset.id,
       name: asset.name,
+      icon: asset.icon,
       asset_type: asset.asset_type,
       chain: asset.chain,
       ecosystem: asset.ecosystem,

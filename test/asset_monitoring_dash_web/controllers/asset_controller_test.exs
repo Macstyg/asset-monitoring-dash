@@ -12,6 +12,7 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
     assert %{
              "id" => "asset-001",
              "name" => "Aegis Dragon Helm",
+             "icon" => "dragon-helm",
              "chain" => "Polygon",
              "ltv_percent" => 59.7,
              "risk_score" => 70,

@@ -42,6 +42,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
         class="mt-5"
         name={@asset.name}
         caption={"#{@asset.chain} / #{@asset.ecosystem}"}
+        asset_icon={@asset.icon}
       />
 
       <dl class="mt-5 grid grid-cols-2 gap-3">

@@ -21,6 +21,7 @@ defmodule AssetMonitoringDash.DemoDataTest do
     assert Enum.all?(assets, fn asset ->
              is_binary(asset.id) and
                is_binary(asset.name) and
+               is_binary(asset.icon) and
                is_binary(asset.asset_type) and
                is_binary(asset.chain) and
                is_binary(asset.ecosystem) and

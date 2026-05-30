@@ -9,6 +9,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#asset-detail-shell")
     assert has_element?(view, "#back-to-dashboard")
     assert has_element?(view, "#asset-inspection", "Aegis Dragon Helm")
+    assert has_element?(view, ~s(#asset-inspection img[src="/images/assets/dragon-helm.svg"]))
     assert has_element?(view, "#asset-context-strip")
     assert has_element?(view, "#asset-context-chain", "Polygon")
     assert has_element?(view, "#asset-context-game", "Skyforge Arena")

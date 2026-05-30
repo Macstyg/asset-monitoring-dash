@@ -85,6 +85,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-001",
         name: "Aegis Dragon Helm",
+        icon: "dragon-helm",
         asset_type: "NFT",
         chain: "Polygon",
         ecosystem: "Skyforge Arena",
@@ -101,6 +102,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-002",
         name: "Citadel Founder Parcel",
+        icon: "founder-parcel",
         asset_type: "NFT",
         chain: "Ethereum",
         ecosystem: "Embervale",
@@ -117,6 +119,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-003",
         name: "Neon Pulse Racer",
+        icon: "pulse-racer",
         asset_type: "NFT",
         chain: "Base",
         ecosystem: "Rift Racers",
@@ -133,6 +136,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-004",
         name: "Ronin Warbeast",
+        icon: "warbeast",
         asset_type: "NFT",
         chain: "Ronin",
         ecosystem: "Skyforge Arena",
@@ -149,6 +153,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-005",
         name: "Genesis Mana Vault",
+        icon: "mana-vault",
         asset_type: "ERC-1155",
         chain: "Arbitrum",
         ecosystem: "Neon Dominion",
@@ -165,6 +170,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-006",
         name: "Void Atlas Skin",
+        icon: "void-skin",
         asset_type: "NFT",
         chain: "Immutable",
         ecosystem: "Neon Dominion",
@@ -181,6 +187,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-007",
         name: "Ember Crown Relic",
+        icon: "ember-crown",
         asset_type: "NFT",
         chain: "Ethereum",
         ecosystem: "Embervale",
@@ -197,6 +204,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-008",
         name: "Turbo Drift Chassis",
+        icon: "drift-chassis",
         asset_type: "NFT",
         chain: "Base",
         ecosystem: "Rift Racers",
@@ -213,6 +221,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-009",
         name: "Moonwell Guild Charter",
+        icon: "guild-charter",
         asset_type: "ERC-1155",
         chain: "Polygon",
         ecosystem: "Moonwell Tactics",
@@ -229,6 +238,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-010",
         name: "Ancient Mech Core",
+        icon: "mech-core",
         asset_type: "NFT",
         chain: "Arbitrum",
         ecosystem: "Mecha Rift",
@@ -245,6 +255,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-011",
         name: "Sealed Victory Crate",
+        icon: "victory-crate",
         asset_type: "ERC-1155",
         chain: "Immutable",
         ecosystem: "Moonwell Tactics",
@@ -261,6 +272,7 @@ defmodule AssetMonitoringDash.DemoData do
       %{
         id: "asset-012",
         name: "Stormforged Battle Pass",
+        icon: "battle-pass",
         asset_type: "Tokenized pass",
         chain: "Ronin",
         ecosystem: "Skyforge Arena",

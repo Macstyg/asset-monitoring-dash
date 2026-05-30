@@ -5,6 +5,9 @@ defmodule AssetMonitoringDashWeb.UI.EntityIdentity do
 
   use Phoenix.Component
 
+  alias AssetMonitoringDashWeb.UI.AssetIcon
+
+  attr :asset_icon, :string, default: nil
   attr :caption, :string, required: true
   attr :class, :string, default: ""
   attr :initials, :string, default: nil
@@ -16,9 +19,7 @@ defmodule AssetMonitoringDashWeb.UI.EntityIdentity do
 
     ~H"""
     <div class={["flex min-w-0 items-center gap-3", @class]}>
-      <div class="grid size-9 shrink-0 place-items-center rounded-app bg-linear-to-br from-app-accent-2 to-app-accent font-mono text-xs font-bold text-app-primary-fg">
-        {@display_initials}
-      </div>
+      <AssetIcon.render icon={@asset_icon} fallback={@display_initials} />
       <div class="min-w-0">
         <p class="truncate text-sm font-semibold text-app-fg">{@name}</p>
         <p class="mt-1 truncate font-mono text-xs text-app-muted">{@caption}</p>
