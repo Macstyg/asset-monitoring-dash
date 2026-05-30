@@ -7,6 +7,7 @@ defmodule AssetMonitoringDashWeb.UI.ChainIcon do
 
   attr :chain, :string, required: true
   attr :class, :string, default: ""
+  attr :size, :string, default: "size-9"
 
   def render(assigns) do
     ~H"""
@@ -14,7 +15,8 @@ defmodule AssetMonitoringDashWeb.UI.ChainIcon do
       aria-label={"#{@chain} chain"}
       title={@chain}
       class={[
-        "grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border font-mono text-[0.68rem] font-bold shadow-[inset_0_0_0_4px_color-mix(in_oklch,var(--amd-bg),transparent_72%)]",
+        "grid shrink-0 place-items-center overflow-hidden rounded-full border font-mono text-[0.68rem] font-bold shadow-[inset_0_0_0_4px_color-mix(in_oklch,var(--amd-bg),transparent_72%)]",
+        @size,
         chain_icon_class(@chain),
         @class
       ]}

@@ -196,7 +196,7 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
       phx-click="remove_filter_value"
       phx-value-filter={@chip.field}
       phx-value-option={@chip.value}
-      class="inline-flex max-w-full items-center gap-2 rounded-full border border-app-border bg-app-bg px-3 py-1.5 text-xs font-medium text-app-fg transition hover:border-app-accent/40 hover:bg-app-surface-2 focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+      class="inline-flex h-9 max-w-full items-center gap-2 rounded-full border border-app-border bg-app-bg px-3 text-xs font-medium text-app-fg transition hover:border-app-accent/40 hover:bg-app-surface-2 focus:outline-none focus:ring-2 focus:ring-app-accent/20"
     >
       <.active_chip_icon chip={@chip} />
       <span class="min-w-0 truncate">
@@ -211,7 +211,7 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
 
   defp option_icon(%{option: %{icon: :chain}} = assigns) do
     ~H"""
-    <ChainIcon.render chain={option_label(@option)} class="size-6 text-[0.55rem]" />
+    <ChainIcon.render chain={option_label(@option)} size="size-6" class="text-[0.55rem]" />
     """
   end
 
@@ -230,7 +230,7 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
 
   defp active_chip_icon(%{chip: %{icon: :chain}} = assigns) do
     ~H"""
-    <ChainIcon.render chain={@chip.label} class="size-5 text-[0.5rem]" />
+    <ChainIcon.render chain={@chip.label} size="size-5" class="text-[0.5rem]" />
     """
   end
 

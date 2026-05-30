@@ -7,23 +7,31 @@ defmodule AssetMonitoringDashWeb.UI.Card do
 
   attr :class, :string, default: ""
   attr :hover, :boolean, default: false
-  attr :padding, :string, default: "p-5"
+  attr :padding, :string, default: nil
   attr :rest, :global
+  attr :tag, :string, default: "section"
+  attr :variant, :atom, values: [:default, :inset, :subtle], default: :default
 
   slot :inner_block, required: true
 
   def surface(assigns) do
+    assigns =
+      assign_new(assigns, :surface_padding, fn ->
+        assigns.padding || surface_padding(assigns.variant)
+      end)
+
     ~H"""
-    <section
+    <.dynamic_tag
+      tag_name={@tag}
       class={[
-        card_surface_class(@hover),
-        @padding,
+        card_surface_class(@variant, @hover),
+        @surface_padding,
         @class
       ]}
       {@rest}
     >
       {render_slot(@inner_block)}
-    </section>
+    </.dynamic_tag>
     """
   end
 
@@ -42,7 +50,7 @@ defmodule AssetMonitoringDashWeb.UI.Card do
     <article
       id={@id}
       class={[
-        card_surface_class(true),
+        card_surface_class(:default, true),
         "group min-h-32 px-5 py-4",
         @class
       ]}
@@ -77,14 +85,26 @@ defmodule AssetMonitoringDashWeb.UI.Card do
     """
   end
 
-  defp card_surface_class(true) do
-    card_surface_class(false) <>
+  defp card_surface_class(variant, true) do
+    card_surface_class(variant, false) <>
       " transition duration-200 hover:-translate-y-0.5 hover:border-app-accent-2 hover:bg-app-surface-2"
   end
 
-  defp card_surface_class(false) do
+  defp card_surface_class(:default, false) do
     "min-w-0 rounded-app border border-app-border bg-app-surface shadow-app-panel"
   end
+
+  defp card_surface_class(:inset, false) do
+    "min-w-0 rounded-app border border-app-border bg-app-surface-2"
+  end
+
+  defp card_surface_class(:subtle, false) do
+    "min-w-0 rounded-app border border-app-border bg-app-surface-2/55"
+  end
+
+  defp surface_padding(:default), do: "p-5"
+  defp surface_padding(:inset), do: "p-3"
+  defp surface_padding(:subtle), do: "px-4 py-3"
 
   defp signal_class(:positive), do: "text-app-accent"
   defp signal_class(:negative), do: "text-app-danger"

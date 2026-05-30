@@ -6,15 +6,17 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.ReviewWorkflowPanel do
   use Phoenix.Component
 
   alias AssetMonitoringDashWeb.UI.Badge
+  alias AssetMonitoringDashWeb.UI.Card
 
   attr :recommendation, :map, required: true
   attr :review_state, :map, required: true
 
   def render(assigns) do
     ~H"""
-    <div
+    <Card.surface
       id="review-workflow-panel"
-      class="mt-4 rounded-app border border-app-border bg-app-surface-2 p-3"
+      variant={:inset}
+      class="mt-4"
     >
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
@@ -28,14 +30,17 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.ReviewWorkflowPanel do
             {@recommendation.detail}
           </p>
           <div id="risk-recommendation-reasons" class="mt-3 space-y-2">
-            <div
+            <Card.surface
               :for={reason <- @recommendation.reasons}
               id={"risk-recommendation-reason-#{reason.id}"}
-              class="rounded-app border border-app-border bg-app-bg px-3 py-2"
+              tag="div"
+              variant={:subtle}
+              padding="px-3 py-2"
+              class="bg-app-bg"
             >
               <p class="text-xs font-semibold text-app-fg">{reason.label}</p>
               <p class="mt-1 text-xs leading-5 text-app-muted">{reason.detail}</p>
-            </div>
+            </Card.surface>
           </div>
         </div>
 
@@ -51,7 +56,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.ReviewWorkflowPanel do
           </p>
         </div>
       </div>
-    </div>
+    </Card.surface>
     """
   end
 end

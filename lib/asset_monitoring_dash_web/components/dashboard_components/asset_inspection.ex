@@ -44,31 +44,31 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
       />
 
       <dl class="mt-5 grid grid-cols-2 gap-3">
-        <div class="rounded-app border border-app-border bg-app-surface-2 p-3">
+        <Card.surface tag="div" variant={:inset}>
           <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Value</dt>
           <dd class="mt-2 font-mono text-sm font-semibold tabular-nums text-app-fg">
             {Formatters.usd(@asset.current_value_usd)}
           </dd>
-        </div>
-        <div class="rounded-app border border-app-border bg-app-surface-2 p-3">
+        </Card.surface>
+        <Card.surface tag="div" variant={:inset}>
           <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Loan</dt>
           <dd class="mt-2 font-mono text-sm font-semibold tabular-nums text-app-fg">
             {Formatters.usd(@asset.loan_value_usd)}
           </dd>
-        </div>
-        <div class="rounded-app border border-app-border bg-app-surface-2 p-3">
+        </Card.surface>
+        <Card.surface tag="div" variant={:inset}>
           <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">LTV</dt>
           <dd class="mt-2 font-mono text-sm font-semibold tabular-nums text-app-fg">
             {Formatters.ltv(@asset.ltv_percent)}
           </dd>
-        </div>
-        <div class="rounded-app border border-app-border bg-app-surface-2 p-3">
+        </Card.surface>
+        <Card.surface tag="div" variant={:inset}>
           <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Health</dt>
           <dd class="mt-2 font-mono text-sm font-semibold tabular-nums text-app-fg">
             {@health_factor}
           </dd>
-        </div>
-        <div class="rounded-app border border-app-border bg-app-surface-2 p-3">
+        </Card.surface>
+        <Card.surface tag="div" variant={:inset}>
           <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Oracle</dt>
           <dd class="mt-2 flex flex-wrap items-center gap-2">
             <span class={[
@@ -81,8 +81,8 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
               {Formatters.duration_seconds(@asset.oracle_freshness_seconds)} ago
             </span>
           </dd>
-        </div>
-        <div class="rounded-app border border-app-border bg-app-surface-2 p-3">
+        </Card.surface>
+        <Card.surface tag="div" variant={:inset}>
           <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Liquidity</dt>
           <dd class="mt-2 flex flex-wrap items-center gap-2">
             <span class={[
@@ -95,10 +95,10 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
               {Formatters.usd(@asset.market_depth_usd)} depth
             </span>
           </dd>
-        </div>
+        </Card.surface>
       </dl>
 
-      <div class="mt-4 rounded-app border border-app-border bg-app-surface-2 p-3">
+      <Card.surface variant={:inset} class="mt-4">
         <div class="flex items-center justify-between gap-3">
           <span class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Risk score</span>
           <span class="font-mono text-sm font-semibold tabular-nums text-app-fg">
@@ -112,7 +112,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
           >
           </div>
         </div>
-      </div>
+      </Card.surface>
 
       <ReviewWorkflowPanel.render
         recommendation={@risk_recommendation}
@@ -121,9 +121,10 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
 
       <AssetTrend.render points={@ltv_trend} />
 
-      <div
+      <Card.surface
         id="risk-explanation"
-        class="mt-4 rounded-app border border-app-border bg-app-surface-2 p-3"
+        variant={:inset}
+        class="mt-4"
       >
         <p class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Risk drivers</p>
         <p id="risk-explanation-headline" class="mt-2 text-sm font-semibold text-app-fg">
@@ -148,7 +149,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
             </span>
           </div>
         </div>
-      </div>
+      </Card.surface>
     </Card.surface>
     """
   end

@@ -6,6 +6,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetTrend do
   use Phoenix.Component
 
   alias AssetMonitoringDashWeb.Formatters
+  alias AssetMonitoringDashWeb.UI.Card
 
   attr :points, :list, required: true
 
@@ -19,9 +20,10 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetTrend do
       |> assign(:delta, trend_delta(assigns.points))
 
     ~H"""
-    <div
+    <Card.surface
       id="asset-ltv-trend"
-      class="mt-4 rounded-app border border-app-border bg-app-surface-2 p-3"
+      variant={:inset}
+      class="mt-4"
     >
       <div class="flex items-start justify-between gap-3">
         <div>
@@ -80,7 +82,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetTrend do
         <span>{@first_point.label}</span>
         <span>{@latest_point.label}</span>
       </div>
-    </div>
+    </Card.surface>
     """
   end
 

@@ -6,15 +6,17 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetSummary do
   use Phoenix.Component
 
   alias AssetMonitoringDashWeb.Formatters
+  alias AssetMonitoringDashWeb.UI.Card
 
   attr :summary, :map, required: true
 
   def render(assigns) do
     ~H"""
-    <section
+    <Card.surface
       id="asset-summary"
       aria-label="Visible asset subset summary"
-      class="mt-5 min-w-0 rounded-app border border-app-border bg-app-surface-2/55 px-4 py-3"
+      variant={:subtle}
+      class="mt-5"
     >
       <div class="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="min-w-0">
@@ -68,7 +70,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetSummary do
           </div>
         </dl>
       </div>
-    </section>
+    </Card.surface>
     """
   end
 end
