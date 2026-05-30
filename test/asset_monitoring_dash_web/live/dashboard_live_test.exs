@@ -3,29 +3,36 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias AssetMonitoringDash.Assets
+  alias AssetMonitoringDash.EventStore
+  alias AssetMonitoringDash.ReviewState
+
   test "renders the asset risk cockpit as a full-width monitor", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#dashboard-shell")
     assert has_element?(view, "#metric-strip")
     assert has_element?(view, "#collateral-value-card")
-    assert has_element?(view, "#collateral-value-card", "$69.5K")
-    assert has_element?(view, "#collateral-value-card", "0.0%")
+    assert has_element?(view, "#collateral-value-card", "$3.5M")
     assert has_element?(view, "#active-loans-card")
     assert has_element?(view, "#weighted-apy-card")
     assert has_element?(view, "#risk-score-card")
-    assert has_element?(view, "#risk-score-card", "65/100")
-    assert has_element?(view, "#risk-score-card", "elevated pressure")
+    assert has_element?(view, "#risk-score-card", "54/100")
+    assert has_element?(view, "#risk-score-card", "moderate pressure")
     assert has_element?(view, "#asset-monitor")
     assert has_element?(view, "#theme-toggle")
-    assert has_element?(view, "#asset-count")
+    assert has_element?(view, "#asset-count", "600 monitored")
+    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 600")
+    assert has_element?(view, "#asset-load-hint", "Scroll to load more")
     assert has_element?(view, "#asset-list")
-    assert has_element?(view, "#asset-list-rows")
+    assert has_element?(view, ~s(#asset-list-rows[phx-hook="ScrollableLoadMore"]))
+    assert has_element?(view, ~s(#asset-list-rows[data-load-more-event="load_more_assets"]))
+    assert has_element?(view, ~s(#asset-list-rows[class*="overflow-y-auto"]))
     assert has_element?(view, "#asset-summary")
-    assert has_element?(view, "#asset-summary-visible-count")
-    assert has_element?(view, "#asset-summary-value")
-    assert has_element?(view, "#asset-summary-at-risk")
-    assert has_element?(view, "#asset-summary-highest-ltv")
+    assert has_element?(view, "#asset-summary-visible-count", "600")
+    assert has_element?(view, "#asset-summary-value", "$3,474,056")
+    assert has_element?(view, "#asset-summary-at-risk", "165")
+    assert has_element?(view, "#asset-summary-highest-ltv", "80.1%")
     assert has_element?(view, "#asset-filters")
     assert has_element?(view, "#filters_query")
     assert has_element?(view, "#filters_risks_filter")
@@ -53,20 +60,22 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-mobile-sort-action")
     refute has_element?(view, "#active-filter-chips")
     refute has_element?(view, "#active-scenario-banner")
-    assert has_element?(view, "#asset-row-asset-001")
-    assert has_element?(view, ~s(#asset-row-asset-001 img[src="/images/assets/dragon-helm.svg"]))
-    assert has_element?(view, ~s(#asset-row-asset-001 [aria-label="Polygon chain"]))
-    assert has_element?(view, "#asset-row-asset-001", "Skyforge Arena")
+    assert length(asset_row_ids(view)) == 50
     assert has_element?(view, "#asset-row-asset-010")
     assert has_element?(view, ~s(#asset-row-asset-010 img[src="/images/assets/mech-core.svg"]))
     assert has_element?(view, ~s(#asset-row-asset-010 [aria-label="Arbitrum chain"]))
-    assert has_element?(view, "#asset-row-asset-012", "Manual review")
-    assert has_element?(view, "#asset-row-asset-012", "Illiquid market")
-    assert has_element?(view, "#asset-row-asset-001", "Unreviewed")
+    assert has_element?(view, "#asset-row-asset-010", "Manual review")
+    refute has_element?(view, "#asset-row-asset-001")
     refute has_element?(view, "#asset-inspection")
     assert has_element?(view, "#event-feed")
     assert has_element?(view, "#event-count", "5 events")
     assert has_element?(view, "#event-feed-state", "streaming")
+    assert has_element?(view, "#event-filters")
+    assert has_element?(view, "#event_filters_sources_filter")
+    assert has_element?(view, "#event_filters_sources_system")
+    assert has_element?(view, "#event_filters_sources_operator")
+    assert has_element?(view, "#event_filters_sources_scenario")
+    refute has_element?(view, "#active-event-filter-chips")
     assert has_element?(view, "#event-list")
     assert has_element?(view, "#event-row-event-001")
     assert has_element?(view, "#event-row-event-004")
@@ -89,11 +98,13 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert has_element?(view, "#asset-count", "2 monitored")
-    assert has_element?(view, "#asset-summary-visible-count", "2")
-    assert has_element?(view, "#asset-summary-value", "$29,910")
-    assert has_element?(view, "#asset-summary-at-risk", "2")
+    assert has_element?(view, "#asset-count", "14 monitored")
+    assert has_element?(view, "#asset-summary-visible-count", "14")
+    assert has_element?(view, "#asset-summary-value", "$136,168")
+    assert has_element?(view, "#asset-summary-at-risk", "14")
     assert has_element?(view, "#asset-summary-highest-ltv", "80.1%")
+    assert has_element?(view, "#asset-loaded-count", "Loaded 14 of 14")
+    refute has_element?(view, "#asset-load-hint")
     assert has_element?(view, "#active-filter-chips")
     assert has_element?(view, "#active-filter-risks-critical", "Risk:")
     assert has_element?(view, "#active-filter-risks-critical", "Critical")
@@ -107,9 +118,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert has_element?(view, "#asset-count", "12 monitored")
+    assert has_element?(view, "#asset-count", "600 monitored")
+    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 600")
     refute has_element?(view, "#active-filter-chips")
-    assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
   end
 
@@ -117,10 +128,10 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     view
-    |> element("#asset-row-asset-003")
+    |> element("#asset-row-asset-010")
     |> render_click()
 
-    assert_redirect(view, ~p"/assets/asset-003")
+    assert_redirect(view, ~p"/assets/asset-010")
   end
 
   test "filters monitored assets by chain", %{conn: conn} do
@@ -132,7 +143,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert has_element?(view, "#asset-count", "2 monitored")
+    assert has_element?(view, "#asset-count", "100 monitored")
+    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 100")
     assert has_element?(view, "#active-filter-chains-arbitrum", "Network:")
     assert has_element?(view, "#active-filter-chains-arbitrum", "Arbitrum")
     assert has_element?(view, "#asset-row-asset-005")
@@ -154,9 +166,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert has_element?(view, "#asset-count", "8 monitored")
-    assert has_element?(view, "#asset-row-asset-001", "Elevated risk")
-    assert has_element?(view, "#asset-row-asset-012", "Illiquid market")
+    assert has_element?(view, "#asset-count", "336 monitored")
+    assert has_element?(view, "#asset-row-asset-010", "Manual review")
+    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 336")
     refute has_element?(view, "#asset-row-asset-002")
 
     view
@@ -170,7 +182,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert has_element?(view, "#asset-count", "1 monitored")
+    assert has_element?(view, "#asset-count", "4 monitored")
+    assert has_element?(view, "#asset-loaded-count", "Loaded 4 of 4")
+    assert has_element?(view, "#asset-row-asset-010-variant-010", "Liquidation candidate")
     assert has_element?(view, "#asset-row-asset-002", "Liquidation candidate")
     refute has_element?(view, "#asset-row-asset-001")
   end
@@ -229,7 +243,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert has_element?(view, "#asset-count", "1 monitored")
+    assert has_element?(view, "#asset-count", "13 monitored")
     assert has_element?(view, "#asset-row-asset-010")
     refute has_element?(view, "#asset-row-asset-002")
   end
@@ -243,7 +257,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert has_element?(view, "#asset-count", "1 monitored")
+    assert has_element?(view, "#asset-count", "50 monitored")
+    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 50")
     assert has_element?(view, "#active-filter-query-mech", "Search:")
     assert has_element?(view, "#active-filter-query-mech", "mech")
     assert has_element?(view, "#asset-row-asset-010")
@@ -278,16 +293,15 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert has_element?(view, "#asset-count", "1 monitored")
+    assert has_element?(view, "#asset-count", "13 monitored")
     assert has_element?(view, "#active-filter-chips")
 
     view
     |> element("#reset-asset-filters")
     |> render_click()
 
-    assert has_element?(view, "#asset-count", "12 monitored")
+    assert has_element?(view, "#asset-count", "600 monitored")
     refute has_element?(view, "#active-filter-chips")
-    assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
   end
 
@@ -300,7 +314,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert has_element?(view, "#asset-count", "1 monitored")
+    assert has_element?(view, "#asset-count", "13 monitored")
     assert has_element?(view, "#active-filter-risks-critical")
     assert has_element?(view, "#active-filter-chains-arbitrum")
 
@@ -308,7 +322,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> element("#active-filter-chains-arbitrum")
     |> render_click()
 
-    assert has_element?(view, "#asset-count", "2 monitored")
+    assert has_element?(view, "#asset-count", "14 monitored")
     assert has_element?(view, "#active-filter-risks-critical")
     refute has_element?(view, "#active-filter-chains-arbitrum")
     assert has_element?(view, "#asset-row-asset-002")
@@ -318,56 +332,89 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> element("#active-filter-risks-critical")
     |> render_click()
 
-    assert has_element?(view, "#asset-count", "12 monitored")
+    assert has_element?(view, "#asset-count", "600 monitored")
     refute has_element?(view, "#active-filter-chips")
+  end
+
+  test "loads additional assets when the viewport reaches the table bottom", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert length(asset_row_ids(view)) == 50
+    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 600")
+
+    view
+    |> element("#asset-list-rows")
+    |> render_hook("load_more_assets")
+
+    assert length(asset_row_ids(view)) == 100
+    assert has_element?(view, "#asset-loaded-count", "Loaded 100 of 600")
+
+    view
+    |> element("#asset-list-rows")
+    |> render_hook("load_more_assets")
+
+    view
+    |> element("#asset-list-rows")
+    |> render_hook("load_more_assets")
+
+    assert length(asset_row_ids(view)) in 140..150
+    assert has_element?(view, "#asset-loaded-count", "Loaded 200 of 600")
   end
 
   test "sorts monitored assets by selected table headers", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert List.first(asset_row_ids(view)) == "asset-row-asset-010"
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :ltv, direction: :desc})
 
     view
     |> element("#asset-list-sort-ltv")
     |> render_click()
 
-    assert List.first(asset_row_ids(view)) == "asset-row-asset-011"
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :ltv, direction: :asc})
 
     view
     |> element("#asset-list-sort-asset")
     |> render_click()
 
-    assert List.first(asset_row_ids(view)) == "asset-row-asset-001"
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :asset, direction: :asc})
 
     view
     |> element("#asset-list-sort-chain")
     |> render_click()
 
-    assert List.first(asset_row_ids(view)) == "asset-row-asset-010"
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :chain, direction: :asc})
 
     view
     |> element("#asset-list-sort-floor")
     |> render_click()
 
-    assert List.first(asset_row_ids(view)) == "asset-row-asset-002"
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :floor, direction: :desc})
 
     view
     |> element("#asset-list-sort-value")
     |> render_click()
 
-    assert List.first(asset_row_ids(view)) == "asset-row-asset-002"
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :value, direction: :desc})
 
     view
     |> element("#asset-list-sort-risk")
     |> render_click()
 
-    assert List.first(asset_row_ids(view)) == "asset-row-asset-010"
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :risk, direction: :desc})
 
     view
     |> element("#asset-list-sort-action")
     |> render_click()
 
-    assert List.first(asset_row_ids(view)) == "asset-row-asset-002"
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :action, direction: :desc})
   end
 
   test "sorts monitored assets by operator state priority", %{conn: conn} do
@@ -380,7 +427,12 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> element("#asset-list-sort-operator")
     |> render_click()
 
-    assert List.first(asset_row_ids(view)) == "asset-row-asset-003"
+    review_states = %{"asset-001" => :reviewed, "asset-003" => :escalated}
+
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :operator, direction: :desc},
+               review_states: review_states
+             )
   end
 
   test "shows and resets active asset scenarios", %{conn: conn} do
@@ -392,10 +444,20 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#active-scenario-banner")
     assert has_element?(view, "#active-scenario-count", "1 active scenario")
     assert has_element?(view, "#reset-asset-scenarios")
-    assert has_element?(view, "#collateral-value-card", "$68.9K")
-    assert has_element?(view, "#collateral-value-card", "-0.8%")
-    assert has_element?(view, "#risk-score-card", "66/100")
-    assert has_element?(view, "#risk-score-card", "+1 risk")
+
+    view
+    |> form("#asset-filters", %{
+      "filters" => %{
+        "query" => "aegis",
+        "risks" => [""],
+        "actions" => [""],
+        "operator_states" => [""],
+        "chains" => [""]
+      }
+    })
+    |> render_change()
+
+    assert has_element?(view, "#asset-count", "50 monitored")
     assert has_element?(view, "#asset-row-asset-001", "$4,277")
     assert has_element?(view, "#asset-row-asset-001", "67.8%")
     assert has_element?(view, "#asset-scenario-asset-001", "Price shock")
@@ -407,9 +469,6 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     refute has_element?(view, "#active-scenario-banner")
     refute has_element?(view, "#asset-scenario-asset-001")
-    assert has_element?(view, "#collateral-value-card", "$69.5K")
-    assert has_element?(view, "#collateral-value-card", "0.0%")
-    assert has_element?(view, "#risk-score-card", "65/100")
     assert has_element?(view, "#event-row-event-reset-asset-001", "Scenario reset")
     assert has_element?(view, "#asset-row-asset-001", "$4,860")
     assert has_element?(view, "#asset-row-asset-001", "59.7%")
@@ -418,6 +477,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
   test "keeps sorting scoped to the filtered assets", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
+    filters = %{Assets.default_filters() | chains: ["Arbitrum"]}
 
     view
     |> form("#asset-filters", %{
@@ -425,19 +485,22 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     })
     |> render_change()
 
-    assert asset_row_ids(view) == ["asset-row-asset-010", "asset-row-asset-005"]
+    assert asset_row_ids(view) ==
+             expected_asset_row_ids(%{field: :ltv, direction: :desc}, filters: filters)
 
     view
     |> element("#asset-list-sort-value")
     |> render_click()
 
-    assert asset_row_ids(view) == ["asset-row-asset-010", "asset-row-asset-005"]
+    assert asset_row_ids(view) ==
+             expected_asset_row_ids(%{field: :value, direction: :desc}, filters: filters)
 
     view
     |> element("#asset-list-sort-value")
     |> render_click()
 
-    assert asset_row_ids(view) == ["asset-row-asset-005", "asset-row-asset-010"]
+    assert asset_row_ids(view) ==
+             expected_asset_row_ids(%{field: :value, direction: :asc}, filters: filters)
   end
 
   test "pushes and pauses demo events", %{conn: conn} do
@@ -457,6 +520,135 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     assert has_element?(view, "#event-feed-state", "paused")
     assert has_element?(view, "#toggle-event-feed", "Resume feed")
+  end
+
+  test "filters event feed by source kind", %{conn: conn} do
+    asset = asset_fixture("asset-001")
+
+    EventStore.push_price_shock_event(%{asset | ltv_percent: 67.8}, 12)
+    EventStore.push_review_event(asset, ReviewState.state(:reviewed))
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#event-count", "6 events")
+    assert has_element?(view, "#event-row-event-review-reviewed-asset-001")
+    assert has_element?(view, "#event-row-event-shock-asset-001")
+
+    view
+    |> form("#event-filters", %{
+      "event_filters" => %{"sources" => ["scenario"], "source_option_query" => ""}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#event-count", "1 events")
+    assert has_element?(view, "#active-event-filter-chips")
+    assert has_element?(view, "#active-filter-event-sources-scenario", "Scenario")
+    assert has_element?(view, "#event-row-event-shock-asset-001", "Price shock applied")
+    refute has_element?(view, "#event-row-event-review-reviewed-asset-001")
+    refute has_element?(view, "#event-row-event-001")
+
+    view
+    |> form("#event-filters", %{
+      "event_filters" => %{"sources" => ["operator"], "source_option_query" => ""}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#event-count", "1 events")
+    assert has_element?(view, "#event-row-event-review-reviewed-asset-001", "Position reviewed")
+    refute has_element?(view, "#event-row-event-shock-asset-001")
+
+    view
+    |> form("#event-filters", %{
+      "event_filters" => %{"sources" => ["system"], "source_option_query" => ""}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#event-count", "4 events")
+    assert has_element?(view, "#event-row-event-001")
+    refute has_element?(view, "#event-row-event-review-reviewed-asset-001")
+    refute has_element?(view, "#event-row-event-shock-asset-001")
+
+    view
+    |> form("#event-filters", %{
+      "event_filters" => %{"sources" => [""], "source_option_query" => ""}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#event-count", "6 events")
+    assert has_element?(view, "#event-row-event-review-reviewed-asset-001")
+    assert has_element?(view, "#event-row-event-shock-asset-001")
+  end
+
+  test "combines multiple event source filters", %{conn: conn} do
+    asset = asset_fixture("asset-001")
+
+    EventStore.push_price_shock_event(%{asset | ltv_percent: 67.8}, 12)
+    EventStore.push_review_event(asset, ReviewState.state(:reviewed))
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#event-filters", %{
+      "event_filters" => %{"sources" => ["scenario", "operator"], "source_option_query" => ""}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#event-count", "2 events")
+    assert has_element?(view, "#event-row-event-shock-asset-001")
+    assert has_element?(view, "#event-row-event-review-reviewed-asset-001")
+    assert has_element?(view, "#active-filter-event-sources-scenario")
+    assert has_element?(view, "#active-filter-event-sources-operator")
+    refute has_element?(view, "#event-row-event-001")
+
+    view
+    |> element("#active-filter-event-sources-scenario")
+    |> render_click()
+
+    assert has_element?(view, "#event-count", "1 events")
+    assert has_element?(view, "#event-row-event-review-reviewed-asset-001")
+    refute has_element?(view, "#event-row-event-shock-asset-001")
+    refute has_element?(view, "#active-filter-event-sources-scenario")
+  end
+
+  test "event source filters can show an empty feed slice", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#event-filters", %{
+      "event_filters" => %{"sources" => ["scenario"], "source_option_query" => ""}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#event-count", "0 events")
+    assert has_element?(view, "#event-list-empty", "No events for this filter.")
+    refute has_element?(view, "#event-row-event-001")
+  end
+
+  test "active event source filters are not displaced by hidden system ticks", %{conn: conn} do
+    asset = asset_fixture("asset-001")
+
+    EventStore.push_price_shock_event(%{asset | ltv_percent: 67.8}, 12)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#event-filters", %{
+      "event_filters" => %{"sources" => ["scenario"], "source_option_query" => ""}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#event-count", "1 events")
+    assert has_element?(view, "#event-row-event-shock-asset-001")
+
+    for _index <- 1..3 do
+      view
+      |> element("#push-demo-event")
+      |> render_click()
+    end
+
+    assert has_element?(view, "#event-count", "1 events")
+    assert has_element?(view, "#event-row-event-shock-asset-001")
+    refute has_element?(view, "#event-row-event-live-3")
   end
 
   test "keeps the visible event feed bounded", %{conn: conn} do
@@ -483,5 +675,35 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> LazyHTML.query("#asset-list-rows > div")
     |> LazyHTML.attribute("id")
     |> Enum.filter(&String.starts_with?(&1, "asset-row-"))
+  end
+
+  defp expected_first_asset_row_id(sort, opts \\ []) do
+    sort
+    |> expected_asset_row_ids(opts)
+    |> List.first()
+  end
+
+  defp expected_asset_row_ids(sort, opts) do
+    filters = Keyword.get(opts, :filters, Assets.default_filters())
+    review_states = Keyword.get(opts, :review_states, %{})
+    shocked_asset_ids = Keyword.get(opts, :shocked_asset_ids, MapSet.new())
+    limit = Keyword.get(opts, :limit, 50)
+
+    %{
+      filters: filters,
+      sort: sort,
+      cursor: nil,
+      limit: limit,
+      review_states: review_states,
+      shocked_asset_ids: shocked_asset_ids
+    }
+    |> Assets.list_assets_page()
+    |> Map.fetch!(:entries)
+    |> Enum.map(&"asset-row-#{&1.id}")
+  end
+
+  defp asset_fixture(asset_id) do
+    Assets.list_assets()
+    |> Enum.find(&(&1.id == asset_id))
   end
 end

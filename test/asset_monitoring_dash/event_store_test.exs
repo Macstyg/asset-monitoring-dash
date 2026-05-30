@@ -19,10 +19,13 @@ defmodule AssetMonitoringDash.EventStoreTest do
 
     events = EventStore.push_price_shock_event(asset, 12)
 
-    assert [%{id: "event-shock-asset-001"} | _events] = events
+    assert [%{id: "event-shock-asset-001", kind: :scenario} | _events] = events
     assert length(events) == 6
 
-    assert [%{id: "event-shock-asset-001"}, %{id: "event-001"} | _events] =
+    assert [
+             %{id: "event-shock-asset-001", kind: :scenario},
+             %{id: "event-001", kind: :system} | _events
+           ] =
              EventStore.visible_events()
   end
 

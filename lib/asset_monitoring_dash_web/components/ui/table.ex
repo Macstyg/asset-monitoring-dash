@@ -14,11 +14,13 @@ defmodule AssetMonitoringDashWeb.UI.Table do
   attr :min_width_class, :string, default: "min-w-[760px]"
   attr :row_class, :string, default: ""
   attr :row_click, :string, default: nil
+  attr :rows_class, :string, default: ""
   attr :rows, :any, required: true
   attr :selected_row_id, :string, default: nil
   attr :sort_direction, :atom, values: [:asc, :desc], default: :desc
   attr :sort_event, :string, default: nil
   attr :sort_field, :atom, default: nil
+  attr :viewport_bottom, :string, default: nil
   attr :rest, :global
 
   slot :col, required: true do
@@ -57,7 +59,9 @@ defmodule AssetMonitoringDashWeb.UI.Table do
 
       <div
         id={"#{@id}-rows"}
-        class="min-w-0"
+        class={["min-w-0", @rows_class]}
+        data-load-more-event={@viewport_bottom}
+        phx-hook={@viewport_bottom && "ScrollableLoadMore"}
         phx-update="stream"
       >
         <div

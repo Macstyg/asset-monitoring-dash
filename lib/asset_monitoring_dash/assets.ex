@@ -12,6 +12,7 @@ defmodule AssetMonitoringDash.Assets do
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
 
+  @variant_count_per_asset 49
   @default_filters %{
     query: "",
     risks: [],
@@ -66,7 +67,9 @@ defmodule AssetMonitoringDash.Assets do
   }
 
   def list_assets do
-    Enum.map(DemoData.monitored_assets(), &normalize_risk_fields/1)
+    canonical_assets = canonical_assets()
+
+    canonical_assets ++ generated_variant_assets(canonical_assets)
   end
 
   def list_assets_with_scenarios(shocked_asset_ids) do
@@ -88,6 +91,32 @@ defmodule AssetMonitoringDash.Assets do
       filter_values(filters, :operator_states, :operator_state, "All"),
       review_states
     )
+  end
+
+  def list_assets_page(opts) do
+    filters = Map.fetch!(opts, :filters)
+    sort = Map.fetch!(opts, :sort)
+    cursor = Map.get(opts, :cursor)
+    limit = Map.get(opts, :limit, 50)
+    review_states = Map.get(opts, :review_states, %{})
+    shocked_asset_ids = Map.get(opts, :shocked_asset_ids, MapSet.new())
+
+    assets =
+      shocked_asset_ids
+      |> list_assets_with_scenarios()
+      |> filter_assets(filters, review_states)
+      |> sort_assets(sort, review_states)
+
+    offset = cursor_to_offset(cursor)
+    entries = Enum.slice(assets, offset, limit)
+    next_offset = offset + length(entries)
+
+    %{
+      entries: entries,
+      next_cursor: next_cursor(next_offset, length(assets)),
+      total_count: length(assets),
+      summary: summarize_assets(assets)
+    }
   end
 
   def get_asset(asset_id) do
@@ -315,6 +344,121 @@ defmodule AssetMonitoringDash.Assets do
     chain_filter_options()
     |> filter_option_values()
   end
+
+  defp canonical_assets do
+    Enum.map(DemoData.monitored_assets(), &normalize_risk_fields/1)
+  end
+
+  defp generated_variant_assets(canonical_assets) do
+    for {asset, asset_index} <- Enum.with_index(canonical_assets),
+        variant_index <- 1..@variant_count_per_asset do
+      asset
+      |> variant_asset(asset_index, variant_index)
+      |> normalize_risk_fields()
+    end
+  end
+
+  defp variant_asset(asset, asset_index, variant_index) do
+    sequence = asset_index * @variant_count_per_asset + variant_index
+    suffix = variant_suffix(variant_index)
+    current_factor = 0.86 + rem(sequence * 7, 29) / 100
+    ltv_factor = 0.72 + rem(sequence * 5, 24) / 100
+    floor_factor = current_factor * (0.92 + rem(sequence * 11, 17) / 100)
+    depth_factor = 0.35 + rem(sequence * 13, 170) / 100
+
+    %{
+      asset
+      | id: "#{asset.id}-variant-#{suffix}",
+        name: "#{asset.name} V#{suffix}",
+        floor_price_usd: asset.floor_price_usd |> Kernel.*(floor_factor) |> round() |> max(1),
+        current_value_usd:
+          asset.current_value_usd |> Kernel.*(current_factor) |> round() |> max(1),
+        loan_value_usd:
+          asset.loan_value_usd
+          |> Kernel.*(current_factor * ltv_factor)
+          |> round()
+          |> max(1),
+        oracle_freshness_seconds: variant_oracle_freshness(sequence),
+        market_depth_usd: asset.market_depth_usd |> Kernel.*(depth_factor) |> round() |> max(500)
+    }
+  end
+
+  defp variant_suffix(variant_index) do
+    variant_index
+    |> Integer.to_string()
+    |> String.pad_leading(3, "0")
+  end
+
+  defp variant_oracle_freshness(sequence) do
+    Enum.at([18, 24, 36, 58, 92, 184, 216, 420, 620, 760], rem(sequence, 10))
+  end
+
+  defp sort_assets(assets, sort, review_states) do
+    Enum.sort(assets, &asset_before?(&1, &2, sort, review_states))
+  end
+
+  defp asset_before?(asset, other_asset, %{field: field, direction: direction}, review_states) do
+    asset_value = sort_value(asset, field, review_states)
+    other_value = sort_value(other_asset, field, review_states)
+
+    case compare_sort_values(asset_value, other_value, direction) do
+      :before -> true
+      :after -> false
+      :same -> asset.id <= other_asset.id
+    end
+  end
+
+  defp compare_sort_values(value, value, _direction), do: :same
+  defp compare_sort_values(value, other_value, :asc) when value < other_value, do: :before
+  defp compare_sort_values(_value, _other_value, :asc), do: :after
+  defp compare_sort_values(value, other_value, :desc) when value > other_value, do: :before
+  defp compare_sort_values(_value, _other_value, :desc), do: :after
+
+  defp sort_value(asset, :asset, _review_states), do: String.downcase(asset.name)
+
+  defp sort_value(asset, :chain, _review_states),
+    do: String.downcase("#{asset.chain} #{asset.ecosystem}")
+
+  defp sort_value(asset, :floor, _review_states), do: asset.floor_price_usd
+  defp sort_value(asset, :value, _review_states), do: asset.current_value_usd
+  defp sort_value(asset, :ltv, _review_states), do: asset.ltv_percent
+  defp sort_value(asset, :risk, _review_states), do: risk_sort_rank(asset.risk_band)
+
+  defp sort_value(asset, :operator, review_states) do
+    asset.id
+    |> ReviewState.state_for(review_states)
+    |> Map.fetch!(:id)
+    |> operator_sort_rank()
+  end
+
+  defp sort_value(asset, :action, _review_states) do
+    asset
+    |> RiskRecommendation.recommendation_for()
+    |> Map.fetch!(:id)
+    |> action_sort_rank()
+  end
+
+  defp risk_sort_rank("Critical"), do: 4
+  defp risk_sort_rank("Elevated"), do: 3
+  defp risk_sort_rank("Moderate"), do: 2
+  defp risk_sort_rank("Low"), do: 1
+  defp risk_sort_rank(_risk_band), do: 0
+
+  defp action_sort_rank(:liquidation_candidate), do: 4
+  defp action_sort_rank(:manual_review), do: 3
+  defp action_sort_rank(:watch), do: 2
+  defp action_sort_rank(:clear), do: 1
+
+  defp operator_sort_rank(:escalated), do: 3
+  defp operator_sort_rank(:unreviewed), do: 2
+  defp operator_sort_rank(:reviewed), do: 1
+
+  defp cursor_to_offset(nil), do: 0
+  defp cursor_to_offset(cursor) when is_integer(cursor) and cursor >= 0, do: cursor
+  defp cursor_to_offset(_cursor), do: 0
+
+  defp next_cursor(next_offset, total_count) when next_offset < total_count, do: next_offset
+  defp next_cursor(_next_offset, _total_count), do: nil
 
   defp ltv_trend_offsets(asset_id) do
     Map.get(@ltv_trend_offsets, asset_id, [-2.0, -1.5, -1.1, -0.7, -0.4, -0.2])

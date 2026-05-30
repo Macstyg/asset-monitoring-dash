@@ -201,6 +201,18 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
 
     {:ok, dashboard_view, _html} = live(conn, ~p"/")
 
+    dashboard_view
+    |> form("#asset-filters", %{
+      "filters" => %{
+        "query" => "aegis",
+        "risks" => [""],
+        "actions" => [""],
+        "operator_states" => [""],
+        "chains" => [""]
+      }
+    })
+    |> render_change()
+
     assert has_element?(dashboard_view, "#event-row-event-shock-asset-001", "Price shock applied")
     assert has_element?(dashboard_view, "#asset-row-asset-001", "$4,277")
     assert has_element?(dashboard_view, "#asset-row-asset-001", "67.8%")
@@ -210,6 +222,18 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> render_click()
 
     {:ok, reset_dashboard_view, _html} = live(conn, ~p"/")
+
+    reset_dashboard_view
+    |> form("#asset-filters", %{
+      "filters" => %{
+        "query" => "aegis",
+        "risks" => [""],
+        "actions" => [""],
+        "operator_states" => [""],
+        "chains" => [""]
+      }
+    })
+    |> render_change()
 
     assert has_element?(reset_dashboard_view, "#asset-row-asset-001", "$4,860")
     assert has_element?(reset_dashboard_view, "#asset-row-asset-001", "59.7%")

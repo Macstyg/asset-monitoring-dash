@@ -7,8 +7,9 @@ defmodule AssetMonitoringDash.AssetsTest do
     test "returns all monitored assets with default filters" do
       assets = Assets.list_assets(Assets.default_filters())
 
-      assert length(assets) == 12
+      assert length(assets) == 600
       assert Enum.any?(assets, &(&1.id == "asset-001"))
+      assert Enum.any?(assets, &(&1.id == "asset-001-variant-001"))
       assert Enum.any?(assets, &(&1.id == "asset-010"))
     end
 
@@ -46,14 +47,22 @@ defmodule AssetMonitoringDash.AssetsTest do
 
     test "filters by risk band" do
       filters = %{Assets.default_filters() | risks: ["Critical"]}
+      ids = Enum.map(Assets.list_assets(filters), & &1.id)
 
-      assert Enum.map(Assets.list_assets(filters), & &1.id) == ["asset-002", "asset-010"]
+      assert length(ids) == 14
+      assert "asset-002" in ids
+      assert "asset-010" in ids
+      assert "asset-010-variant-005" in ids
     end
 
     test "filters by chain" do
       filters = %{Assets.default_filters() | chains: ["Arbitrum"]}
+      ids = Enum.map(Assets.list_assets(filters), & &1.id)
 
-      assert Enum.map(Assets.list_assets(filters), & &1.id) == ["asset-005", "asset-010"]
+      assert length(ids) == 100
+      assert "asset-005" in ids
+      assert "asset-010" in ids
+      assert "asset-005-variant-001" in ids
     end
 
     test "filters by multiple selected values" do
@@ -63,10 +72,11 @@ defmodule AssetMonitoringDash.AssetsTest do
           chains: ["Ethereum", "Arbitrum"]
       }
 
-      assert Enum.map(Assets.list_assets(filters), & &1.id) == [
-               "asset-002",
-               "asset-010"
-             ]
+      ids = Enum.map(Assets.list_assets(filters), & &1.id)
+
+      assert length(ids) == 14
+      assert "asset-002" in ids
+      assert "asset-010" in ids
     end
 
     test "filters by system recommendation action" do
@@ -86,7 +96,9 @@ defmodule AssetMonitoringDash.AssetsTest do
         |> Assets.list_assets()
         |> Enum.map(& &1.id)
 
-      assert liquidation_ids == ["asset-002"]
+      assert length(liquidation_ids) == 4
+      assert "asset-002" in liquidation_ids
+      refute "asset-001" in liquidation_ids
     end
 
     test "filters by operator review state" do
@@ -112,15 +124,82 @@ defmodule AssetMonitoringDash.AssetsTest do
 
       assert reviewed_ids == ["asset-001"]
       assert escalated_ids == ["asset-003"]
-      assert length(unreviewed_ids) == 10
+      assert length(unreviewed_ids) == 598
       refute "asset-001" in unreviewed_ids
       refute "asset-003" in unreviewed_ids
     end
 
     test "combines risk, chain, and query filters" do
       filters = %{query: "mech", risk: "Critical", chain: "Arbitrum"}
+      ids = Enum.map(Assets.list_assets(filters), & &1.id)
 
-      assert Enum.map(Assets.list_assets(filters), & &1.id) == ["asset-010"]
+      assert length(ids) == 13
+      assert "asset-010" in ids
+      assert "asset-010-variant-005" in ids
+    end
+  end
+
+  describe "list_assets_page/1" do
+    test "returns the first page plus count, summary, and cursor" do
+      page =
+        Assets.list_assets_page(%{
+          filters: Assets.default_filters(),
+          sort: %{field: :ltv, direction: :desc},
+          cursor: nil,
+          limit: 50,
+          review_states: %{},
+          shocked_asset_ids: MapSet.new()
+        })
+
+      assert length(page.entries) == 50
+      assert page.total_count == 600
+      assert page.next_cursor == 50
+      assert page.summary.visible_count == 600
+      assert List.first(page.entries).id == "asset-010"
+    end
+
+    test "returns later pages without duplicating previous rows" do
+      first_page =
+        Assets.list_assets_page(%{
+          filters: Assets.default_filters(),
+          sort: %{field: :ltv, direction: :desc},
+          cursor: nil,
+          limit: 50,
+          review_states: %{},
+          shocked_asset_ids: MapSet.new()
+        })
+
+      second_page =
+        Assets.list_assets_page(%{
+          filters: Assets.default_filters(),
+          sort: %{field: :ltv, direction: :desc},
+          cursor: first_page.next_cursor,
+          limit: 50,
+          review_states: %{},
+          shocked_asset_ids: MapSet.new()
+        })
+
+      first_ids = MapSet.new(Enum.map(first_page.entries, & &1.id))
+      second_ids = MapSet.new(Enum.map(second_page.entries, & &1.id))
+
+      assert MapSet.disjoint?(first_ids, second_ids)
+      assert second_page.next_cursor == 100
+    end
+
+    test "summarizes the full filtered result, not only the current page" do
+      page =
+        Assets.list_assets_page(%{
+          filters: %{Assets.default_filters() | chains: ["Arbitrum"]},
+          sort: %{field: :ltv, direction: :desc},
+          cursor: nil,
+          limit: 10,
+          review_states: %{},
+          shocked_asset_ids: MapSet.new()
+        })
+
+      assert length(page.entries) == 10
+      assert page.total_count == 100
+      assert page.summary.visible_count == 100
     end
   end
 
@@ -184,9 +263,7 @@ defmodule AssetMonitoringDash.AssetsTest do
 
   test "summarizes a list of visible assets" do
     summary =
-      Assets.default_filters()
-      |> Map.put(:risks, ["Critical"])
-      |> Assets.list_assets()
+      [Assets.get_asset("asset-002"), Assets.get_asset("asset-010")]
       |> Assets.summarize_assets()
 
     assert summary.visible_count == 2

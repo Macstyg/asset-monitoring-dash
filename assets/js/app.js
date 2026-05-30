@@ -84,11 +84,52 @@ const FilterDropdown = {
   },
 }
 
+const ScrollableLoadMore = {
+  mounted() {
+    this.pending = false
+    this.thresholdPx = 160
+
+    this.handleScroll = () => {
+      if (this.pending) {
+        return
+      }
+
+      const loadMoreEvent = this.el.dataset.loadMoreEvent
+
+      if (!loadMoreEvent || this.distanceFromBottom() > this.thresholdPx) {
+        return
+      }
+
+      this.pending = true
+      this.pushEvent(loadMoreEvent, {})
+
+      setTimeout(() => {
+        this.pending = false
+      }, 500)
+    }
+
+    this.el.addEventListener("scroll", this.handleScroll, {passive: true})
+    requestAnimationFrame(this.handleScroll)
+  },
+
+  updated() {
+    this.pending = false
+  },
+
+  destroyed() {
+    this.el.removeEventListener("scroll", this.handleScroll)
+  },
+
+  distanceFromBottom() {
+    return this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight
+  },
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, FilterDropdown},
+  hooks: {...colocatedHooks, FilterDropdown, ScrollableLoadMore},
 })
 
 // Show progress bar on live navigation and form submits

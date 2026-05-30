@@ -10,22 +10,47 @@ defmodule AssetMonitoringDash.EventFeed do
   alias AssetMonitoringDash.DemoData
 
   @visible_event_limit 6
+  @event_history_limit 24
   @event_tick_interval_seconds 4
 
-  def initial_events, do: DemoData.live_events()
+  def visible_event_limit, do: @visible_event_limit
+
+  def initial_events do
+    Enum.map(DemoData.live_events(), &Map.put_new(&1, :kind, :system))
+  end
 
   def visible_events(generated_events) do
     generated_events
+    |> Enum.map(&put_missing_event_kind/1)
     |> Kernel.++(initial_events())
     |> Enum.take(@visible_event_limit)
     |> refresh_live_event_labels()
   end
 
   def push_demo_event(visible_events, next_event_index) do
-    event = DemoData.next_live_event(next_event_index)
+    feed = push_demo_event_history(visible_events, next_event_index)
 
-    push_event(visible_events, event)
-    |> Map.put(:next_event_index, next_event_index + 1)
+    %{
+      visible_events: Enum.take(feed.event_history, @visible_event_limit),
+      next_event_index: feed.next_event_index
+    }
+  end
+
+  def push_demo_event_history(event_history, next_event_index) do
+    event =
+      next_event_index
+      |> DemoData.next_live_event()
+      |> Map.put(:kind, :system)
+
+    event_history =
+      [event | Enum.reject(event_history, &(&1.id == event.id))]
+      |> Enum.take(@event_history_limit)
+      |> refresh_live_event_labels()
+
+    %{
+      event_history: event_history,
+      next_event_index: next_event_index + 1
+    }
   end
 
   def push_price_shock_event(visible_events, asset, drop_percent) do
@@ -35,6 +60,7 @@ defmodule AssetMonitoringDash.EventFeed do
       title: "Price shock applied",
       detail: "#{asset.name} repriced #{drop_percent}% lower; LTV is now #{asset.ltv_percent}%.",
       chain: asset.chain,
+      kind: :scenario,
       status: "risk",
       tone: :danger
     }
@@ -49,6 +75,7 @@ defmodule AssetMonitoringDash.EventFeed do
       title: "Scenario reset",
       detail: "#{asset.name} restored to the baseline demo valuation.",
       chain: asset.chain,
+      kind: :scenario,
       status: "synced",
       tone: :success
     }
@@ -116,12 +143,26 @@ defmodule AssetMonitoringDash.EventFeed do
 
   defp refresh_live_event_label(event, _index), do: event
 
+  defp put_missing_event_kind(%{kind: _kind} = event), do: event
+
+  defp put_missing_event_kind(%{id: "event-shock-" <> _id} = event),
+    do: Map.put(event, :kind, :scenario)
+
+  defp put_missing_event_kind(%{id: "event-reset-" <> _id} = event),
+    do: Map.put(event, :kind, :scenario)
+
+  defp put_missing_event_kind(%{id: "event-review-" <> _id} = event),
+    do: Map.put(event, :kind, :operator)
+
+  defp put_missing_event_kind(event), do: Map.put(event, :kind, :system)
+
   defp review_event(asset, %{id: :reviewed}) do
     %{
       id: "event-review-reviewed-#{asset.id}",
       title: "Position reviewed",
       detail: "#{asset.name} marked reviewed by an operator.",
       chain: asset.chain,
+      kind: :operator,
       status: "reviewed",
       tone: :success
     }
@@ -133,6 +174,7 @@ defmodule AssetMonitoringDash.EventFeed do
       title: "Review escalated",
       detail: "#{asset.name} escalated for follow-up.",
       chain: asset.chain,
+      kind: :operator,
       status: "review",
       tone: :warning
     }

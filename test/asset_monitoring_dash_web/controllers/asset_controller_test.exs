@@ -5,9 +5,9 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
     conn = get(conn, ~p"/api/assets")
     response = json_response(conn, 200)
 
-    assert response["meta"]["count"] == 12
-    assert response["meta"]["summary"]["visible_count"] == 12
-    assert response["meta"]["summary"]["at_risk_count"] == 6
+    assert response["meta"]["count"] == 600
+    assert response["meta"]["summary"]["visible_count"] == 600
+    assert response["meta"]["summary"]["at_risk_count"] == 165
 
     assert %{
              "id" => "asset-001",
@@ -24,18 +24,25 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
     conn = get(conn, ~p"/api/assets", %{"risk_band" => "Critical"})
     response = json_response(conn, 200)
 
-    assert response["meta"]["count"] == 2
+    asset_ids = Enum.map(response["data"], & &1["id"])
+
+    assert response["meta"]["count"] == 14
     assert response["meta"]["filters"]["risks"] == ["Critical"]
-    assert Enum.map(response["data"], & &1["id"]) == ["asset-002", "asset-010"]
+    assert "asset-002" in asset_ids
+    assert "asset-010" in asset_ids
+    assert "asset-010-variant-005" in asset_ids
   end
 
   test "GET /api/assets combines query and chain filters", %{conn: conn} do
     conn = get(conn, ~p"/api/assets", %{"query" => "vault", "chain" => "Arbitrum"})
     response = json_response(conn, 200)
 
-    assert response["meta"]["count"] == 1
+    asset_ids = Enum.map(response["data"], & &1["id"])
+
+    assert response["meta"]["count"] == 50
     assert response["meta"]["filters"]["query"] == "vault"
     assert response["meta"]["filters"]["chains"] == ["Arbitrum"]
-    assert [%{"id" => "asset-005"}] = response["data"]
+    assert "asset-005" in asset_ids
+    assert "asset-005-variant-001" in asset_ids
   end
 end

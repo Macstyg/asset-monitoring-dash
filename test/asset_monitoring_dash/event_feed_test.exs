@@ -2,6 +2,7 @@ defmodule AssetMonitoringDash.EventFeedTest do
   use ExUnit.Case, async: true
 
   alias AssetMonitoringDash.EventFeed
+  alias AssetMonitoringDash.ReviewState
 
   test "starts with deterministic feed events" do
     events = EventFeed.initial_events()
@@ -15,6 +16,8 @@ defmodule AssetMonitoringDash.EventFeedTest do
              "event-004",
              "event-005"
            ]
+
+    assert Enum.all?(events, &(&1.kind == :system))
   end
 
   test "combines generated event history with seeded events" do
@@ -40,6 +43,8 @@ defmodule AssetMonitoringDash.EventFeedTest do
              "event-004",
              "event-005"
            ]
+
+    assert [%{kind: :scenario}, %{kind: :system} | _events] = events
   end
 
   test "pushes a generated event to the top of the feed" do
@@ -48,6 +53,20 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert feed.next_event_index == 1
     assert [%{id: "event-live-1", time_label: "now"} | _events] = feed.visible_events
     assert length(feed.visible_events) == 6
+  end
+
+  test "keeps a larger event history for source-filtered dashboard slices" do
+    feed =
+      0..6
+      |> Enum.reduce(
+        %{event_history: EventFeed.initial_events(), next_event_index: 0},
+        fn _push, feed ->
+          EventFeed.push_demo_event_history(feed.event_history, feed.next_event_index)
+        end
+      )
+
+    assert length(feed.event_history) == 12
+    assert Enum.any?(feed.event_history, &(&1.id == "event-005"))
   end
 
   test "pushes a price shock event to explain a scenario change" do
@@ -66,6 +85,7 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert event.title == "Price shock applied"
     assert event.detail == "Aegis Dragon Helm repriced 12% lower; LTV is now 67.8%."
     assert event.chain == "Polygon"
+    assert event.kind == :scenario
     assert event.status == "risk"
     assert event.tone == :danger
     assert length(feed.visible_events) == 6
@@ -78,6 +98,7 @@ defmodule AssetMonitoringDash.EventFeedTest do
       title: "Price shock applied",
       detail: "Older event.",
       chain: "Polygon",
+      kind: :scenario,
       status: "risk",
       tone: :danger
     }
@@ -110,7 +131,28 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert event.title == "Scenario reset"
     assert event.detail == "Aegis Dragon Helm restored to the baseline demo valuation."
     assert event.chain == "Polygon"
+    assert event.kind == :scenario
     assert event.status == "synced"
+    assert event.tone == :success
+    assert length(feed.visible_events) == 6
+  end
+
+  test "pushes operator review events with an operator source kind" do
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon"
+    }
+
+    feed =
+      EventFeed.push_review_event(EventFeed.initial_events(), asset, ReviewState.state(:reviewed))
+
+    assert [%{id: "event-review-reviewed-asset-001", time_label: "now"} = event | _events] =
+             feed.visible_events
+
+    assert event.title == "Position reviewed"
+    assert event.kind == :operator
+    assert event.status == "reviewed"
     assert event.tone == :success
     assert length(feed.visible_events) == 6
   end

@@ -2,6 +2,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   use AssetMonitoringDashWeb, :live_view
 
   @event_tick_interval_ms 4_000
+  @asset_page_limit 50
+  @asset_stream_limit 150
   @default_asset_sort %{field: :ltv, direction: :desc}
 
   alias AssetMonitoringDash.Assets
@@ -13,26 +15,23 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetSummary
-  alias AssetMonitoringDashWeb.DashboardComponents.ChainIdentity
-  alias AssetMonitoringDashWeb.DashboardComponents.EventItem
-  alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
+  alias AssetMonitoringDashWeb.DashboardComponents.AssetMonitor
+  alias AssetMonitoringDashWeb.DashboardComponents.EventFeed, as: DashboardEventFeed
   alias AssetMonitoringDashWeb.Formatters
-  alias AssetMonitoringDashWeb.UI.Badge
-  alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.Card
-  alias AssetMonitoringDashWeb.UI.EntityIdentity
-  alias AssetMonitoringDashWeb.UI.FilterBar
-  alias AssetMonitoringDashWeb.UI.Table
   alias AssetMonitoringDashWeb.UI.ThemeSwitch
 
   @impl true
   def mount(_params, _session, socket) do
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
-    assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
-    snapshot = portfolio_snapshot(assets)
     events = EventStore.visible_events()
     review_states = ReviewStore.all_states()
+    asset_filters = Assets.default_filters()
+
+    asset_page =
+      load_asset_page(asset_filters, @default_asset_sort, nil, review_states, shocked_asset_ids)
+
+    snapshot = portfolio_snapshot(Assets.list_assets_with_scenarios(shocked_asset_ids))
 
     socket =
       socket
@@ -40,39 +39,32 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> stream_configure(:events, dom_id: &"event-row-#{&1.id}")
       |> assign(:page_title, "Asset Risk Cockpit")
       |> assign(:snapshot, snapshot)
-      |> assign(:all_assets, assets)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
       |> assign(:review_states, review_states)
-      |> assign(:asset_count, length(assets))
-      |> assign(
-        :asset_summary,
-        Assets.summarize_assets(visible_assets(assets, Assets.default_filters(), review_states))
-      )
-      |> assign(:event_count, length(events))
+      |> assign_asset_page(asset_page, :reset)
       |> assign(:feed_paused, false)
       |> assign(:next_event_index, 0)
+      |> assign(:event_filters, default_event_filters())
+      |> assign(:event_history, events)
+      |> assign(:event_filter_form, event_filter_form(default_event_filters()))
+      |> assign(:event_source_filter_options, event_source_filter_options())
+      |> assign(:active_event_filter_chips, active_event_filter_chips(default_event_filters()))
       |> assign(:chain_filter_options, Assets.chain_filter_options())
-      |> assign(:asset_filters, Assets.default_filters())
+      |> assign(:asset_filters, asset_filters)
       |> assign(:asset_sort, @default_asset_sort)
       |> assign(:asset_sort_options, asset_sort_options())
       |> assign_metric_cards()
-      |> assign(:active_filter_chips, active_filter_chips(Assets.default_filters()))
-      |> assign(:filter_form, filter_form(Assets.default_filters()))
+      |> assign(:active_filter_chips, active_filter_chips(asset_filters))
+      |> assign(:filter_form, filter_form(asset_filters))
       |> assign(:risk_filter_options, Assets.risk_filter_options())
       |> assign(:action_filter_options, Assets.action_filter_options())
       |> assign(:operator_state_filter_options, Assets.operator_state_filter_options())
-      |> assign(:visible_events, events)
       |> stream(
         :assets,
-        assets_for_table(
-          visible_assets(assets, Assets.default_filters(), review_states),
-          review_states,
-          shocked_asset_ids,
-          @default_asset_sort
-        )
+        assets_for_table(asset_page.entries, review_states, shocked_asset_ids)
       )
-      |> stream(:events, events)
+      |> apply_event_filter()
 
     schedule_event_tick_for_connection(connected?(socket))
 
@@ -96,24 +88,71 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     review_states =
       reset_review_states(socket.assigns.shocked_asset_ids, socket.assigns.review_states)
 
-    push_scenario_reset_events(socket.assigns.all_assets, socket.assigns.shocked_asset_ids)
+    push_scenario_reset_events(socket.assigns.shocked_asset_ids)
 
     shocked_asset_ids = AssetScenarioStore.reset_all()
-    assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
     events = EventStore.visible_events()
 
     socket =
       socket
-      |> assign(:snapshot, portfolio_snapshot(assets))
-      |> assign(:all_assets, assets)
+      |> assign(
+        :snapshot,
+        portfolio_snapshot(Assets.list_assets_with_scenarios(shocked_asset_ids))
+      )
       |> assign(:review_states, review_states)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
-      |> assign(:event_count, length(events))
-      |> assign(:visible_events, events)
+      |> assign(:event_history, events)
       |> assign_metric_cards()
       |> apply_asset_filters(socket.assigns.asset_filters)
-      |> stream(:events, events, reset: true)
+      |> apply_event_filter()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("load_more_assets", _params, %{assigns: %{asset_next_cursor: nil}} = socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("load_more_assets", _params, socket) do
+    page =
+      load_asset_page(
+        socket.assigns.asset_filters,
+        socket.assigns.asset_sort,
+        socket.assigns.asset_next_cursor,
+        socket.assigns.review_states,
+        socket.assigns.shocked_asset_ids
+      )
+
+    socket =
+      socket
+      |> assign_asset_page(page, :append)
+      |> stream(
+        :assets,
+        assets_for_table(
+          page.entries,
+          socket.assigns.review_states,
+          socket.assigns.shocked_asset_ids
+        ),
+        at: -1,
+        limit: -@asset_stream_limit
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("filter_events", %{"event_filters" => params}, socket) do
+    filters = normalize_event_filters(params, socket.assigns.event_filters)
+
+    socket =
+      socket
+      |> assign(:event_filters, filters)
+      |> assign(:event_filter_form, event_filter_form(filters))
+      |> assign(:active_event_filter_chips, active_event_filter_chips(filters))
+      |> apply_event_filter()
 
     {:noreply, socket}
   end
@@ -162,6 +201,27 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         socket
       ) do
     {:noreply, remove_filter_value(socket, :operator_states, value)}
+  end
+
+  @impl true
+  def handle_event(
+        "remove_filter_value",
+        %{"filter" => "event_sources", "option" => value},
+        socket
+      ) do
+    filters =
+      Map.update!(socket.assigns.event_filters, :sources, fn sources ->
+        Enum.reject(sources, &(&1 == value))
+      end)
+
+    socket =
+      socket
+      |> assign(:event_filters, filters)
+      |> assign(:event_filter_form, event_filter_form(filters))
+      |> assign(:active_event_filter_chips, active_event_filter_chips(filters))
+      |> apply_event_filter()
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -285,24 +345,56 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp collateral_delta_tone(_value), do: :neutral
 
   defp apply_asset_filters(socket, filters) do
-    assets = visible_assets(socket.assigns.all_assets, filters, socket.assigns.review_states)
+    page =
+      load_asset_page(
+        filters,
+        socket.assigns.asset_sort,
+        nil,
+        socket.assigns.review_states,
+        socket.assigns.shocked_asset_ids
+      )
 
     socket
-    |> assign(:asset_count, length(assets))
-    |> assign(:asset_summary, Assets.summarize_assets(assets))
     |> assign(:asset_filters, filters)
     |> assign(:active_filter_chips, active_filter_chips(filters))
     |> assign(:filter_form, filter_form(filters))
+    |> assign_asset_page(page, :reset)
     |> stream(
       :assets,
       assets_for_table(
-        assets,
+        page.entries,
         socket.assigns.review_states,
-        socket.assigns.shocked_asset_ids,
-        socket.assigns.asset_sort
+        socket.assigns.shocked_asset_ids
       ),
       reset: true
     )
+  end
+
+  defp load_asset_page(filters, sort, cursor, review_states, shocked_asset_ids) do
+    Assets.list_assets_page(%{
+      filters: filters,
+      sort: sort,
+      cursor: cursor,
+      limit: @asset_page_limit,
+      review_states: review_states,
+      shocked_asset_ids: shocked_asset_ids
+    })
+  end
+
+  defp assign_asset_page(socket, page, :reset) do
+    socket
+    |> assign(:asset_count, page.total_count)
+    |> assign(:asset_summary, page.summary)
+    |> assign(:asset_loaded_count, length(page.entries))
+    |> assign(:asset_next_cursor, page.next_cursor)
+  end
+
+  defp assign_asset_page(socket, page, :append) do
+    socket
+    |> assign(:asset_count, page.total_count)
+    |> assign(:asset_summary, page.summary)
+    |> assign(:asset_loaded_count, socket.assigns.asset_loaded_count + length(page.entries))
+    |> assign(:asset_next_cursor, page.next_cursor)
   end
 
   defp reset_review_states(shocked_asset_ids, review_states) do
@@ -311,8 +403,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     end)
   end
 
-  defp push_scenario_reset_events(assets, shocked_asset_ids) do
-    assets
+  defp push_scenario_reset_events(shocked_asset_ids) do
+    shocked_asset_ids
+    |> Assets.list_assets_with_scenarios()
     |> Enum.filter(&MapSet.member?(shocked_asset_ids, &1.id))
     |> Enum.each(&EventStore.push_scenario_reset_event/1)
   end
@@ -407,9 +500,93 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     )
   end
 
-  defp visible_filter_options(options, query) do
-    Assets.filter_options(options, query)
+  defp default_event_filters do
+    %{sources: [], source_option_query: ""}
   end
+
+  defp event_source_filter_options do
+    [
+      %{value: "system", label: "System", icon_text: "S", tone: :info},
+      %{value: "operator", label: "Operator", icon_text: "O", tone: :success},
+      %{value: "scenario", label: "Scenario", icon_text: "Sc", tone: :warning}
+    ]
+  end
+
+  defp normalize_event_filters(params, current_filters) do
+    %{
+      sources: normalize_event_source_values(Map.get(params, "sources", current_filters.sources)),
+      source_option_query:
+        normalize_event_source_query(Map.get(params, "source_option_query", ""))
+    }
+  end
+
+  defp apply_event_filter(socket) do
+    events =
+      socket.assigns.event_history
+      |> filter_events(socket.assigns.event_filters.sources)
+      |> Enum.take(EventFeed.visible_event_limit())
+
+    socket
+    |> assign(:event_count, length(events))
+    |> assign(:visible_events, events)
+    |> stream(:events, events, reset: true)
+  end
+
+  defp filter_events(events, []), do: events
+
+  defp filter_events(events, sources) do
+    Enum.filter(events, &(event_source_value(&1) in sources))
+  end
+
+  defp normalize_event_source_values(values) do
+    allowed_values = Enum.map(event_source_filter_options(), & &1.value)
+
+    values
+    |> List.wrap()
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.filter(&(&1 in allowed_values))
+    |> Enum.uniq()
+  end
+
+  defp normalize_event_source_query(nil), do: ""
+
+  defp normalize_event_source_query(query) do
+    query
+    |> String.trim()
+    |> String.downcase()
+  end
+
+  defp event_filter_form(filters) do
+    to_form(
+      %{
+        "sources" => filters.sources,
+        "source_option_query" => filters.source_option_query
+      },
+      as: :event_filters
+    )
+  end
+
+  defp active_event_filter_chips(filters) do
+    event_source_filter_options()
+    |> Map.new(&{&1.value, &1})
+    |> then(fn options_by_value ->
+      Enum.map(filters.sources, fn value ->
+        option = options_by_value[value]
+
+        option
+        |> Map.take([:icon_text, :label, :tone])
+        |> Map.merge(%{
+          id: "event-sources-#{chip_id(value)}",
+          field: "event_sources",
+          value: value,
+          group: "Source"
+        })
+      end)
+    end)
+  end
+
+  defp event_source_value(%{kind: kind}) when is_atom(kind), do: Atom.to_string(kind)
+  defp event_source_value(_event), do: "system"
 
   defp asset_sort_options do
     [
@@ -424,14 +601,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     ]
   end
 
-  defp visible_assets(assets, filters, review_states) do
-    Assets.filter_assets(assets, filters, review_states)
-  end
-
-  defp assets_for_table(assets, review_states, shocked_asset_ids, sort) do
-    assets
-    |> Enum.map(&asset_for_table(&1, review_states, shocked_asset_ids))
-    |> sort_assets_for_table(sort)
+  defp assets_for_table(assets, review_states, shocked_asset_ids) do
+    Enum.map(assets, &asset_for_table(&1, review_states, shocked_asset_ids))
   end
 
   defp asset_for_table(asset, review_states, shocked_asset_ids) do
@@ -453,9 +624,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     end
   end
 
-  defp scenario_count_label(1), do: "1 active scenario"
-  defp scenario_count_label(count), do: "#{count} active scenarios"
-
   defp normalize_sort_field("asset"), do: :asset
   defp normalize_sort_field("chain"), do: :chain
   defp normalize_sort_field("floor"), do: :floor
@@ -476,65 +644,17 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp default_sort_direction(:chain), do: :asc
   defp default_sort_direction(_field), do: :desc
 
-  defp sort_assets_for_table(assets, sort) do
-    Enum.sort(assets, &asset_before?(&1, &2, sort))
-  end
-
-  defp asset_before?(asset, other_asset, %{field: field, direction: direction}) do
-    asset_value = sort_value(asset, field)
-    other_value = sort_value(other_asset, field)
-
-    case compare_sort_values(asset_value, other_value, direction) do
-      :before -> true
-      :after -> false
-      :same -> asset.name <= other_asset.name
-    end
-  end
-
-  defp compare_sort_values(value, value, _direction), do: :same
-  defp compare_sort_values(value, other_value, :asc) when value < other_value, do: :before
-  defp compare_sort_values(_value, _other_value, :asc), do: :after
-  defp compare_sort_values(value, other_value, :desc) when value > other_value, do: :before
-  defp compare_sort_values(_value, _other_value, :desc), do: :after
-
-  defp sort_value(asset, :asset), do: String.downcase(asset.name)
-  defp sort_value(asset, :chain), do: String.downcase("#{asset.chain} #{asset.ecosystem}")
-  defp sort_value(asset, :floor), do: asset.floor_price_usd
-  defp sort_value(asset, :value), do: asset.current_value_usd
-  defp sort_value(asset, :ltv), do: asset.ltv_percent
-  defp sort_value(asset, :risk), do: risk_sort_rank(asset.risk_band)
-  defp sort_value(asset, :operator), do: operator_sort_rank(asset.review_state.id)
-  defp sort_value(asset, :action), do: action_sort_rank(asset.risk_recommendation.id)
-
-  defp risk_sort_rank("Critical"), do: 4
-  defp risk_sort_rank("Elevated"), do: 3
-  defp risk_sort_rank("Moderate"), do: 2
-  defp risk_sort_rank("Low"), do: 1
-  defp risk_sort_rank(_risk_band), do: 0
-
-  defp action_sort_rank(:liquidation_candidate), do: 4
-  defp action_sort_rank(:manual_review), do: 3
-  defp action_sort_rank(:watch), do: 2
-  defp action_sort_rank(:clear), do: 1
-  defp action_sort_rank(_recommendation), do: 0
-
-  defp operator_sort_rank(:escalated), do: 3
-  defp operator_sort_rank(:unreviewed), do: 2
-  defp operator_sort_rank(:reviewed), do: 1
-  defp operator_sort_rank(_review_state), do: 0
-
   defp push_demo_event(socket) do
     feed =
-      EventFeed.push_demo_event(
-        socket.assigns.visible_events,
+      EventFeed.push_demo_event_history(
+        socket.assigns.event_history,
         socket.assigns.next_event_index
       )
 
     socket
-    |> assign(:event_count, length(feed.visible_events))
     |> assign(:next_event_index, feed.next_event_index)
-    |> assign(:visible_events, feed.visible_events)
-    |> stream(:events, feed.visible_events, reset: true)
+    |> assign(:event_history, feed.event_history)
+    |> apply_event_filter()
   end
 
   defp push_scheduled_demo_event(%{assigns: %{feed_paused: true}} = socket), do: socket

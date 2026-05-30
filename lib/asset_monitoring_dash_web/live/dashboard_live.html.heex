@@ -49,308 +49,33 @@
       </section>
 
       <section class="grid min-w-0 gap-4">
-        <div
-          id="asset-monitor"
-          class="min-w-0 rounded-app border border-app-border bg-app-surface p-5 shadow-app-panel"
-        >
-          <div class="flex items-center justify-between gap-4">
-            <div>
-              <h2 class="text-base font-semibold text-app-fg">Asset monitor</h2>
-              <p class="mt-1 text-sm text-app-muted">
-                Collateral assets grouped across chains, games, floor prices, and risk bands.
-              </p>
-            </div>
-            <span
-              id="asset-count"
-              class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
-            >
-              {@asset_count} monitored
-            </span>
-          </div>
+        <AssetMonitor.render
+          action_filter_options={@action_filter_options}
+          active_filter_chips={@active_filter_chips}
+          asset_count={@asset_count}
+          asset_filters={@asset_filters}
+          asset_loaded_count={@asset_loaded_count}
+          asset_next_cursor={@asset_next_cursor}
+          asset_sort={@asset_sort}
+          asset_sort_options={@asset_sort_options}
+          asset_summary={@asset_summary}
+          chain_filter_options={@chain_filter_options}
+          filter_form={@filter_form}
+          operator_state_filter_options={@operator_state_filter_options}
+          risk_filter_options={@risk_filter_options}
+          rows={@streams.assets}
+          scenario_count={@scenario_count}
+        />
 
-          <FilterBar.render
-            form={@filter_form}
-            id="asset-filters"
-            phx-change="filter_assets"
-            class="mt-5"
-          >
-            <FilterBar.search
-              field={@filter_form[:query]}
-              placeholder="Search asset, chain, game, risk"
-              autocomplete="off"
-              class="h-12"
-            />
-            <div class="flex flex-wrap items-center gap-2">
-              <FilterBar.multi_select
-                field={@filter_form[:chains]}
-                search_field={@filter_form[:chain_option_query]}
-                label="Network"
-                icon="hero-globe-alt"
-                search_placeholder="Find network"
-                options={
-                  visible_filter_options(@chain_filter_options, @asset_filters.chain_option_query)
-                }
-              />
-              <FilterBar.multi_select
-                field={@filter_form[:risks]}
-                search_field={@filter_form[:risk_option_query]}
-                label="Risk"
-                icon="hero-shield-exclamation"
-                search_placeholder="Find risk tier"
-                options={
-                  visible_filter_options(@risk_filter_options, @asset_filters.risk_option_query)
-                }
-              />
-              <FilterBar.multi_select
-                field={@filter_form[:actions]}
-                search_field={@filter_form[:action_option_query]}
-                label="Action"
-                icon="hero-bolt"
-                search_placeholder="Find action"
-                options={
-                  visible_filter_options(
-                    @action_filter_options,
-                    @asset_filters.action_option_query
-                  )
-                }
-              />
-              <FilterBar.multi_select
-                field={@filter_form[:operator_states]}
-                search_field={@filter_form[:operator_state_option_query]}
-                label="Operator"
-                icon="hero-user-circle"
-                search_placeholder="Find operator state"
-                options={
-                  visible_filter_options(
-                    @operator_state_filter_options,
-                    @asset_filters.operator_state_option_query
-                  )
-                }
-              />
-              <Button.render
-                id="reset-asset-filters"
-                phx-click="reset_asset_filters"
-                class="h-11 rounded-app px-4"
-              >
-                Reset
-              </Button.render>
-            </div>
-          </FilterBar.render>
-
-          <div
-            :if={@active_filter_chips != []}
-            id="active-filter-chips"
-            class="mt-3 flex flex-wrap items-center gap-2"
-          >
-            <FilterBar.active_chip :for={chip <- @active_filter_chips} chip={chip} />
-          </div>
-
-          <div
-            :if={@scenario_count > 0}
-            id="active-scenario-banner"
-            class="mt-5 flex flex-col gap-3 rounded-app border border-app-warn/25 bg-app-warn/10 p-4 shadow-app-panel sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div class="flex min-w-0 items-center gap-3">
-              <span class="grid size-9 shrink-0 place-items-center rounded-full bg-app-warn/15 text-app-warn ring-1 ring-app-warn/25">
-                <.icon name="hero-bolt" class="size-4" />
-              </span>
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-app-fg">Demo scenario active</p>
-                <p id="active-scenario-count" class="mt-1 font-mono text-xs text-app-muted">
-                  {scenario_count_label(@scenario_count)}
-                </p>
-              </div>
-            </div>
-
-            <Button.render
-              id="reset-asset-scenarios"
-              phx-click="reset_asset_scenarios"
-              class="h-9 shrink-0 px-4"
-            >
-              Reset scenarios
-            </Button.render>
-          </div>
-
-          <AssetSummary.render summary={@asset_summary} />
-
-          <div id="asset-mobile-sort" class="mt-5 flex flex-wrap items-center gap-2 lg:hidden">
-            <button
-              :for={sort <- @asset_sort_options}
-              id={"asset-mobile-sort-#{sort.field}"}
-              type="button"
-              phx-click="sort_assets"
-              phx-value-field={sort.field}
-              class={[
-                "inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition",
-                Atom.to_string(@asset_sort.field) == sort.field &&
-                  "border-app-accent/40 bg-app-accent/10 text-app-accent",
-                Atom.to_string(@asset_sort.field) != sort.field &&
-                  "border-app-border bg-app-surface-2 text-app-muted hover:border-app-accent/40 hover:text-app-fg"
-              ]}
-            >
-              {sort.label}
-              <.icon
-                :if={Atom.to_string(@asset_sort.field) == sort.field}
-                name="hero-chevron-down"
-                class={[
-                  "size-3.5 transition",
-                  @asset_sort.direction == :asc && "rotate-180"
-                ]}
-              />
-            </button>
-          </div>
-
-          <Table.render
-            id="asset-list"
-            label="Monitored assets"
-            class="mt-5"
-            grid_class="grid-cols-[minmax(170px,1.1fr)_minmax(150px,0.8fr)_86px_86px_66px_80px_minmax(120px,0.75fr)_minmax(150px,1fr)]"
-            row_class="lg:min-w-[1120px] lg:grid-cols-[minmax(170px,1.1fr)_minmax(150px,0.8fr)_86px_86px_66px_80px_minmax(120px,0.75fr)_minmax(150px,1fr)] lg:items-center"
-            row_click="select_asset"
-            rows={@streams.assets}
-            sort_direction={@asset_sort.direction}
-            sort_event="sort_assets"
-            sort_field={@asset_sort.field}
-          >
-            <:col sort_key="asset">Asset</:col>
-            <:col sort_key="chain">Chain / game</:col>
-            <:col align={:right} sort_key="floor">Floor</:col>
-            <:col align={:right} sort_key="value">Value</:col>
-            <:col align={:right} sort_key="ltv">LTV</:col>
-            <:col align={:right} sort_key="risk">Risk</:col>
-            <:col align={:right} sort_key="operator">Operator</:col>
-            <:col align={:right} sort_key="action">Action</:col>
-
-            <:empty>
-              <div class="mx-auto max-w-sm">
-                <p class="font-semibold text-app-fg">No assets match this filter.</p>
-                <p class="mt-1 text-sm leading-6 text-app-muted">
-                  Try a broader search, switch chains, or reset the filters.
-                </p>
-              </div>
-            </:empty>
-
-            <:row :let={asset}>
-              <EntityIdentity.render
-                name={asset.name}
-                caption={"#{asset.rarity} / #{asset.asset_type}"}
-                asset_icon={asset.icon}
-              />
-
-              <ChainIdentity.render chain={asset.chain} ecosystem={asset.ecosystem} />
-
-              <Table.cell label="Floor" align={:right}>
-                <span class="font-mono text-sm font-semibold tabular-nums text-app-fg">
-                  {Formatters.usd(asset.floor_price_usd)}
-                </span>
-              </Table.cell>
-
-              <Table.cell label="Value" align={:right}>
-                <span class="font-mono text-sm font-semibold tabular-nums text-app-fg">
-                  {Formatters.usd(asset.current_value_usd)}
-                </span>
-              </Table.cell>
-
-              <Table.cell label="LTV" align={:right}>
-                <span class="font-mono text-sm font-semibold tabular-nums text-app-fg">
-                  {Formatters.ltv(asset.ltv_percent)}
-                </span>
-              </Table.cell>
-
-              <Table.cell label="Risk" align={:right} content_class="lg:flex lg:justify-end">
-                <RiskBadge.render label={asset.risk_band} />
-              </Table.cell>
-
-              <Table.cell label="Operator" align={:right} content_class="lg:flex lg:justify-end">
-                <Badge.render label={asset.review_state.label} tone={asset.review_state.tone} />
-              </Table.cell>
-
-              <Table.cell label="Action" align={:right} content_class="lg:flex lg:justify-end">
-                <div class="flex min-w-0 flex-col items-end gap-1">
-                  <Badge.render
-                    label={asset.risk_recommendation.label}
-                    tone={asset.risk_recommendation.tone}
-                  />
-                  <Badge.render
-                    :if={asset.scenario}
-                    id={"asset-scenario-#{asset.id}"}
-                    label={asset.scenario.label}
-                    tone={asset.scenario.tone}
-                  />
-                  <span class="max-w-36 truncate font-mono text-xs text-app-muted">
-                    {asset.recommendation_reason.label}
-                  </span>
-                </div>
-              </Table.cell>
-            </:row>
-          </Table.render>
-        </div>
-
-        <section
-          id="event-feed"
-          class="min-h-72 rounded-app border border-app-border bg-app-surface p-5 shadow-app-panel"
-        >
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <h2 class="text-base font-semibold text-app-fg">Live event feed</h2>
-              <p class="mt-1 text-sm text-app-muted">
-                Deposits, transfers, price moves, repayments, and liquidation warnings.
-              </p>
-            </div>
-            <div class="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
-              <span
-                id="event-count"
-                class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
-              >
-                {@event_count} events
-              </span>
-              <span
-                id="event-feed-state"
-                class={[
-                  "rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset",
-                  if(@feed_paused,
-                    do: "bg-app-warn/10 text-app-warn ring-app-warn/25",
-                    else: "bg-app-accent/10 text-app-accent ring-app-accent/20"
-                  )
-                ]}
-              >
-                {if(@feed_paused, do: "paused", else: "streaming")}
-              </span>
-            </div>
-          </div>
-
-          <div class="mt-4 flex flex-wrap gap-2">
-            <Button.render
-              id="push-demo-event"
-              phx-click="push_demo_event"
-            >
-              Push event
-            </Button.render>
-            <Button.render
-              id="toggle-event-feed"
-              phx-click="toggle_event_feed"
-            >
-              {if(@feed_paused, do: "Resume feed", else: "Pause feed")}
-            </Button.render>
-          </div>
-
-          <div
-            id="event-list"
-            phx-update="stream"
-            class="mt-5"
-          >
-            <EventItem.render
-              :for={{event_id, event} <- @streams.events}
-              id={event_id}
-              time_label={event.time_label}
-              title={event.title}
-              detail={event.detail}
-              chain={event.chain}
-              status={event.status}
-              tone={event.tone}
-            />
-          </div>
-        </section>
+        <DashboardEventFeed.render
+          active_event_filter_chips={@active_event_filter_chips}
+          event_count={@event_count}
+          event_filter_form={@event_filter_form}
+          event_filters={@event_filters}
+          event_source_filter_options={@event_source_filter_options}
+          feed_paused={@feed_paused}
+          rows={@streams.events}
+        />
       </section>
     </div>
   </section>
