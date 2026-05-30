@@ -27,7 +27,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     snapshot = DemoData.portfolio_snapshot()
-    assets = AssetScenarioStore.shocked_asset_ids() |> Assets.list_assets_with_scenarios()
+    shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
+    assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
     events = EventFeed.initial_events()
     review_states = ReviewStore.all_states()
 
@@ -39,6 +40,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:snapshot, snapshot)
       |> assign(:metric_cards, metric_cards(snapshot))
       |> assign(:all_assets, assets)
+      |> assign(:shocked_asset_ids, shocked_asset_ids)
+      |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
       |> assign(:review_states, review_states)
       |> assign(:asset_count, length(assets))
       |> assign(
@@ -63,6 +66,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         assets_for_table(
           visible_assets(assets, Assets.default_filters(), review_states),
           review_states,
+          shocked_asset_ids,
           @default_asset_sort
         )
       )
@@ -83,6 +87,25 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_event("reset_asset_filters", _params, socket) do
     {:noreply, apply_asset_filters(socket, Assets.default_filters())}
+  end
+
+  @impl true
+  def handle_event("reset_asset_scenarios", _params, socket) do
+    review_states =
+      reset_review_states(socket.assigns.shocked_asset_ids, socket.assigns.review_states)
+
+    shocked_asset_ids = AssetScenarioStore.reset_all()
+    assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
+
+    socket =
+      socket
+      |> assign(:all_assets, assets)
+      |> assign(:review_states, review_states)
+      |> assign(:shocked_asset_ids, shocked_asset_ids)
+      |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
+      |> apply_asset_filters(socket.assigns.asset_filters)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -207,9 +230,20 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:filter_form, filter_form(filters))
     |> stream(
       :assets,
-      assets_for_table(assets, socket.assigns.review_states, socket.assigns.asset_sort),
+      assets_for_table(
+        assets,
+        socket.assigns.review_states,
+        socket.assigns.shocked_asset_ids,
+        socket.assigns.asset_sort
+      ),
       reset: true
     )
+  end
+
+  defp reset_review_states(shocked_asset_ids, review_states) do
+    Enum.reduce(shocked_asset_ids, review_states, fn asset_id, _states ->
+      ReviewStore.reset(asset_id)
+    end)
   end
 
   defp remove_filter_value(socket, field, value) do
@@ -323,22 +357,33 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     Assets.filter_assets(assets, filters, review_states)
   end
 
-  defp assets_for_table(assets, review_states, sort) do
+  defp assets_for_table(assets, review_states, shocked_asset_ids, sort) do
     assets
-    |> Enum.map(&asset_for_table(&1, review_states))
+    |> Enum.map(&asset_for_table(&1, review_states, shocked_asset_ids))
     |> sort_assets_for_table(sort)
   end
 
-  defp asset_for_table(asset, review_states) do
+  defp asset_for_table(asset, review_states, shocked_asset_ids) do
     recommendation = RiskRecommendation.recommendation_for(asset)
     review_state = ReviewState.state_for(asset.id, review_states)
 
     Map.merge(asset, %{
       risk_recommendation: recommendation,
       recommendation_reason: List.first(recommendation.reasons),
-      review_state: review_state
+      review_state: review_state,
+      scenario: scenario_for_asset(asset.id, shocked_asset_ids)
     })
   end
+
+  defp scenario_for_asset(asset_id, shocked_asset_ids) do
+    case MapSet.member?(shocked_asset_ids, asset_id) do
+      true -> %{label: "Price shock", tone: :warning}
+      false -> nil
+    end
+  end
+
+  defp scenario_count_label(1), do: "1 active scenario"
+  defp scenario_count_label(count), do: "#{count} active scenarios"
 
   defp normalize_sort_field("asset"), do: :asset
   defp normalize_sort_field("chain"), do: :chain

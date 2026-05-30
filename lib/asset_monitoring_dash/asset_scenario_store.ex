@@ -33,7 +33,7 @@ defmodule AssetMonitoringDash.AssetScenarioStore do
   def reset_all do
     ensure_started()
 
-    Agent.update(__MODULE__, fn _asset_ids -> MapSet.new() end)
+    update_shocked_asset_ids(fn _asset_ids -> MapSet.new() end)
   end
 
   defp ensure_started do

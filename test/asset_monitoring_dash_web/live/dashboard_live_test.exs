@@ -48,6 +48,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-mobile-sort-operator")
     assert has_element?(view, "#asset-mobile-sort-action")
     refute has_element?(view, "#active-filter-chips")
+    refute has_element?(view, "#active-scenario-banner")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, ~s(#asset-row-asset-001 img[src="/images/assets/dragon-helm.svg"]))
     assert has_element?(view, ~s(#asset-row-asset-001 [aria-label="Polygon chain"]))
@@ -376,6 +377,31 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_click()
 
     assert List.first(asset_row_ids(view)) == "asset-row-asset-003"
+  end
+
+  test "shows and resets active asset scenarios", %{conn: conn} do
+    AssetMonitoringDash.AssetScenarioStore.apply_price_shock("asset-001")
+    AssetMonitoringDash.ReviewStore.mark_reviewed("asset-001")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#active-scenario-banner")
+    assert has_element?(view, "#active-scenario-count", "1 active scenario")
+    assert has_element?(view, "#reset-asset-scenarios")
+    assert has_element?(view, "#asset-row-asset-001", "$4,277")
+    assert has_element?(view, "#asset-row-asset-001", "67.8%")
+    assert has_element?(view, "#asset-scenario-asset-001", "Price shock")
+    assert has_element?(view, "#asset-row-asset-001", "Reviewed")
+
+    view
+    |> element("#reset-asset-scenarios")
+    |> render_click()
+
+    refute has_element?(view, "#active-scenario-banner")
+    refute has_element?(view, "#asset-scenario-asset-001")
+    assert has_element?(view, "#asset-row-asset-001", "$4,860")
+    assert has_element?(view, "#asset-row-asset-001", "59.7%")
+    assert has_element?(view, "#asset-row-asset-001", "Unreviewed")
   end
 
   test "keeps sorting scoped to the filtered assets", %{conn: conn} do

@@ -47,7 +47,7 @@ defmodule AssetMonitoringDashWeb.UI.Card do
       ]}>
         <span aria-hidden="true">{signal_marker(@delta_tone)}</span>
         <p class="truncate">
-          {@delta}<span :if={@description}> {@description}</span>
+          {@delta}<span :if={@description}>{@description}</span>
         </p>
       </div>
     </article>
