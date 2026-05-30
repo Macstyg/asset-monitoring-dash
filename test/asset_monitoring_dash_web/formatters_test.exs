@@ -8,6 +8,10 @@ defmodule AssetMonitoringDashWeb.FormattersTest do
       assert Formatters.compact_usd(12_800_000) == "$12.8M"
     end
 
+    test "formats compact USD values in thousands" do
+      assert Formatters.compact_usd(69_485) == "$69.5K"
+    end
+
     test "formats USD values with thousands separators" do
       assert Formatters.usd(18_400) == "$18,400"
     end

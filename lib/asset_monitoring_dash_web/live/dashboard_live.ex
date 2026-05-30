@@ -8,8 +8,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.AssetScenarioStore
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.EventFeed
+  alias AssetMonitoringDash.EventStore
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.ReviewStore
+  alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDashWeb.DashboardComponents.AssetSummary
   alias AssetMonitoringDashWeb.DashboardComponents.ChainIdentity
@@ -26,10 +28,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    snapshot = DemoData.portfolio_snapshot()
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
     assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
-    events = EventFeed.initial_events()
+    snapshot = portfolio_snapshot(assets)
+    events = EventStore.visible_events()
     review_states = ReviewStore.all_states()
 
     socket =
@@ -38,7 +40,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> stream_configure(:events, dom_id: &"event-row-#{&1.id}")
       |> assign(:page_title, "Asset Risk Cockpit")
       |> assign(:snapshot, snapshot)
-      |> assign(:metric_cards, metric_cards(snapshot))
       |> assign(:all_assets, assets)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
@@ -55,6 +56,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_filters, Assets.default_filters())
       |> assign(:asset_sort, @default_asset_sort)
       |> assign(:asset_sort_options, asset_sort_options())
+      |> assign_metric_cards()
       |> assign(:active_filter_chips, active_filter_chips(Assets.default_filters()))
       |> assign(:filter_form, filter_form(Assets.default_filters()))
       |> assign(:risk_filter_options, Assets.risk_filter_options())
@@ -94,16 +96,24 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     review_states =
       reset_review_states(socket.assigns.shocked_asset_ids, socket.assigns.review_states)
 
+    push_scenario_reset_events(socket.assigns.all_assets, socket.assigns.shocked_asset_ids)
+
     shocked_asset_ids = AssetScenarioStore.reset_all()
     assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
+    events = EventStore.visible_events()
 
     socket =
       socket
+      |> assign(:snapshot, portfolio_snapshot(assets))
       |> assign(:all_assets, assets)
       |> assign(:review_states, review_states)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
+      |> assign(:event_count, length(events))
+      |> assign(:visible_events, events)
+      |> assign_metric_cards()
       |> apply_asset_filters(socket.assigns.asset_filters)
+      |> stream(:events, events, reset: true)
 
     {:noreply, socket}
   end
@@ -178,6 +188,28 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     {:noreply, push_scheduled_demo_event(socket)}
   end
 
+  defp portfolio_snapshot(assets) do
+    snapshot = DemoData.portfolio_snapshot()
+    baseline_assets = Assets.list_assets()
+    baseline_total_value = total_collateral_value_usd(baseline_assets)
+    risk_score = average_risk_score(assets)
+    baseline_risk_score = average_risk_score(baseline_assets)
+
+    %{
+      snapshot
+      | total_collateral_value_usd: total_collateral_value_usd(assets),
+        collateral_delta_percent:
+          percent_delta(total_collateral_value_usd(assets), baseline_total_value),
+        risk_score: risk_score,
+        risk_delta: risk_score - baseline_risk_score,
+        risk_band: Risk.risk_band(risk_score)
+    }
+  end
+
+  defp assign_metric_cards(socket) do
+    assign(socket, :metric_cards, metric_cards(socket.assigns.snapshot))
+  end
+
   defp metric_cards(snapshot) do
     [
       %{
@@ -186,8 +218,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         context: "24H",
         value: Formatters.compact_usd(snapshot.total_collateral_value_usd),
         delta: Formatters.signed_percent(snapshot.collateral_delta_percent),
-        delta_tone: :positive,
-        description: "collateral inflow"
+        delta_tone: collateral_delta_tone(snapshot.collateral_delta_percent),
+        description: "monitored collateral"
       },
       %{
         id: "active-loans-card",
@@ -212,12 +244,45 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         label: "Risk score",
         context: "HEALTH < 1.2",
         value: "#{snapshot.risk_score}/100",
-        delta: "+#{snapshot.risk_delta} risk",
-        delta_tone: :warning,
+        delta: "#{signed_integer(snapshot.risk_delta)} risk",
+        delta_tone: delta_tone(snapshot.risk_delta),
         description: "#{String.downcase(snapshot.risk_band)} pressure"
       }
     ]
   end
+
+  defp total_collateral_value_usd(assets), do: Enum.sum(Enum.map(assets, & &1.current_value_usd))
+
+  defp average_risk_score([]), do: 0
+
+  defp average_risk_score(assets) do
+    assets
+    |> Enum.map(& &1.risk_score)
+    |> Enum.sum()
+    |> Kernel./(length(assets))
+    |> round()
+  end
+
+  defp percent_delta(_current_value, 0), do: 0.0
+
+  defp percent_delta(current_value, baseline_value) do
+    current_value
+    |> Kernel.-(baseline_value)
+    |> Kernel./(baseline_value)
+    |> Kernel.*(100)
+    |> Float.round(1)
+  end
+
+  defp signed_integer(value) when value > 0, do: "+#{value}"
+  defp signed_integer(value), do: Integer.to_string(value)
+
+  defp delta_tone(value) when value > 0, do: :warning
+  defp delta_tone(value) when value < 0, do: :positive
+  defp delta_tone(_value), do: :neutral
+
+  defp collateral_delta_tone(value) when value > 0, do: :positive
+  defp collateral_delta_tone(value) when value < 0, do: :negative
+  defp collateral_delta_tone(_value), do: :neutral
 
   defp apply_asset_filters(socket, filters) do
     assets = visible_assets(socket.assigns.all_assets, filters, socket.assigns.review_states)
@@ -244,6 +309,12 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     Enum.reduce(shocked_asset_ids, review_states, fn asset_id, _states ->
       ReviewStore.reset(asset_id)
     end)
+  end
+
+  defp push_scenario_reset_events(assets, shocked_asset_ids) do
+    assets
+    |> Enum.filter(&MapSet.member?(shocked_asset_ids, &1.id))
+    |> Enum.each(&EventStore.push_scenario_reset_event/1)
   end
 
   defp remove_filter_value(socket, field, value) do

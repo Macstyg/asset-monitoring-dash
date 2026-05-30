@@ -4,7 +4,11 @@ defmodule AssetMonitoringDashWeb.Formatters do
   """
 
   def compact_usd(value) when is_integer(value) do
-    "$#{decimal(value / 1_000_000)}M"
+    cond do
+      value >= 1_000_000 -> "$#{decimal(value / 1_000_000)}M"
+      value >= 1_000 -> "$#{decimal(value / 1_000)}K"
+      true -> usd(value)
+    end
   end
 
   def usd(value) when is_integer(value) do

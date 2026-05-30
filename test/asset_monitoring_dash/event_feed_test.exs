@@ -17,6 +17,31 @@ defmodule AssetMonitoringDash.EventFeedTest do
            ]
   end
 
+  test "combines generated event history with seeded events" do
+    generated_events = [
+      %{
+        id: "event-shock-asset-001",
+        time_label: "now",
+        title: "Price shock applied",
+        detail: "Aegis Dragon Helm repriced 12% lower; LTV is now 67.8%.",
+        chain: "Polygon",
+        status: "risk",
+        tone: :danger
+      }
+    ]
+
+    events = EventFeed.visible_events(generated_events)
+
+    assert Enum.map(events, & &1.id) == [
+             "event-shock-asset-001",
+             "event-001",
+             "event-002",
+             "event-003",
+             "event-004",
+             "event-005"
+           ]
+  end
+
   test "pushes a generated event to the top of the feed" do
     feed = EventFeed.push_demo_event(EventFeed.initial_events(), 0)
 
@@ -44,6 +69,30 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert event.status == "risk"
     assert event.tone == :danger
     assert length(feed.visible_events) == 6
+  end
+
+  test "replaces older generated events with the same id" do
+    old_event = %{
+      id: "event-shock-asset-001",
+      time_label: "4s ago",
+      title: "Price shock applied",
+      detail: "Older event.",
+      chain: "Polygon",
+      status: "risk",
+      tone: :danger
+    }
+
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon",
+      ltv_percent: 67.8
+    }
+
+    feed = EventFeed.push_price_shock_event([old_event], asset, 12)
+
+    assert Enum.map(feed.visible_events, & &1.id) == ["event-shock-asset-001"]
+    assert [%{time_label: "now", detail: "Aegis Dragon Helm" <> _detail}] = feed.visible_events
   end
 
   test "pushes a scenario reset event to explain restored state" do

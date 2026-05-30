@@ -14,6 +14,13 @@ defmodule AssetMonitoringDash.EventFeed do
 
   def initial_events, do: DemoData.live_events()
 
+  def visible_events(generated_events) do
+    generated_events
+    |> Kernel.++(initial_events())
+    |> Enum.take(@visible_event_limit)
+    |> refresh_live_event_labels()
+  end
+
   def push_demo_event(visible_events, next_event_index) do
     event = DemoData.next_live_event(next_event_index)
 
@@ -60,7 +67,7 @@ defmodule AssetMonitoringDash.EventFeed do
 
   defp push_event(visible_events, event) do
     visible_events =
-      [event | visible_events]
+      [event | Enum.reject(visible_events, &(&1.id == event.id))]
       |> Enum.take(@visible_event_limit)
       |> refresh_live_event_labels()
 

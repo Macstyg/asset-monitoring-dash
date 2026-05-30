@@ -104,6 +104,14 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> render_change()
 
     assert has_element?(dashboard_view, "#asset-count", "1 monitored")
+    assert has_element?(dashboard_view, "#event-row-event-review-reviewed-asset-001")
+
+    assert has_element?(
+             dashboard_view,
+             "#event-row-event-review-reviewed-asset-001",
+             "Position reviewed"
+           )
+
     assert has_element?(dashboard_view, "#asset-row-asset-001", "Reviewed")
     refute has_element?(dashboard_view, "#asset-row-asset-003")
   end
@@ -193,6 +201,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
 
     {:ok, dashboard_view, _html} = live(conn, ~p"/")
 
+    assert has_element?(dashboard_view, "#event-row-event-shock-asset-001", "Price shock applied")
     assert has_element?(dashboard_view, "#asset-row-asset-001", "$4,277")
     assert has_element?(dashboard_view, "#asset-row-asset-001", "67.8%")
 

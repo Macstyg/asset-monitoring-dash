@@ -11,6 +11,7 @@ defmodule AssetMonitoringDash.Application do
       AssetMonitoringDashWeb.Telemetry,
       AssetMonitoringDash.Repo,
       AssetMonitoringDash.AssetScenarioStore,
+      AssetMonitoringDash.EventStore,
       AssetMonitoringDash.ReviewStore,
       {DNSCluster,
        query: Application.get_env(:asset_monitoring_dash, :dns_cluster_query) || :ignore},
