@@ -20,6 +20,16 @@ defmodule AssetMonitoringDash.AssetsTest do
       assert asset.risk_band == "Elevated"
     end
 
+    test "applies shared demo scenarios to the baseline asset book" do
+      assets = Assets.list_assets_with_scenarios(MapSet.new(["asset-001"]))
+      asset = Assets.get_asset(assets, "asset-001")
+      untouched_asset = Assets.get_asset(assets, "asset-002")
+
+      assert asset.current_value_usd == 4_277
+      assert asset.ltv_percent == 67.8
+      assert untouched_asset.current_value_usd == 21_150
+    end
+
     test "derives oracle status from freshness seconds" do
       assert Assets.oracle_status(24) == "Fresh"
       assert Assets.oracle_status(184) == "Delayed"

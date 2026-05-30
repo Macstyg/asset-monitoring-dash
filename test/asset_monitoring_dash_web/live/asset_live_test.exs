@@ -178,6 +178,34 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#asset-event-count", "1 events")
   end
 
+  test "keeps an applied price shock visible across pages", %{conn: conn} do
+    {:ok, detail_view, _html} = live(conn, ~p"/assets/asset-001")
+
+    detail_view
+    |> element("#apply-price-shock")
+    |> render_click()
+
+    {:ok, remounted_detail_view, _html} = live(conn, ~p"/assets/asset-001")
+
+    assert has_element?(remounted_detail_view, "#asset-inspection", "$4,277")
+    assert has_element?(remounted_detail_view, "#asset-ltv-trend-latest", "67.8%")
+    assert has_element?(remounted_detail_view, "#apply-price-shock[disabled]", "Shock applied")
+
+    {:ok, dashboard_view, _html} = live(conn, ~p"/")
+
+    assert has_element?(dashboard_view, "#asset-row-asset-001", "$4,277")
+    assert has_element?(dashboard_view, "#asset-row-asset-001", "67.8%")
+
+    remounted_detail_view
+    |> element("#reset-asset-scenario")
+    |> render_click()
+
+    {:ok, reset_dashboard_view, _html} = live(conn, ~p"/")
+
+    assert has_element?(reset_dashboard_view, "#asset-row-asset-001", "$4,860")
+    assert has_element?(reset_dashboard_view, "#asset-row-asset-001", "59.7%")
+  end
+
   test "resets a shocked asset scenario", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
 

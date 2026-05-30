@@ -69,6 +69,11 @@ defmodule AssetMonitoringDash.Assets do
     Enum.map(DemoData.monitored_assets(), &normalize_risk_fields/1)
   end
 
+  def list_assets_with_scenarios(shocked_asset_ids) do
+    shocked_asset_ids
+    |> Enum.reduce(list_assets(), &apply_price_drop(&2, &1, 12))
+  end
+
   def list_assets(filters, review_states \\ %{}) do
     filter_assets(list_assets(), filters, review_states)
   end

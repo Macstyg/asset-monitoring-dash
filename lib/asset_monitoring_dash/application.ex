@@ -10,6 +10,7 @@ defmodule AssetMonitoringDash.Application do
     children = [
       AssetMonitoringDashWeb.Telemetry,
       AssetMonitoringDash.Repo,
+      AssetMonitoringDash.AssetScenarioStore,
       AssetMonitoringDash.ReviewStore,
       {DNSCluster,
        query: Application.get_env(:asset_monitoring_dash, :dns_cluster_query) || :ignore},

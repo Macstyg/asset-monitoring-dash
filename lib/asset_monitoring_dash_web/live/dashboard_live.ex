@@ -5,6 +5,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @default_asset_sort %{field: :ltv, direction: :desc}
 
   alias AssetMonitoringDash.Assets
+  alias AssetMonitoringDash.AssetScenarioStore
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.EventFeed
   alias AssetMonitoringDash.ReviewState
@@ -26,7 +27,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     snapshot = DemoData.portfolio_snapshot()
-    assets = Assets.list_assets()
+    assets = AssetScenarioStore.shocked_asset_ids() |> Assets.list_assets_with_scenarios()
     events = EventFeed.initial_events()
     review_states = ReviewStore.all_states()
 
