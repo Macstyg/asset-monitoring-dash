@@ -25,11 +25,62 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/asset_monitoring_dash"
 import topbar from "../vendor/topbar"
 
+const FilterDropdown = {
+  mounted() {
+    this.wasOpen = false
+
+    this.handleToggle = () => {
+      if (this.el.open) {
+        this.closeOtherDropdowns()
+      }
+    }
+
+    this.handleKeyDown = event => {
+      if (event.key === "Escape" && this.el.open) {
+        event.preventDefault()
+        this.el.open = false
+        this.el.querySelector("summary")?.focus()
+      }
+
+      if (event.target.closest("[data-filter-dropdown-search]")) {
+        event.stopPropagation()
+      }
+    }
+
+    this.el.addEventListener("toggle", this.handleToggle)
+    this.el.addEventListener("keydown", this.handleKeyDown)
+  },
+
+  beforeUpdate() {
+    this.wasOpen = this.el.open || this.el.contains(document.activeElement)
+  },
+
+  updated() {
+    if (this.wasOpen) {
+      this.el.open = true
+      this.closeOtherDropdowns()
+    }
+  },
+
+  destroyed() {
+    this.el.removeEventListener("toggle", this.handleToggle)
+    this.el.removeEventListener("keydown", this.handleKeyDown)
+  },
+
+  closeOtherDropdowns() {
+    document.querySelectorAll("[data-filter-dropdown][open]").forEach(dropdown => {
+      if (dropdown !== this.el) {
+        dropdown.open = false
+      }
+    })
+  },
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, FilterDropdown},
 })
 
 // Show progress bar on live navigation and form submits
@@ -80,4 +131,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

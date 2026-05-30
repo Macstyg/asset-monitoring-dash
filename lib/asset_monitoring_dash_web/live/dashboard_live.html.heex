@@ -87,7 +87,6 @@
                 options={
                   visible_filter_options(@chain_filter_options, @asset_filters.chain_option_query)
                 }
-                open={@asset_filters.chain_option_query != ""}
               />
               <FilterBar.multi_select
                 field={@filter_form[:risks]}
@@ -98,7 +97,6 @@
                 options={
                   visible_filter_options(@risk_filter_options, @asset_filters.risk_option_query)
                 }
-                open={@asset_filters.risk_option_query != ""}
               />
               <FilterBar.multi_select
                 field={@filter_form[:actions]}
@@ -112,7 +110,6 @@
                     @asset_filters.action_option_query
                   )
                 }
-                open={@asset_filters.action_option_query != ""}
               />
               <FilterBar.multi_select
                 field={@filter_form[:operator_states]}
@@ -126,7 +123,6 @@
                     @asset_filters.operator_state_option_query
                   )
                 }
-                open={@asset_filters.operator_state_option_query != ""}
               />
               <Button.render
                 id="reset-asset-filters"

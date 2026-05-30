@@ -105,6 +105,8 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
       id={"#{@field.id}_filter"}
       class="group relative"
       open={@open}
+      phx-hook="FilterDropdown"
+      data-filter-dropdown
     >
       <summary
         id={"#{@field.id}_toggle"}
@@ -126,6 +128,7 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
 
       <div
         id={"#{@field.id}_panel"}
+        data-filter-dropdown-panel
         class="absolute left-0 z-30 mt-2 w-72 rounded-app border border-app-border bg-app-surface p-2 shadow-app-panel"
       >
         <div class="relative">
@@ -140,6 +143,7 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
             value={Form.normalize_value("search", @search_field.value)}
             placeholder={@search_placeholder}
             phx-debounce="200"
+            data-filter-dropdown-search
             class="h-10 w-full rounded-app border border-app-border bg-app-bg px-9 text-sm text-app-fg outline-none transition placeholder:text-app-muted focus:border-app-accent/60 focus:ring-2 focus:ring-app-accent/15"
           />
         </div>
@@ -163,7 +167,8 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
               name={"#{@field.name}[]"}
               value={option_value(option)}
               checked={option_value(option) in @selected_values}
-              class="size-4 shrink-0 rounded border-app-border bg-app-bg accent-[var(--amd-accent)]"
+              data-filter-dropdown-option
+              class="size-4 shrink-0 rounded border-app-border bg-app-bg accent-app-accent"
             />
             <.option_icon option={option} />
             <span class="min-w-0 flex-1 truncate">{option_label(option)}</span>
