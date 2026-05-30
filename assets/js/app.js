@@ -101,6 +101,7 @@ const ScrollableLoadMore = {
       }
 
       this.pending = true
+      this.setLoadingMore(true)
       this.pushEvent(loadMoreEvent, {})
 
       setTimeout(() => {
@@ -114,14 +115,34 @@ const ScrollableLoadMore = {
 
   updated() {
     this.pending = false
+    this.setLoadingMore(false)
   },
 
   destroyed() {
     this.el.removeEventListener("scroll", this.handleScroll)
+    this.setLoadingMore(false)
   },
 
   distanceFromBottom() {
     return this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight
+  },
+
+  setLoadingMore(isLoading) {
+    const targetId = this.el.dataset.loadMoreTarget
+
+    if (!targetId) {
+      return
+    }
+
+    const target = document.getElementById(targetId)
+
+    if (!target) {
+      return
+    }
+
+    target.classList.toggle("hidden", !isLoading)
+    target.setAttribute("aria-hidden", isLoading ? "false" : "true")
+    this.el.setAttribute("aria-busy", isLoading ? "true" : "false")
   },
 }
 

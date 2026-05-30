@@ -134,6 +134,8 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetMonitor do
         asset_next_cursor={@asset_next_cursor}
         asset_sort={@asset_sort}
         asset_sort_options={@asset_sort_options}
+        loaded_count={@asset_loaded_count}
+        total_count={@asset_count}
       />
     </Panel.render>
     """

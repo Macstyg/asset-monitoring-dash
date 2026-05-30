@@ -17,7 +17,9 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetTable do
   attr :asset_next_cursor, :any, required: true
   attr :asset_sort, :map, required: true
   attr :asset_sort_options, :list, required: true
+  attr :loaded_count, :integer, required: true
   attr :rows, :any, required: true
+  attr :total_count, :integer, required: true
 
   def render(assigns) do
     ~H"""
@@ -56,6 +58,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetTable do
         grid_class="grid-cols-[minmax(170px,1.1fr)_minmax(150px,0.8fr)_86px_86px_66px_80px_minmax(120px,0.75fr)_minmax(150px,1fr)]"
         row_class="lg:min-w-[1120px] lg:grid-cols-[minmax(170px,1.1fr)_minmax(150px,0.8fr)_86px_86px_66px_80px_minmax(120px,0.75fr)_minmax(150px,1fr)] lg:items-center"
         row_click="select_asset"
+        load_more_target_id="asset-table-loading"
         rows_class="max-h-[min(62vh,760px)] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
         rows={@rows}
         sort_direction={@asset_sort.direction}
@@ -135,7 +138,35 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetTable do
           </Table.cell>
         </:row>
       </Table.render>
+
+      <div
+        id="asset-table-pagination-status"
+        class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-app-muted"
+      >
+        <span id="asset-table-range" class="font-mono">
+          {range_label(@loaded_count, @total_count)}
+        </span>
+        <span
+          id="asset-table-loading"
+          class="hidden rounded-full bg-app-accent/10 px-2.5 py-1 font-mono text-app-accent ring-1 ring-app-accent/20"
+        >
+          Loading more...
+        </span>
+        <span
+          :if={!@asset_next_cursor && @total_count > 0}
+          id="asset-table-end"
+          class="rounded-full bg-app-surface-2 px-2.5 py-1 font-mono ring-1 ring-app-border"
+        >
+          All matching assets loaded
+        </span>
+      </div>
     </div>
     """
+  end
+
+  defp range_label(0, count), do: "Showing 0 of #{count}"
+
+  defp range_label(loaded_count, count) do
+    "Showing 1-#{min(loaded_count, count)} of #{count}"
   end
 end

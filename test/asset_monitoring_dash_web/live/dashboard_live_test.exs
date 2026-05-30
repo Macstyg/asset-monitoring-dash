@@ -22,12 +22,16 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-monitor")
     assert has_element?(view, "#theme-toggle")
     assert has_element?(view, "#asset-count", "600 monitored")
-    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 600")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-50 of 600")
     assert has_element?(view, "#asset-load-hint", "Scroll to load more")
     assert has_element?(view, "#asset-list")
     assert has_element?(view, ~s(#asset-list-rows[phx-hook="ScrollableLoadMore"]))
     assert has_element?(view, ~s(#asset-list-rows[data-load-more-event="load_more_assets"]))
+    assert has_element?(view, ~s(#asset-list-rows[data-load-more-target="asset-table-loading"]))
     assert has_element?(view, ~s(#asset-list-rows[class*="overflow-y-auto"]))
+    assert has_element?(view, "#asset-table-range", "Showing 1-50 of 600")
+    assert has_element?(view, "#asset-table-loading", "Loading more...")
+    refute has_element?(view, "#asset-table-end")
     assert has_element?(view, "#asset-summary")
     assert has_element?(view, "#asset-summary-visible-count", "600")
     assert has_element?(view, "#asset-summary-value", "$3,474,056")
@@ -103,7 +107,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-summary-value", "$136,168")
     assert has_element?(view, "#asset-summary-at-risk", "14")
     assert has_element?(view, "#asset-summary-highest-ltv", "80.1%")
-    assert has_element?(view, "#asset-loaded-count", "Loaded 14 of 14")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-14 of 14")
+    assert has_element?(view, "#asset-table-range", "Showing 1-14 of 14")
+    assert has_element?(view, "#asset-table-end", "All matching assets loaded")
     refute has_element?(view, "#asset-load-hint")
     assert has_element?(view, "#active-filter-chips")
     assert has_element?(view, "#active-filter-risks-critical", "Risk:")
@@ -119,7 +125,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_change()
 
     assert has_element?(view, "#asset-count", "600 monitored")
-    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 600")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-50 of 600")
     refute has_element?(view, "#active-filter-chips")
     assert has_element?(view, "#asset-row-asset-010")
   end
@@ -144,7 +150,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_change()
 
     assert has_element?(view, "#asset-count", "100 monitored")
-    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 100")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-50 of 100")
     assert has_element?(view, "#active-filter-chains-arbitrum", "Network:")
     assert has_element?(view, "#active-filter-chains-arbitrum", "Arbitrum")
     assert has_element?(view, "#asset-row-asset-005")
@@ -168,7 +174,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     assert has_element?(view, "#asset-count", "336 monitored")
     assert has_element?(view, "#asset-row-asset-010", "Manual review")
-    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 336")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-50 of 336")
     refute has_element?(view, "#asset-row-asset-002")
 
     view
@@ -183,7 +189,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_change()
 
     assert has_element?(view, "#asset-count", "4 monitored")
-    assert has_element?(view, "#asset-loaded-count", "Loaded 4 of 4")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-4 of 4")
+    assert has_element?(view, "#asset-table-end", "All matching assets loaded")
     assert has_element?(view, "#asset-row-asset-010-variant-010", "Liquidation candidate")
     assert has_element?(view, "#asset-row-asset-002", "Liquidation candidate")
     refute has_element?(view, "#asset-row-asset-001")
@@ -258,7 +265,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_change()
 
     assert has_element?(view, "#asset-count", "50 monitored")
-    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 50")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-50 of 50")
+    assert has_element?(view, "#asset-table-end", "All matching assets loaded")
     assert has_element?(view, "#active-filter-query-mech", "Search:")
     assert has_element?(view, "#active-filter-query-mech", "mech")
     assert has_element?(view, "#asset-row-asset-010")
@@ -280,6 +288,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-summary-at-risk", "0")
     assert has_element?(view, "#asset-summary-highest-ltv", "0.0%")
     assert has_element?(view, "#asset-list-empty", "No assets match this filter.")
+    assert has_element?(view, "#asset-loaded-count", "Showing 0 of 0")
+    assert has_element?(view, "#asset-table-range", "Showing 0 of 0")
+    refute has_element?(view, "#asset-table-end")
     refute has_element?(view, "#asset-row-asset-001")
     refute has_element?(view, "#asset-inspection")
   end
@@ -340,14 +351,15 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert length(asset_row_ids(view)) == 50
-    assert has_element?(view, "#asset-loaded-count", "Loaded 50 of 600")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-50 of 600")
 
     view
     |> element("#asset-list-rows")
     |> render_hook("load_more_assets")
 
     assert length(asset_row_ids(view)) == 100
-    assert has_element?(view, "#asset-loaded-count", "Loaded 100 of 600")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-100 of 600")
+    assert has_element?(view, "#asset-table-range", "Showing 1-100 of 600")
 
     view
     |> element("#asset-list-rows")
@@ -358,7 +370,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_hook("load_more_assets")
 
     assert length(asset_row_ids(view)) in 140..150
-    assert has_element?(view, "#asset-loaded-count", "Loaded 200 of 600")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-200 of 600")
+    assert has_element?(view, "#asset-table-range", "Showing 1-200 of 600")
   end
 
   test "sorts monitored assets by selected table headers", %{conn: conn} do

@@ -16,12 +16,18 @@ defmodule AssetMonitoringDashWeb.UI.LoadStatus do
     ~H"""
     <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-app-muted">
       <span id={@status_id} class="font-mono">
-        Loaded {@loaded_count} of {@count}
+        {range_label(@loaded_count, @count)}
       </span>
       <span :if={@show_hint} id={@hint_id}>
         {@hint}
       </span>
     </div>
     """
+  end
+
+  defp range_label(0, count), do: "Showing 0 of #{count}"
+
+  defp range_label(loaded_count, count) do
+    "Showing 1-#{min(loaded_count, count)} of #{count}"
   end
 end
