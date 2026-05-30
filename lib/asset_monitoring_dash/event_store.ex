@@ -38,10 +38,10 @@ defmodule AssetMonitoringDash.EventStore do
     update_events(&EventFeed.push_scenario_reset_event(&1, asset))
   end
 
-  def push_review_event(asset, review_state) do
+  def push_review_event(asset, review_state, audit_context \\ %{}) do
     ensure_started()
 
-    update_events(&EventFeed.push_review_event(&1, asset, review_state))
+    update_events(&EventFeed.push_review_event(&1, asset, review_state, audit_context))
   end
 
   def reset_all do

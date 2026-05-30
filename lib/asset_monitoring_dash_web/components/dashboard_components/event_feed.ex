@@ -101,10 +101,15 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.EventFeed do
         <EventItem.render
           :for={{event_id, event} <- @rows}
           id={event_id}
+          actor={event.actor}
           time_label={event.time_label}
           title={event.title}
           detail={event.detail}
           chain={event.chain}
+          source_label={event.source_label}
+          source_tone={event.source_tone}
+          severity_label={event.severity_label}
+          severity_tone={event.severity_tone}
           status={event.status}
           tone={event.tone}
         />

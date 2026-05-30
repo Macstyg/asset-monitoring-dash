@@ -8,8 +8,21 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.EventItem do
   alias AssetMonitoringDashWeb.UI.Badge
 
   attr :chain, :string, required: true
+  attr :actor, :string, required: true
   attr :detail, :string, required: true
   attr :id, :string, required: true
+  attr :severity_label, :string, required: true
+
+  attr :severity_tone, :atom,
+    values: [:neutral, :success, :info, :warning, :danger],
+    default: :neutral
+
+  attr :source_label, :string, required: true
+
+  attr :source_tone, :atom,
+    values: [:neutral, :success, :info, :warning, :danger],
+    default: :neutral
+
   attr :status, :string, required: true
   attr :time_label, :string, required: true
   attr :title, :string, required: true
@@ -29,6 +42,11 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.EventItem do
           <span class="font-mono text-xs text-app-muted">{@chain}</span>
         </div>
         <p class="mt-1 text-sm leading-5 text-app-muted">{@detail}</p>
+        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+          <Badge.render label={@source_label} tone={@source_tone} />
+          <Badge.render label={@severity_label} tone={@severity_tone} />
+          <span class="font-mono text-xs text-app-muted">by {@actor}</span>
+        </div>
       </div>
 
       <Badge.render label={@status} tone={@tone} />

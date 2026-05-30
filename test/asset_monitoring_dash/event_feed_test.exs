@@ -18,6 +18,9 @@ defmodule AssetMonitoringDash.EventFeedTest do
            ]
 
     assert Enum.all?(events, &(&1.kind == :system))
+    assert Enum.all?(events, &(&1.source_label == "System"))
+    assert Enum.all?(events, &(&1.actor == "Monitoring system"))
+    assert Enum.all?(events, &match?(%DateTime{}, &1.occurred_at))
   end
 
   test "combines generated event history with seeded events" do
@@ -45,6 +48,7 @@ defmodule AssetMonitoringDash.EventFeedTest do
            ]
 
     assert [%{kind: :scenario}, %{kind: :system} | _events] = events
+    assert [%{source_label: "Scenario", severity_label: "Critical"} | _events] = events
   end
 
   test "filters generated event history by asset identity" do
@@ -127,6 +131,13 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert event.detail == "Aegis Dragon Helm repriced 12% lower; LTV is now 67.8%."
     assert event.chain == "Polygon"
     assert event.kind == :scenario
+    assert event.source_label == "Scenario"
+    assert event.source_value == "scenario"
+    assert event.source_tone == :warning
+    assert event.severity_label == "Critical"
+    assert event.severity_tone == :danger
+    assert event.actor == "Scenario engine"
+    assert %DateTime{} = event.occurred_at
     assert event.status == "risk"
     assert event.tone == :danger
     assert length(feed.visible_events) == 6
@@ -174,6 +185,9 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert event.detail == "Aegis Dragon Helm restored to the baseline demo valuation."
     assert event.chain == "Polygon"
     assert event.kind == :scenario
+    assert event.source_label == "Scenario"
+    assert event.severity_label == "Normal"
+    assert event.actor == "Scenario engine"
     assert event.status == "synced"
     assert event.tone == :success
     assert length(feed.visible_events) == 6
@@ -195,9 +209,38 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert event.title == "Position reviewed"
     assert event.asset_id == "asset-001"
     assert event.kind == :operator
+    assert event.source_label == "Operator"
+    assert event.source_value == "operator"
+    assert event.source_tone == :success
+    assert event.severity_label == "Normal"
+    assert event.severity_tone == :success
+    assert event.actor == "Operator"
     assert event.status == "reviewed"
     assert event.tone == :success
     assert length(feed.visible_events) == 6
+  end
+
+  test "pushes operator review events with audit context" do
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon"
+    }
+
+    feed =
+      EventFeed.push_review_event(
+        EventFeed.initial_events(),
+        asset,
+        ReviewState.state(:reviewed),
+        %{reason: "Oracle checked", note: "Floor feed matched marketplace depth."}
+      )
+
+    assert [%{id: "event-review-reviewed-asset-001"} = event | _events] = feed.visible_events
+
+    assert event.review_reason == "Oracle checked"
+    assert event.operator_note == "Floor feed matched marketplace depth."
+    assert event.detail =~ "Reason: Oracle checked."
+    assert event.detail =~ "Note: Floor feed matched marketplace depth."
   end
 
   test "pushes operator escalation events with asset identity" do
@@ -220,6 +263,9 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert event.title == "Review escalated"
     assert event.asset_id == "asset-001"
     assert event.kind == :operator
+    assert event.source_label == "Operator"
+    assert event.severity_label == "Watch"
+    assert event.actor == "Operator"
     assert event.status == "review"
     assert event.tone == :warning
     assert length(feed.visible_events) == 6

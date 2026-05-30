@@ -8,7 +8,9 @@ defmodule AssetMonitoringDashWeb.UI.Button do
   attr :active, :boolean, default: false
   attr :class, :string, default: ""
   attr :disabled, :boolean, default: false
+  attr :name, :string, default: nil
   attr :type, :string, default: "button"
+  attr :value, :string, default: nil
   attr :rest, :global
 
   slot :inner_block, required: true
@@ -17,6 +19,8 @@ defmodule AssetMonitoringDashWeb.UI.Button do
     ~H"""
     <button
       type={@type}
+      name={@name}
+      value={@value}
       disabled={@disabled}
       class={[
         "inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",

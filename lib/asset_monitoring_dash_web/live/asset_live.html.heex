@@ -134,66 +134,186 @@
             >
               Reset scenario
             </Button.render>
-            <Button.render
-              id="mark-asset-reviewed"
-              phx-click="mark_asset_reviewed"
-              disabled={@asset_reviewed?}
+
+            <.form
+              for={@review_action_form}
+              id="review-action-form"
+              phx-change="validate_review_action"
+              phx-submit="submit_review_action"
+              class="review-action-form mt-2 grid w-full gap-3 rounded-app border border-app-border bg-app-bg/45 p-3 shadow-[inset_0_1px_0_color-mix(in_oklch,var(--amd-fg),transparent_95%)]"
             >
-              Mark reviewed
-            </Button.render>
-            <Button.render
-              id="escalate-asset-review"
-              phx-click="escalate_asset_review"
-              disabled={@asset_escalated?}
-            >
-              Escalate
-            </Button.render>
+              <div class="grid items-start gap-3 sm:grid-cols-[minmax(180px,0.75fr)_minmax(0,1.25fr)]">
+                <.input
+                  field={@review_action_form[:reason]}
+                  type="select"
+                  label="Review reason"
+                  options={@review_reason_options}
+                  class="h-10 w-full rounded-app border border-app-border bg-app-surface px-3 text-sm font-semibold text-app-fg outline-none transition hover:border-app-accent/35 focus:border-app-accent/50 focus:ring-2 focus:ring-app-accent/15"
+                />
+                <.input
+                  field={@review_action_form[:note]}
+                  type="textarea"
+                  label="Operator note"
+                  placeholder="Optional audit note"
+                  rows="2"
+                  maxlength="180"
+                  class="h-20 w-full resize-none rounded-app border border-app-border bg-app-surface px-3 py-2 text-sm leading-5 text-app-fg outline-none transition placeholder:text-app-muted hover:border-app-accent/35 focus:border-app-accent/50 focus:ring-2 focus:ring-app-accent/15"
+                />
+              </div>
+
+              <div class="flex flex-wrap gap-2 border-t border-app-border pt-3">
+                <Button.render
+                  id="mark-asset-reviewed"
+                  type="submit"
+                  name="review_action[action]"
+                  value="reviewed"
+                  disabled={@asset_reviewed?}
+                  class="h-8 px-3"
+                >
+                  Mark reviewed
+                </Button.render>
+                <Button.render
+                  id="escalate-asset-review"
+                  type="submit"
+                  name="review_action[action]"
+                  value="escalated"
+                  disabled={@asset_escalated?}
+                  class="h-8 px-3"
+                >
+                  Escalate
+                </Button.render>
+              </div>
+            </.form>
           </:actions>
         </AssetInspection.render>
 
-        <Card.surface
-          id="asset-activity"
-          class="min-h-72"
-        >
-          <div class="flex items-start justify-between gap-4">
+        <div class="grid min-w-0 gap-4">
+          <Card.surface
+            id="asset-activity"
+            class="min-h-72"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h2 class="text-base font-semibold text-app-fg">Asset activity</h2>
+                <p class="mt-1 text-sm text-app-muted">
+                  Recorded scenario and operator events for this asset.
+                </p>
+              </div>
+              <span
+                id="asset-event-count"
+                class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
+              >
+                {@event_count} events
+              </span>
+            </div>
+
+            <FilterBar.render
+              form={@asset_event_filter_form}
+              id="asset-activity-filters"
+              phx-change="filter_asset_events"
+              class="mt-4"
+            >
+              <div class="flex flex-wrap items-center gap-2">
+                <FilterBar.multi_select
+                  field={@asset_event_filter_form[:sources]}
+                  search_field={@asset_event_filter_form[:source_option_query]}
+                  label="Source"
+                  icon="hero-funnel"
+                  search_placeholder="Find source"
+                  options={
+                    visible_source_options(
+                      @asset_event_source_filter_options,
+                      @asset_event_filters.source_option_query
+                    )
+                  }
+                />
+              </div>
+            </FilterBar.render>
+
+            <div
+              :if={@active_asset_event_filter_chips != []}
+              id="active-asset-event-filter-chips"
+              class="mt-3 flex flex-wrap items-center gap-2"
+            >
+              <FilterBar.active_chip :for={chip <- @active_asset_event_filter_chips} chip={chip} />
+            </div>
+
+            <div
+              id="asset-event-list"
+              phx-update="stream"
+              class="mt-5"
+            >
+              <div
+                id="asset-event-list-empty"
+                class="hidden only:block rounded-app border border-dashed border-app-border bg-app-surface-2 px-4 py-8 text-center text-sm text-app-muted"
+              >
+                {asset_event_empty_title(@asset_event_filters)}
+              </div>
+
+              <EventItem.render
+                :for={{event_id, event} <- @streams.events}
+                id={event_id}
+                actor={event.actor}
+                time_label={event.time_label}
+                title={event.title}
+                detail={event.detail}
+                chain={event.chain}
+                source_label={event.source_label}
+                source_tone={event.source_tone}
+                severity_label={event.severity_label}
+                severity_tone={event.severity_tone}
+                status={event.status}
+                tone={event.tone}
+              />
+            </div>
+          </Card.surface>
+
+          <Card.surface id="related-assets">
             <div>
-              <h2 class="text-base font-semibold text-app-fg">Asset activity</h2>
+              <h2 class="text-base font-semibold text-app-fg">Related assets</h2>
               <p class="mt-1 text-sm text-app-muted">
-                Recorded scenario and operator events for this asset.
+                Same chain, game, or risk band for faster review triage.
               </p>
             </div>
-            <span
-              id="asset-event-count"
-              class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
-            >
-              {@event_count} events
-            </span>
-          </div>
 
-          <div
-            id="asset-event-list"
-            phx-update="stream"
-            class="mt-5"
-          >
-            <div
-              id="asset-event-list-empty"
-              class="hidden only:block rounded-app border border-dashed border-app-border bg-app-surface-2 px-4 py-8 text-center text-sm text-app-muted"
-            >
-              No recorded activity for this asset yet.
+            <div class="mt-4 grid gap-2">
+              <.link
+                :for={related_asset <- @related_assets}
+                id={"related-asset-#{related_asset.id}"}
+                navigate={asset_detail_path(related_asset.id, @return_to)}
+                class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-app border border-app-border bg-app-surface-2 px-3 py-3 transition hover:border-app-accent/40 hover:bg-app-bg"
+              >
+                <ChainIcon.render chain={related_asset.chain} size="size-9" />
+                <span class="min-w-0">
+                  <span class="block truncate text-sm font-semibold text-app-fg">
+                    {related_asset.name}
+                  </span>
+                  <span class="mt-0.5 block truncate font-mono text-xs text-app-muted">
+                    {related_asset.chain} · {related_asset.ecosystem}
+                  </span>
+                </span>
+                <span class="text-right">
+                  <Badge.render
+                    id={"related-asset-risk-#{related_asset.id}"}
+                    label={related_asset.risk_band}
+                    tone={signal_tone(related_asset.risk_band)}
+                  />
+                  <span class="mt-1 block font-mono text-xs text-app-muted">
+                    {Formatters.ltv(related_asset.ltv_percent)}
+                  </span>
+                </span>
+              </.link>
+
+              <div
+                :if={@related_assets == []}
+                id="related-assets-empty"
+                class="rounded-app border border-dashed border-app-border bg-app-surface-2 px-4 py-6 text-center text-sm text-app-muted"
+              >
+                No nearby assets in this demo set.
+              </div>
             </div>
-
-            <EventItem.render
-              :for={{event_id, event} <- @streams.events}
-              id={event_id}
-              time_label={event.time_label}
-              title={event.title}
-              detail={event.detail}
-              chain={event.chain}
-              status={event.status}
-              tone={event.tone}
-            />
-          </div>
-        </Card.surface>
+          </Card.surface>
+        </div>
       </section>
     </div>
   </section>

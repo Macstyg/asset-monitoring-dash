@@ -51,8 +51,15 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#risk-reason-health_factor")
     assert has_element?(view, "#risk-reason-valuation_gap")
     assert has_element?(view, "#asset-activity")
+    assert has_element?(view, "#asset-activity-filters")
     assert has_element?(view, "#asset-event-count", "0 events")
     assert has_element?(view, "#asset-event-list-empty", "No recorded activity")
+    assert has_element?(view, "#review-action-form")
+    assert has_element?(view, "#review_action_reason")
+    assert has_element?(view, "#review_action_note")
+    assert has_element?(view, "#related-assets")
+    assert has_element?(view, "#related-asset-asset-009", "Moonwell Guild Charter")
+    assert has_element?(view, ~s(#related-asset-asset-009[href="/assets/asset-009"]))
   end
 
   test "renders oracle and liquidity-driven recommendation details", %{conn: conn} do
@@ -106,7 +113,58 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
 
     assert has_element?(view, "#asset-event-count", "1 events")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Price shock applied")
+    assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Scenario")
+    assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Critical")
+    assert has_element?(view, "#asset-event-row-event-shock-asset-001", "by Scenario engine")
     refute has_element?(view, "#asset-event-row-event-shock-asset-002")
+  end
+
+  test "filters asset activity by event source", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
+
+    submit_review_action(view, :reviewed, reason: "oracle_checked", note: "Floor feed checked.")
+
+    view
+    |> element("#apply-price-shock")
+    |> render_click()
+
+    assert has_element?(view, "#asset-event-count", "2 events")
+    assert has_element?(view, "#asset-event-row-event-review-reviewed-asset-001")
+
+    assert has_element?(
+             view,
+             "#asset-event-row-event-review-reviewed-asset-001",
+             "Oracle checked"
+           )
+
+    assert has_element?(
+             view,
+             "#asset-event-row-event-review-reviewed-asset-001",
+             "Floor feed checked."
+           )
+
+    assert has_element?(view, "#asset-event-row-event-shock-asset-001")
+
+    view
+    |> form("#asset-activity-filters", %{
+      "asset_event_filters" => %{
+        "sources" => ["scenario"],
+        "source_option_query" => ""
+      }
+    })
+    |> render_change()
+
+    assert has_element?(view, "#asset-event-count", "1 events")
+    assert has_element?(view, "#active-filter-asset-event-sources-scenario", "Scenario")
+    assert has_element?(view, "#asset-event-row-event-shock-asset-001")
+    refute has_element?(view, "#asset-event-row-event-review-reviewed-asset-001")
+
+    view
+    |> element("#active-filter-asset-event-sources-scenario")
+    |> render_click()
+
+    assert has_element?(view, "#asset-event-count", "2 events")
+    refute has_element?(view, "#active-filter-asset-event-sources-scenario")
   end
 
   test "updates operator review state without changing system recommendation", %{conn: conn} do
@@ -117,9 +175,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     refute has_element?(view, "#mark-asset-reviewed[disabled]")
     refute has_element?(view, "#escalate-asset-review[disabled]")
 
-    view
-    |> element("#mark-asset-reviewed")
-    |> render_click()
+    submit_review_action(view, :reviewed)
 
     assert has_element?(view, "#risk-recommendation-label", "Manual review")
     assert has_element?(view, "#operator-review-state-label", "Reviewed")
@@ -137,9 +193,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
   test "persists operator state for dashboard filtering", %{conn: conn} do
     {:ok, detail_view, _html} = live(conn, ~p"/assets/asset-001")
 
-    detail_view
-    |> element("#mark-asset-reviewed")
-    |> render_click()
+    submit_review_action(detail_view, :reviewed)
 
     {:ok, dashboard_view, _html} = live(conn, ~p"/")
 
@@ -176,9 +230,10 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#operator-review-state-label", "Unreviewed")
     refute has_element?(view, "#escalate-asset-review[disabled]")
 
-    view
-    |> element("#escalate-asset-review")
-    |> render_click()
+    submit_review_action(view, :escalated,
+      reason: "borrower_follow_up",
+      note: "Need borrower context."
+    )
 
     assert has_element?(view, "#risk-recommendation-label", "Watch")
     assert has_element?(view, "#operator-review-state-label", "Escalated")
@@ -190,14 +245,24 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
              "#asset-event-row-event-review-escalated-asset-003",
              "Review escalated"
            )
+
+    assert has_element?(
+             view,
+             "#asset-event-row-event-review-escalated-asset-003",
+             "Borrower follow-up"
+           )
+
+    assert has_element?(
+             view,
+             "#asset-event-row-event-review-escalated-asset-003",
+             "Need borrower context."
+           )
   end
 
   test "resets operator review state when a reviewed asset scenario changes", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
 
-    view
-    |> element("#mark-asset-reviewed")
-    |> render_click()
+    submit_review_action(view, :reviewed)
 
     assert has_element?(view, "#operator-review-state-label", "Reviewed")
 
@@ -312,5 +377,21 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#reset-asset-scenario[disabled]")
     assert has_element?(view, "#asset-event-row-event-reset-asset-001")
     assert has_element?(view, "#asset-event-row-event-reset-asset-001", "Scenario reset")
+  end
+
+  defp submit_review_action(view, action, opts \\ []) do
+    action = Atom.to_string(action)
+    reason = Keyword.get(opts, :reason, "signal_reviewed")
+    note = Keyword.get(opts, :note, "")
+
+    view
+    |> element("#review-action-form")
+    |> render_submit(%{
+      "review_action" => %{
+        "action" => action,
+        "reason" => reason,
+        "note" => note
+      }
+    })
   end
 end
