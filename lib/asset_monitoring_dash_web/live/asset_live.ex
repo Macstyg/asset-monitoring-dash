@@ -11,9 +11,11 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
   alias AssetMonitoringDashWeb.DashboardComponents.EventItem
+  alias AssetMonitoringDashWeb.DashboardComponents.InvestigationBrief
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.Button
+  alias AssetMonitoringDashWeb.UI.Card
 
   @impl true
   def mount(%{"id" => asset_id} = params, _session, socket) do

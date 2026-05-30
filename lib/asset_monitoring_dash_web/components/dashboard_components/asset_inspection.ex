@@ -9,6 +9,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
   alias AssetMonitoringDashWeb.DashboardComponents.ReviewWorkflowPanel
   alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
   alias AssetMonitoringDashWeb.Formatters
+  alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.EntityIdentity
 
   attr :asset, :map, required: true
@@ -22,10 +23,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
 
   def render(assigns) do
     ~H"""
-    <section
-      id="asset-inspection"
-      class="rounded-app border border-app-border bg-app-surface p-5 shadow-app-panel"
-    >
+    <Card.surface id="asset-inspection">
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="text-base font-semibold text-app-fg">Asset inspection</h2>
@@ -151,7 +149,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
           </div>
         </div>
       </div>
-    </section>
+    </Card.surface>
     """
   end
 

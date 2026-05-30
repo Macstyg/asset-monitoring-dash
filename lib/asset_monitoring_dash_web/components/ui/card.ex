@@ -1,9 +1,31 @@
 defmodule AssetMonitoringDashWeb.UI.Card do
   @moduledoc """
-  Compact dashboard metric card.
+  Card primitives for metric, context, and framed content surfaces.
   """
 
   use Phoenix.Component
+
+  attr :class, :string, default: ""
+  attr :hover, :boolean, default: false
+  attr :padding, :string, default: "p-5"
+  attr :rest, :global
+
+  slot :inner_block, required: true
+
+  def surface(assigns) do
+    ~H"""
+    <section
+      class={[
+        card_surface_class(@hover),
+        @padding,
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </section>
+    """
+  end
 
   attr :class, :string, default: ""
   attr :id, :string, required: true
@@ -20,7 +42,8 @@ defmodule AssetMonitoringDashWeb.UI.Card do
     <article
       id={@id}
       class={[
-        "group min-h-32 min-w-0 rounded-app border border-app-border bg-app-surface px-5 py-4 shadow-app-panel transition duration-200 hover:-translate-y-0.5 hover:border-app-accent-2 hover:bg-app-surface-2",
+        card_surface_class(true),
+        "group min-h-32 px-5 py-4",
         @class
       ]}
       {@rest}
@@ -52,6 +75,15 @@ defmodule AssetMonitoringDashWeb.UI.Card do
       </div>
     </article>
     """
+  end
+
+  defp card_surface_class(true) do
+    card_surface_class(false) <>
+      " transition duration-200 hover:-translate-y-0.5 hover:border-app-accent-2 hover:bg-app-surface-2"
+  end
+
+  defp card_surface_class(false) do
+    "min-w-0 rounded-app border border-app-border bg-app-surface shadow-app-panel"
   end
 
   defp signal_class(:positive), do: "text-app-accent"

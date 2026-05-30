@@ -42,7 +42,7 @@
         aria-label="Asset context"
         class="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4"
       >
-        <div class="rounded-app border border-app-border bg-app-surface p-4 shadow-app-panel">
+        <Card.surface padding="p-4">
           <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
             Chain / game
           </p>
@@ -52,9 +52,9 @@
           <p id="asset-context-game" class="mt-1 truncate font-mono text-xs text-app-muted">
             {@asset.ecosystem}
           </p>
-        </div>
+        </Card.surface>
 
-        <div class="rounded-app border border-app-border bg-app-surface p-4 shadow-app-panel">
+        <Card.surface padding="p-4">
           <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
             Collateral class
           </p>
@@ -64,9 +64,9 @@
           <p id="asset-context-type" class="mt-1 truncate font-mono text-xs text-app-muted">
             {@asset.asset_type}
           </p>
-        </div>
+        </Card.surface>
 
-        <div class="rounded-app border border-app-border bg-app-surface p-4 shadow-app-panel">
+        <Card.surface padding="p-4">
           <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
             Position size
           </p>
@@ -79,9 +79,9 @@
           <p id="asset-context-loan" class="mt-1 font-mono text-xs text-app-muted">
             {Formatters.usd(@asset.loan_value_usd)} borrowed
           </p>
-        </div>
+        </Card.surface>
 
-        <div class="rounded-app border border-app-border bg-app-surface p-4 shadow-app-panel">
+        <Card.surface padding="p-4">
           <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
             Signal quality
           </p>
@@ -100,8 +100,15 @@
           <p id="asset-context-depth" class="mt-2 font-mono text-xs text-app-muted">
             {Formatters.usd(@asset.market_depth_usd)} market depth
           </p>
-        </div>
+        </Card.surface>
       </section>
+
+      <InvestigationBrief.render
+        asset={@asset}
+        health_factor={@asset_health_factor}
+        risk_recommendation={@asset_risk_recommendation}
+        review_state={@asset_review_state}
+      />
 
       <section class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.55fr)]">
         <AssetInspection.render
@@ -144,9 +151,9 @@
           </:actions>
         </AssetInspection.render>
 
-        <section
+        <Card.surface
           id="asset-activity"
-          class="min-h-72 rounded-app border border-app-border bg-app-surface p-5 shadow-app-panel"
+          class="min-h-72"
         >
           <div class="flex items-start justify-between gap-4">
             <div>
@@ -186,7 +193,7 @@
               tone={event.tone}
             />
           </div>
-        </section>
+        </Card.surface>
       </section>
     </div>
   </section>
