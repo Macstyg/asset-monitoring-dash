@@ -134,6 +134,14 @@
             </div>
           </FilterBar.render>
 
+          <div
+            :if={@active_filter_chips != []}
+            id="active-filter-chips"
+            class="mt-3 flex flex-wrap items-center gap-2"
+          >
+            <FilterBar.active_chip :for={chip <- @active_filter_chips} chip={chip} />
+          </div>
+
           <AssetSummary.render summary={@asset_summary} />
 
           <Table.render

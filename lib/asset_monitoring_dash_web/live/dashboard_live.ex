@@ -47,6 +47,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:next_event_index, 0)
       |> assign(:chain_filter_options, Assets.chain_filter_options())
       |> assign(:asset_filters, Assets.default_filters())
+      |> assign(:active_filter_chips, active_filter_chips(Assets.default_filters()))
       |> assign(:filter_form, filter_form(Assets.default_filters()))
       |> assign(:risk_filter_options, Assets.risk_filter_options())
       |> assign(:action_filter_options, Assets.action_filter_options())
@@ -69,33 +70,44 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_event("filter_assets", %{"filters" => params}, socket) do
     filters = Assets.normalize_filters(params, socket.assigns.asset_filters)
-    assets = visible_assets(socket.assigns.all_assets, filters, socket.assigns.review_states)
 
-    socket =
-      socket
-      |> assign(:asset_count, length(assets))
-      |> assign(:asset_summary, Assets.summarize_assets(assets))
-      |> assign(:asset_filters, filters)
-      |> assign(:filter_form, filter_form(filters))
-      |> stream(:assets, assets_for_table(assets, socket.assigns.review_states), reset: true)
-
-    {:noreply, socket}
+    {:noreply, apply_asset_filters(socket, filters)}
   end
 
   @impl true
   def handle_event("reset_asset_filters", _params, socket) do
-    filters = Assets.default_filters()
-    assets = visible_assets(socket.assigns.all_assets, filters, socket.assigns.review_states)
+    {:noreply, apply_asset_filters(socket, Assets.default_filters())}
+  end
 
-    socket =
-      socket
-      |> assign(:asset_count, length(assets))
-      |> assign(:asset_summary, Assets.summarize_assets(assets))
-      |> assign(:asset_filters, filters)
-      |> assign(:filter_form, filter_form(filters))
-      |> stream(:assets, assets_for_table(assets, socket.assigns.review_states), reset: true)
+  @impl true
+  def handle_event("remove_filter_value", %{"filter" => "query"}, socket) do
+    filters = %{socket.assigns.asset_filters | query: ""}
 
-    {:noreply, socket}
+    {:noreply, apply_asset_filters(socket, filters)}
+  end
+
+  @impl true
+  def handle_event("remove_filter_value", %{"filter" => "chains", "option" => value}, socket) do
+    {:noreply, remove_filter_value(socket, :chains, value)}
+  end
+
+  @impl true
+  def handle_event("remove_filter_value", %{"filter" => "risks", "option" => value}, socket) do
+    {:noreply, remove_filter_value(socket, :risks, value)}
+  end
+
+  @impl true
+  def handle_event("remove_filter_value", %{"filter" => "actions", "option" => value}, socket) do
+    {:noreply, remove_filter_value(socket, :actions, value)}
+  end
+
+  @impl true
+  def handle_event(
+        "remove_filter_value",
+        %{"filter" => "operator_states", "option" => value},
+        socket
+      ) do
+    {:noreply, remove_filter_value(socket, :operator_states, value)}
   end
 
   @impl true
@@ -161,6 +173,91 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         description: "#{String.downcase(snapshot.risk_band)} pressure"
       }
     ]
+  end
+
+  defp apply_asset_filters(socket, filters) do
+    assets = visible_assets(socket.assigns.all_assets, filters, socket.assigns.review_states)
+
+    socket
+    |> assign(:asset_count, length(assets))
+    |> assign(:asset_summary, Assets.summarize_assets(assets))
+    |> assign(:asset_filters, filters)
+    |> assign(:active_filter_chips, active_filter_chips(filters))
+    |> assign(:filter_form, filter_form(filters))
+    |> stream(:assets, assets_for_table(assets, socket.assigns.review_states), reset: true)
+  end
+
+  defp remove_filter_value(socket, field, value) do
+    filters =
+      Map.update!(socket.assigns.asset_filters, field, fn values ->
+        Enum.reject(values, &(&1 == value))
+      end)
+
+    apply_asset_filters(socket, filters)
+  end
+
+  defp active_filter_chips(filters) do
+    []
+    |> active_query_chip(filters.query)
+    |> active_option_chips("Network", "chains", filters.chains, Assets.chain_filter_options())
+    |> active_option_chips("Risk", "risks", filters.risks, Assets.risk_filter_options())
+    |> active_option_chips("Action", "actions", filters.actions, Assets.action_filter_options())
+    |> active_option_chips(
+      "Operator",
+      "operator_states",
+      filters.operator_states,
+      Assets.operator_state_filter_options()
+    )
+  end
+
+  defp active_query_chip(chips, ""), do: chips
+
+  defp active_query_chip(chips, query) do
+    chips ++
+      [
+        %{
+          id: "query-#{chip_id(query)}",
+          field: "query",
+          value: query,
+          group: "Search",
+          label: query,
+          icon: "hero-magnifying-glass"
+        }
+      ]
+  end
+
+  defp active_option_chips(chips, group, field, values, options) do
+    options_by_value = Map.new(options, &{&1.value, &1})
+    option_chips = Enum.map(values, &active_option_chip(group, field, &1, options_by_value[&1]))
+
+    chips ++ option_chips
+  end
+
+  defp active_option_chip(group, field, value, nil) do
+    %{
+      id: "#{field}-#{chip_id(value)}",
+      field: field,
+      value: value,
+      group: group,
+      label: value
+    }
+  end
+
+  defp active_option_chip(group, field, value, option) do
+    option
+    |> Map.take([:icon, :icon_text, :label, :tone])
+    |> Map.merge(%{
+      id: "#{field}-#{chip_id(value)}",
+      field: field,
+      value: value,
+      group: group
+    })
+  end
+
+  defp chip_id(value) do
+    value
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9_-]/, "-")
   end
 
   defp filter_form(filters) do

@@ -35,6 +35,12 @@ const FilterDropdown = {
       }
     }
 
+    this.handleDocumentClick = event => {
+      if (this.el.open && !this.el.contains(event.target)) {
+        this.el.open = false
+      }
+    }
+
     this.handleKeyDown = event => {
       if (event.key === "Escape" && this.el.open) {
         event.preventDefault()
@@ -49,6 +55,7 @@ const FilterDropdown = {
 
     this.el.addEventListener("toggle", this.handleToggle)
     this.el.addEventListener("keydown", this.handleKeyDown)
+    document.addEventListener("click", this.handleDocumentClick)
   },
 
   beforeUpdate() {
@@ -65,6 +72,7 @@ const FilterDropdown = {
   destroyed() {
     this.el.removeEventListener("toggle", this.handleToggle)
     this.el.removeEventListener("keydown", this.handleKeyDown)
+    document.removeEventListener("click", this.handleDocumentClick)
   },
 
   closeOtherDropdowns() {

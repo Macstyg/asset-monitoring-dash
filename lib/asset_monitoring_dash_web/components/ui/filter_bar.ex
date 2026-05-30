@@ -186,6 +186,27 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
     """
   end
 
+  attr :chip, :map, required: true
+
+  def active_chip(assigns) do
+    ~H"""
+    <button
+      id={"active-filter-#{@chip.id}"}
+      type="button"
+      phx-click="remove_filter_value"
+      phx-value-filter={@chip.field}
+      phx-value-option={@chip.value}
+      class="inline-flex max-w-full items-center gap-2 rounded-full border border-app-border bg-app-bg px-3 py-1.5 text-xs font-medium text-app-fg transition hover:border-app-accent/40 hover:bg-app-surface-2 focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+    >
+      <.active_chip_icon chip={@chip} />
+      <span class="min-w-0 truncate">
+        <span class="text-app-muted">{@chip.group}:</span> {@chip.label}
+      </span>
+      <.icon name="hero-x-mark" class="size-3.5 shrink-0 text-app-muted" />
+    </button>
+    """
+  end
+
   attr :option, :map, required: true
 
   defp option_icon(%{option: %{icon: :chain}} = assigns) do
@@ -201,6 +222,31 @@ defmodule AssetMonitoringDashWeb.UI.FilterBar do
       option_tone_class(Map.get(@option, :tone, :neutral))
     ]}>
       {Map.get(@option, :icon_text, option_initial(@option))}
+    </span>
+    """
+  end
+
+  attr :chip, :map, required: true
+
+  defp active_chip_icon(%{chip: %{icon: :chain}} = assigns) do
+    ~H"""
+    <ChainIcon.render chain={@chip.label} class="size-5 text-[0.5rem]" />
+    """
+  end
+
+  defp active_chip_icon(%{chip: %{icon: icon}} = assigns) when is_binary(icon) do
+    ~H"""
+    <.icon name={@chip.icon} class="size-3.5 shrink-0 text-app-muted" />
+    """
+  end
+
+  defp active_chip_icon(assigns) do
+    ~H"""
+    <span class={[
+      "grid size-5 shrink-0 place-items-center rounded-full font-mono text-[0.55rem] font-bold ring-1 ring-inset",
+      option_tone_class(Map.get(@chip, :tone, :neutral))
+    ]}>
+      {Map.get(@chip, :icon_text, option_initial(@chip))}
     </span>
     """
   end

@@ -30,6 +30,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#filters_chains_Polygon")
     assert has_element?(view, "#filters_risks_Critical")
     assert has_element?(view, "#reset-asset-filters")
+    refute has_element?(view, "#active-filter-chips")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, ~s(#asset-row-asset-001 [aria-label="Polygon chain"]))
     assert has_element?(view, "#asset-row-asset-001", "Skyforge Arena")
@@ -61,6 +62,9 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-summary-value", "$29,910")
     assert has_element?(view, "#asset-summary-at-risk", "2")
     assert has_element?(view, "#asset-summary-highest-ltv", "80.1%")
+    assert has_element?(view, "#active-filter-chips")
+    assert has_element?(view, "#active-filter-risks-critical", "Risk:")
+    assert has_element?(view, "#active-filter-risks-critical", "Critical")
     assert has_element?(view, "#asset-row-asset-002")
     assert has_element?(view, "#asset-row-asset-010")
     refute has_element?(view, "#asset-row-asset-001")
@@ -72,6 +76,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_change()
 
     assert has_element?(view, "#asset-count", "12 monitored")
+    refute has_element?(view, "#active-filter-chips")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
   end
@@ -96,6 +101,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_change()
 
     assert has_element?(view, "#asset-count", "2 monitored")
+    assert has_element?(view, "#active-filter-chains-arbitrum", "Network:")
+    assert has_element?(view, "#active-filter-chains-arbitrum", "Arbitrum")
     assert has_element?(view, "#asset-row-asset-005")
     assert has_element?(view, "#asset-row-asset-010")
     refute has_element?(view, "#asset-row-asset-001")
@@ -205,6 +212,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_change()
 
     assert has_element?(view, "#asset-count", "1 monitored")
+    assert has_element?(view, "#active-filter-query-mech", "Search:")
+    assert has_element?(view, "#active-filter-query-mech", "mech")
     assert has_element?(view, "#asset-row-asset-010")
     refute has_element?(view, "#asset-row-asset-001")
   end
@@ -238,14 +247,47 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_change()
 
     assert has_element?(view, "#asset-count", "1 monitored")
+    assert has_element?(view, "#active-filter-chips")
 
     view
     |> element("#reset-asset-filters")
     |> render_click()
 
     assert has_element?(view, "#asset-count", "12 monitored")
+    refute has_element?(view, "#active-filter-chips")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, "#asset-row-asset-010")
+  end
+
+  test "removes a single active filter chip", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#asset-filters", %{
+      "filters" => %{"query" => "", "risks" => ["Critical"], "chains" => ["Arbitrum"]}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#asset-count", "1 monitored")
+    assert has_element?(view, "#active-filter-risks-critical")
+    assert has_element?(view, "#active-filter-chains-arbitrum")
+
+    view
+    |> element("#active-filter-chains-arbitrum")
+    |> render_click()
+
+    assert has_element?(view, "#asset-count", "2 monitored")
+    assert has_element?(view, "#active-filter-risks-critical")
+    refute has_element?(view, "#active-filter-chains-arbitrum")
+    assert has_element?(view, "#asset-row-asset-002")
+    assert has_element?(view, "#asset-row-asset-010")
+
+    view
+    |> element("#active-filter-risks-critical")
+    |> render_click()
+
+    assert has_element?(view, "#asset-count", "12 monitored")
+    refute has_element?(view, "#active-filter-chips")
   end
 
   test "pushes and pauses demo events", %{conn: conn} do
