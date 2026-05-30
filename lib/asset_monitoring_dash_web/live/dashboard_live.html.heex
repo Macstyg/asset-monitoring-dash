@@ -144,6 +144,40 @@
 
           <AssetSummary.render summary={@asset_summary} />
 
+          <div id="asset-mobile-sort" class="mt-5 flex flex-wrap items-center gap-2 lg:hidden">
+            <button
+              :for={
+                sort <- [
+                  %{field: "value", label: "Value"},
+                  %{field: "ltv", label: "LTV"},
+                  %{field: "risk", label: "Risk"},
+                  %{field: "action", label: "Action"}
+                ]
+              }
+              id={"asset-mobile-sort-#{sort.field}"}
+              type="button"
+              phx-click="sort_assets"
+              phx-value-field={sort.field}
+              class={[
+                "inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition",
+                Atom.to_string(@asset_sort.field) == sort.field &&
+                  "border-app-accent/40 bg-app-accent/10 text-app-accent",
+                Atom.to_string(@asset_sort.field) != sort.field &&
+                  "border-app-border bg-app-surface-2 text-app-muted hover:border-app-accent/40 hover:text-app-fg"
+              ]}
+            >
+              {sort.label}
+              <.icon
+                :if={Atom.to_string(@asset_sort.field) == sort.field}
+                name="hero-chevron-down"
+                class={[
+                  "size-3.5 transition",
+                  @asset_sort.direction == :asc && "rotate-180"
+                ]}
+              />
+            </button>
+          </div>
+
           <Table.render
             id="asset-list"
             label="Monitored assets"
@@ -152,15 +186,18 @@
             row_class="lg:min-w-[1120px] lg:grid-cols-[minmax(170px,1.1fr)_minmax(150px,0.8fr)_86px_86px_66px_80px_minmax(120px,0.75fr)_minmax(150px,1fr)] lg:items-center"
             row_click="select_asset"
             rows={@streams.assets}
+            sort_direction={@asset_sort.direction}
+            sort_event="sort_assets"
+            sort_field={@asset_sort.field}
           >
             <:col>Asset</:col>
             <:col>Chain / game</:col>
             <:col align={:right}>Floor</:col>
-            <:col align={:right}>Value</:col>
-            <:col align={:right}>LTV</:col>
-            <:col align={:right}>Risk</:col>
+            <:col align={:right} sort_key="value">Value</:col>
+            <:col align={:right} sort_key="ltv">LTV</:col>
+            <:col align={:right} sort_key="risk">Risk</:col>
             <:col align={:right}>Operator</:col>
-            <:col align={:right}>Action</:col>
+            <:col align={:right} sort_key="action">Action</:col>
 
             <:empty>
               <div class="mx-auto max-w-sm">

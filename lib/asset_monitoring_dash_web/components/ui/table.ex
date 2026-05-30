@@ -5,6 +5,8 @@ defmodule AssetMonitoringDashWeb.UI.Table do
 
   use Phoenix.Component
 
+  import AssetMonitoringDashWeb.CoreComponents, only: [icon: 1]
+
   attr :class, :string, default: ""
   attr :id, :string, required: true
   attr :label, :string, required: true
@@ -14,10 +16,14 @@ defmodule AssetMonitoringDashWeb.UI.Table do
   attr :row_click, :string, default: nil
   attr :rows, :any, required: true
   attr :selected_row_id, :string, default: nil
+  attr :sort_direction, :atom, values: [:asc, :desc], default: :desc
+  attr :sort_event, :string, default: nil
+  attr :sort_field, :atom, default: nil
   attr :rest, :global
 
   slot :col, required: true do
     attr :align, :atom, values: [:left, :right]
+    attr :sort_key, :string
   end
 
   slot :empty, required: true
@@ -39,12 +45,14 @@ defmodule AssetMonitoringDashWeb.UI.Table do
         @min_width_class,
         @grid_class
       ]}>
-        <span
+        <.header_cell
           :for={col <- @col}
-          class={col[:align] == :right && "text-right"}
-        >
-          {render_slot(col)}
-        </span>
+          col={col}
+          table_id={@id}
+          sort_direction={@sort_direction}
+          sort_event={@sort_event}
+          sort_field={@sort_field}
+        />
       </div>
 
       <div
@@ -78,6 +86,49 @@ defmodule AssetMonitoringDashWeb.UI.Table do
     """
   end
 
+  attr :col, :map, required: true
+  attr :sort_direction, :atom, values: [:asc, :desc], required: true
+  attr :sort_event, :string, default: nil
+  attr :sort_field, :atom, default: nil
+  attr :table_id, :string, required: true
+
+  defp header_cell(%{col: %{sort_key: sort_key}, sort_event: sort_event} = assigns)
+       when is_binary(sort_key) and is_binary(sort_event) do
+    assigns = assign(assigns, :active?, active_sort?(sort_key, assigns.sort_field))
+
+    ~H"""
+    <button
+      id={"#{@table_id}-sort-#{@col[:sort_key]}"}
+      type="button"
+      phx-click={@sort_event}
+      phx-value-field={@col[:sort_key]}
+      class={[
+        "inline-flex min-w-0 items-center gap-1.5 rounded-sm text-left transition hover:text-app-fg focus:outline-none focus:ring-2 focus:ring-app-accent/20",
+        @col[:align] == :right && "w-full justify-end text-right",
+        @active? && "text-app-fg"
+      ]}
+    >
+      <span class="truncate">{render_slot(@col)}</span>
+      <.icon
+        :if={@active?}
+        name="hero-chevron-down"
+        class={[
+          "size-3.5 shrink-0 text-app-accent transition",
+          @sort_direction == :asc && "rotate-180"
+        ]}
+      />
+    </button>
+    """
+  end
+
+  defp header_cell(assigns) do
+    ~H"""
+    <span class={@col[:align] == :right && "text-right"}>
+      {render_slot(@col)}
+    </span>
+    """
+  end
+
   attr :align, :atom, values: [:left, :right], default: :left
   attr :class, :string, default: ""
   attr :content_class, :string, default: ""
@@ -101,4 +152,6 @@ defmodule AssetMonitoringDashWeb.UI.Table do
     </div>
     """
   end
+
+  defp active_sort?(sort_key, sort_field), do: sort_key == Atom.to_string(sort_field)
 end

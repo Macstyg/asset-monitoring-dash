@@ -30,6 +30,14 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#filters_chains_Polygon")
     assert has_element?(view, "#filters_risks_Critical")
     assert has_element?(view, "#reset-asset-filters")
+    assert has_element?(view, "#asset-list-sort-value")
+    assert has_element?(view, "#asset-list-sort-ltv")
+    assert has_element?(view, "#asset-list-sort-risk")
+    assert has_element?(view, "#asset-list-sort-action")
+    assert has_element?(view, "#asset-mobile-sort-value")
+    assert has_element?(view, "#asset-mobile-sort-ltv")
+    assert has_element?(view, "#asset-mobile-sort-risk")
+    assert has_element?(view, "#asset-mobile-sort-action")
     refute has_element?(view, "#active-filter-chips")
     assert has_element?(view, "#asset-row-asset-001")
     assert has_element?(view, ~s(#asset-row-asset-001 [aria-label="Polygon chain"]))
@@ -290,6 +298,54 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     refute has_element?(view, "#active-filter-chips")
   end
 
+  test "sorts monitored assets by selected table headers", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert List.first(asset_row_ids(view)) == "asset-row-asset-010"
+
+    view
+    |> element("#asset-list-sort-ltv")
+    |> render_click()
+
+    assert List.first(asset_row_ids(view)) == "asset-row-asset-011"
+
+    view
+    |> element("#asset-list-sort-value")
+    |> render_click()
+
+    assert List.first(asset_row_ids(view)) == "asset-row-asset-002"
+
+    view
+    |> element("#asset-list-sort-action")
+    |> render_click()
+
+    assert List.first(asset_row_ids(view)) == "asset-row-asset-002"
+  end
+
+  test "keeps sorting scoped to the filtered assets", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#asset-filters", %{
+      "filters" => %{"query" => "", "risks" => [""], "chains" => ["Arbitrum"]}
+    })
+    |> render_change()
+
+    assert asset_row_ids(view) == ["asset-row-asset-010", "asset-row-asset-005"]
+
+    view
+    |> element("#asset-list-sort-value")
+    |> render_click()
+
+    assert asset_row_ids(view) == ["asset-row-asset-010", "asset-row-asset-005"]
+
+    view
+    |> element("#asset-list-sort-value")
+    |> render_click()
+
+    assert asset_row_ids(view) == ["asset-row-asset-005", "asset-row-asset-010"]
+  end
+
   test "pushes and pauses demo events", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
@@ -324,5 +380,14 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#event-row-event-live-2", "4s ago")
     assert has_element?(view, "#event-row-event-live-1", "8s ago")
     refute has_element?(view, "#event-row-event-005")
+  end
+
+  defp asset_row_ids(view) do
+    view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("#asset-list-rows > div")
+    |> LazyHTML.attribute("id")
+    |> Enum.filter(&String.starts_with?(&1, "asset-row-"))
   end
 end

@@ -2,6 +2,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   use AssetMonitoringDashWeb, :live_view
 
   @event_tick_interval_ms 4_000
+  @default_asset_sort %{field: :ltv, direction: :desc}
 
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.DemoData
@@ -47,6 +48,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:next_event_index, 0)
       |> assign(:chain_filter_options, Assets.chain_filter_options())
       |> assign(:asset_filters, Assets.default_filters())
+      |> assign(:asset_sort, @default_asset_sort)
       |> assign(:active_filter_chips, active_filter_chips(Assets.default_filters()))
       |> assign(:filter_form, filter_form(Assets.default_filters()))
       |> assign(:risk_filter_options, Assets.risk_filter_options())
@@ -57,7 +59,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         :assets,
         assets_for_table(
           visible_assets(assets, Assets.default_filters(), review_states),
-          review_states
+          review_states,
+          @default_asset_sort
         )
       )
       |> stream(:events, events)
@@ -77,6 +80,21 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_event("reset_asset_filters", _params, socket) do
     {:noreply, apply_asset_filters(socket, Assets.default_filters())}
+  end
+
+  @impl true
+  def handle_event("sort_assets", %{"field" => field}, socket) do
+    sort =
+      field
+      |> normalize_sort_field()
+      |> next_sort(socket.assigns.asset_sort)
+
+    socket =
+      socket
+      |> assign(:asset_sort, sort)
+      |> apply_asset_filters(socket.assigns.asset_filters)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -184,7 +202,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:asset_filters, filters)
     |> assign(:active_filter_chips, active_filter_chips(filters))
     |> assign(:filter_form, filter_form(filters))
-    |> stream(:assets, assets_for_table(assets, socket.assigns.review_states), reset: true)
+    |> stream(
+      :assets,
+      assets_for_table(assets, socket.assigns.review_states, socket.assigns.asset_sort),
+      reset: true
+    )
   end
 
   defp remove_filter_value(socket, field, value) do
@@ -285,8 +307,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     Assets.filter_assets(assets, filters, review_states)
   end
 
-  defp assets_for_table(assets, review_states) do
-    Enum.map(assets, &asset_for_table(&1, review_states))
+  defp assets_for_table(assets, review_states, sort) do
+    assets
+    |> Enum.map(&asset_for_table(&1, review_states))
+    |> sort_assets_for_table(sort)
   end
 
   defp asset_for_table(asset, review_states) do
@@ -299,6 +323,54 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       review_state: review_state
     })
   end
+
+  defp normalize_sort_field("value"), do: :value
+  defp normalize_sort_field("ltv"), do: :ltv
+  defp normalize_sort_field("risk"), do: :risk
+  defp normalize_sort_field("action"), do: :action
+  defp normalize_sort_field(_field), do: @default_asset_sort.field
+
+  defp next_sort(field, %{field: field, direction: :desc}), do: %{field: field, direction: :asc}
+  defp next_sort(field, %{field: field, direction: :asc}), do: %{field: field, direction: :desc}
+  defp next_sort(field, _current_sort), do: %{field: field, direction: :desc}
+
+  defp sort_assets_for_table(assets, sort) do
+    Enum.sort(assets, &asset_before?(&1, &2, sort))
+  end
+
+  defp asset_before?(asset, other_asset, %{field: field, direction: direction}) do
+    asset_value = sort_value(asset, field)
+    other_value = sort_value(other_asset, field)
+
+    case compare_sort_values(asset_value, other_value, direction) do
+      :before -> true
+      :after -> false
+      :same -> asset.name <= other_asset.name
+    end
+  end
+
+  defp compare_sort_values(value, value, _direction), do: :same
+  defp compare_sort_values(value, other_value, :asc) when value < other_value, do: :before
+  defp compare_sort_values(_value, _other_value, :asc), do: :after
+  defp compare_sort_values(value, other_value, :desc) when value > other_value, do: :before
+  defp compare_sort_values(_value, _other_value, :desc), do: :after
+
+  defp sort_value(asset, :value), do: asset.current_value_usd
+  defp sort_value(asset, :ltv), do: asset.ltv_percent
+  defp sort_value(asset, :risk), do: risk_sort_rank(asset.risk_band)
+  defp sort_value(asset, :action), do: action_sort_rank(asset.risk_recommendation.id)
+
+  defp risk_sort_rank("Critical"), do: 4
+  defp risk_sort_rank("Elevated"), do: 3
+  defp risk_sort_rank("Moderate"), do: 2
+  defp risk_sort_rank("Low"), do: 1
+  defp risk_sort_rank(_risk_band), do: 0
+
+  defp action_sort_rank(:liquidation_candidate), do: 4
+  defp action_sort_rank(:manual_review), do: 3
+  defp action_sort_rank(:watch), do: 2
+  defp action_sort_rank(:clear), do: 1
+  defp action_sort_rank(_recommendation), do: 0
 
   defp push_demo_event(socket) do
     feed =
