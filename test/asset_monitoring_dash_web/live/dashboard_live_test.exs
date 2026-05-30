@@ -13,6 +13,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#weighted-apy-card")
     assert has_element?(view, "#risk-score-card")
     assert has_element?(view, "#asset-monitor")
+    assert has_element?(view, "#theme-toggle")
     assert has_element?(view, "#asset-count")
     assert has_element?(view, "#asset-list")
     assert has_element?(view, "#asset-list-rows")
@@ -54,6 +55,14 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#event-list")
     assert has_element?(view, "#event-row-event-001")
     assert has_element?(view, "#event-row-event-004")
+  end
+
+  test "defaults theme selection to the system preference", %{conn: conn} do
+    conn = get(conn, ~p"/")
+    html = html_response(conn, 200)
+
+    assert html =~ ~s'setTheme(localStorage.getItem("phx:theme") || "system")'
+    assert html =~ ~s|if (!localStorage.getItem("phx:theme")) setTheme("system")|
   end
 
   test "filters monitored assets by risk band", %{conn: conn} do

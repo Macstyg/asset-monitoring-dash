@@ -15,16 +15,19 @@
           </p>
         </div>
 
-        <div
-          id="dashboard-status"
-          class="flex w-full items-center justify-between gap-3 rounded-app border border-app-border bg-app-surface px-4 py-3 text-sm shadow-app-panel lg:w-auto"
-        >
-          <span class="inline-flex items-center gap-2 text-app-fg">
-            <span class="size-2 rounded-full bg-app-accent shadow-[0_0_14px_var(--amd-accent)]">
+        <div class="flex w-full flex-wrap items-center gap-3 lg:w-auto lg:justify-end">
+          <div
+            id="dashboard-status"
+            class="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-app border border-app-border bg-app-surface px-4 py-3 text-sm shadow-app-panel lg:flex-none"
+          >
+            <span class="inline-flex items-center gap-2 text-app-fg">
+              <span class="size-2 rounded-full bg-app-accent shadow-[0_0_14px_var(--amd-accent)]">
+              </span>
+              Demo data online
             </span>
-            Demo data online
-          </span>
-          <span class="text-app-muted">Static snapshot</span>
+            <span class="text-app-muted">Static snapshot</span>
+          </div>
+          <ThemeSwitch.render />
         </div>
       </div>
 
@@ -212,6 +215,7 @@
               <EntityIdentity.render
                 name={asset.name}
                 caption={"#{asset.rarity} / #{asset.asset_type}"}
+                asset_icon={asset.icon}
               />
 
               <ChainIdentity.render chain={asset.chain} ecosystem={asset.ecosystem} />

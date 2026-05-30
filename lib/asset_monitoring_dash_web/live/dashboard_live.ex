@@ -21,6 +21,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDashWeb.UI.EntityIdentity
   alias AssetMonitoringDashWeb.UI.FilterBar
   alias AssetMonitoringDashWeb.UI.Table
+  alias AssetMonitoringDashWeb.UI.ThemeSwitch
 
   @impl true
   def mount(_params, _session, socket) do
