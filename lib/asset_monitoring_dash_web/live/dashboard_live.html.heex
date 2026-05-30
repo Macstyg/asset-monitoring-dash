@@ -149,14 +149,7 @@
 
           <div id="asset-mobile-sort" class="mt-5 flex flex-wrap items-center gap-2 lg:hidden">
             <button
-              :for={
-                sort <- [
-                  %{field: "value", label: "Value"},
-                  %{field: "ltv", label: "LTV"},
-                  %{field: "risk", label: "Risk"},
-                  %{field: "action", label: "Action"}
-                ]
-              }
+              :for={sort <- @asset_sort_options}
               id={"asset-mobile-sort-#{sort.field}"}
               type="button"
               phx-click="sort_assets"
@@ -193,13 +186,13 @@
             sort_event="sort_assets"
             sort_field={@asset_sort.field}
           >
-            <:col>Asset</:col>
-            <:col>Chain / game</:col>
-            <:col align={:right}>Floor</:col>
+            <:col sort_key="asset">Asset</:col>
+            <:col sort_key="chain">Chain / game</:col>
+            <:col align={:right} sort_key="floor">Floor</:col>
             <:col align={:right} sort_key="value">Value</:col>
             <:col align={:right} sort_key="ltv">LTV</:col>
             <:col align={:right} sort_key="risk">Risk</:col>
-            <:col align={:right}>Operator</:col>
+            <:col align={:right} sort_key="operator">Operator</:col>
             <:col align={:right} sort_key="action">Action</:col>
 
             <:empty>

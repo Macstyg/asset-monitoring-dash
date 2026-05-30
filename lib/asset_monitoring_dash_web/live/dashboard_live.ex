@@ -50,6 +50,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:chain_filter_options, Assets.chain_filter_options())
       |> assign(:asset_filters, Assets.default_filters())
       |> assign(:asset_sort, @default_asset_sort)
+      |> assign(:asset_sort_options, asset_sort_options())
       |> assign(:active_filter_chips, active_filter_chips(Assets.default_filters()))
       |> assign(:filter_form, filter_form(Assets.default_filters()))
       |> assign(:risk_filter_options, Assets.risk_filter_options())
@@ -304,6 +305,19 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     Assets.filter_options(options, query)
   end
 
+  defp asset_sort_options do
+    [
+      %{field: "asset", label: "Asset"},
+      %{field: "chain", label: "Chain"},
+      %{field: "floor", label: "Floor"},
+      %{field: "value", label: "Value"},
+      %{field: "ltv", label: "LTV"},
+      %{field: "risk", label: "Risk"},
+      %{field: "operator", label: "Operator"},
+      %{field: "action", label: "Action"}
+    ]
+  end
+
   defp visible_assets(assets, filters, review_states) do
     Assets.filter_assets(assets, filters, review_states)
   end
@@ -325,15 +339,25 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     })
   end
 
+  defp normalize_sort_field("asset"), do: :asset
+  defp normalize_sort_field("chain"), do: :chain
+  defp normalize_sort_field("floor"), do: :floor
   defp normalize_sort_field("value"), do: :value
   defp normalize_sort_field("ltv"), do: :ltv
   defp normalize_sort_field("risk"), do: :risk
+  defp normalize_sort_field("operator"), do: :operator
   defp normalize_sort_field("action"), do: :action
   defp normalize_sort_field(_field), do: @default_asset_sort.field
 
   defp next_sort(field, %{field: field, direction: :desc}), do: %{field: field, direction: :asc}
   defp next_sort(field, %{field: field, direction: :asc}), do: %{field: field, direction: :desc}
-  defp next_sort(field, _current_sort), do: %{field: field, direction: :desc}
+
+  defp next_sort(field, _current_sort),
+    do: %{field: field, direction: default_sort_direction(field)}
+
+  defp default_sort_direction(:asset), do: :asc
+  defp default_sort_direction(:chain), do: :asc
+  defp default_sort_direction(_field), do: :desc
 
   defp sort_assets_for_table(assets, sort) do
     Enum.sort(assets, &asset_before?(&1, &2, sort))
@@ -356,9 +380,13 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp compare_sort_values(value, other_value, :desc) when value > other_value, do: :before
   defp compare_sort_values(_value, _other_value, :desc), do: :after
 
+  defp sort_value(asset, :asset), do: String.downcase(asset.name)
+  defp sort_value(asset, :chain), do: String.downcase("#{asset.chain} #{asset.ecosystem}")
+  defp sort_value(asset, :floor), do: asset.floor_price_usd
   defp sort_value(asset, :value), do: asset.current_value_usd
   defp sort_value(asset, :ltv), do: asset.ltv_percent
   defp sort_value(asset, :risk), do: risk_sort_rank(asset.risk_band)
+  defp sort_value(asset, :operator), do: operator_sort_rank(asset.review_state.id)
   defp sort_value(asset, :action), do: action_sort_rank(asset.risk_recommendation.id)
 
   defp risk_sort_rank("Critical"), do: 4
@@ -372,6 +400,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp action_sort_rank(:watch), do: 2
   defp action_sort_rank(:clear), do: 1
   defp action_sort_rank(_recommendation), do: 0
+
+  defp operator_sort_rank(:escalated), do: 3
+  defp operator_sort_rank(:unreviewed), do: 2
+  defp operator_sort_rank(:reviewed), do: 1
+  defp operator_sort_rank(_review_state), do: 0
 
   defp push_demo_event(socket) do
     feed =

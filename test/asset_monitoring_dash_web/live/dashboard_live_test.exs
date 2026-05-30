@@ -31,13 +31,21 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#filters_chains_Polygon")
     assert has_element?(view, "#filters_risks_Critical")
     assert has_element?(view, "#reset-asset-filters")
+    assert has_element?(view, "#asset-list-sort-asset")
+    assert has_element?(view, "#asset-list-sort-chain")
+    assert has_element?(view, "#asset-list-sort-floor")
     assert has_element?(view, "#asset-list-sort-value")
     assert has_element?(view, "#asset-list-sort-ltv")
     assert has_element?(view, "#asset-list-sort-risk")
+    assert has_element?(view, "#asset-list-sort-operator")
     assert has_element?(view, "#asset-list-sort-action")
+    assert has_element?(view, "#asset-mobile-sort-asset")
+    assert has_element?(view, "#asset-mobile-sort-chain")
+    assert has_element?(view, "#asset-mobile-sort-floor")
     assert has_element?(view, "#asset-mobile-sort-value")
     assert has_element?(view, "#asset-mobile-sort-ltv")
     assert has_element?(view, "#asset-mobile-sort-risk")
+    assert has_element?(view, "#asset-mobile-sort-operator")
     assert has_element?(view, "#asset-mobile-sort-action")
     refute has_element?(view, "#active-filter-chips")
     assert has_element?(view, "#asset-row-asset-001")
@@ -321,16 +329,53 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert List.first(asset_row_ids(view)) == "asset-row-asset-011"
 
     view
+    |> element("#asset-list-sort-asset")
+    |> render_click()
+
+    assert List.first(asset_row_ids(view)) == "asset-row-asset-001"
+
+    view
+    |> element("#asset-list-sort-chain")
+    |> render_click()
+
+    assert List.first(asset_row_ids(view)) == "asset-row-asset-010"
+
+    view
+    |> element("#asset-list-sort-floor")
+    |> render_click()
+
+    assert List.first(asset_row_ids(view)) == "asset-row-asset-002"
+
+    view
     |> element("#asset-list-sort-value")
     |> render_click()
 
     assert List.first(asset_row_ids(view)) == "asset-row-asset-002"
 
     view
+    |> element("#asset-list-sort-risk")
+    |> render_click()
+
+    assert List.first(asset_row_ids(view)) == "asset-row-asset-010"
+
+    view
     |> element("#asset-list-sort-action")
     |> render_click()
 
     assert List.first(asset_row_ids(view)) == "asset-row-asset-002"
+  end
+
+  test "sorts monitored assets by operator state priority", %{conn: conn} do
+    AssetMonitoringDash.ReviewStore.mark_reviewed("asset-001")
+    AssetMonitoringDash.ReviewStore.escalate("asset-003")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#asset-list-sort-operator")
+    |> render_click()
+
+    assert List.first(asset_row_ids(view)) == "asset-row-asset-003"
   end
 
   test "keeps sorting scoped to the filtered assets", %{conn: conn} do
