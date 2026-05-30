@@ -20,6 +20,12 @@ defmodule AssetMonitoringDash.EventStore do
     Agent.get(__MODULE__, &EventFeed.visible_events/1)
   end
 
+  def visible_events_for_asset(asset_id) do
+    ensure_started()
+
+    Agent.get(__MODULE__, &EventFeed.visible_events_for_asset(&1, asset_id))
+  end
+
   def push_price_shock_event(asset, drop_percent) do
     ensure_started()
 

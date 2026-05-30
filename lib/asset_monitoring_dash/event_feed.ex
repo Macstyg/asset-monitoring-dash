@@ -27,6 +27,14 @@ defmodule AssetMonitoringDash.EventFeed do
     |> refresh_live_event_labels()
   end
 
+  def visible_events_for_asset(generated_events, asset_id) do
+    generated_events
+    |> Enum.map(&put_missing_event_kind/1)
+    |> Enum.filter(&asset_event?(&1, asset_id))
+    |> Enum.take(@visible_event_limit)
+    |> refresh_live_event_labels()
+  end
+
   def push_demo_event(visible_events, next_event_index) do
     feed = push_demo_event_history(visible_events, next_event_index)
 
@@ -157,6 +165,9 @@ defmodule AssetMonitoringDash.EventFeed do
     do: Map.put(event, :kind, :operator)
 
   defp put_missing_event_kind(event), do: Map.put(event, :kind, :system)
+
+  defp asset_event?(%{asset_id: asset_id}, asset_id), do: true
+  defp asset_event?(_event, _asset_id), do: false
 
   defp review_event(asset, %{id: :reviewed}) do
     %{

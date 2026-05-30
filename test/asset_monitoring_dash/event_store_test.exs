@@ -50,4 +50,26 @@ defmodule AssetMonitoringDash.EventStoreTest do
              "event-005"
            ]
   end
+
+  test "publishes generated events for one asset inspection history" do
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon",
+      ltv_percent: 67.8
+    }
+
+    other_asset = %{
+      id: "asset-002",
+      name: "Citadel Founder Parcel",
+      chain: "Ethereum",
+      ltv_percent: 75.2
+    }
+
+    EventStore.push_price_shock_event(other_asset, 12)
+    EventStore.push_price_shock_event(asset, 12)
+
+    assert [%{id: "event-shock-asset-001", asset_id: "asset-001"}] =
+             EventStore.visible_events_for_asset("asset-001")
+  end
 end

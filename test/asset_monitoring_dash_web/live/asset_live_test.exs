@@ -3,6 +3,8 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias AssetMonitoringDash.EventStore
+
   test "renders a dedicated asset inspection page", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
 
@@ -50,7 +52,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#risk-reason-valuation_gap")
     assert has_element?(view, "#asset-activity")
     assert has_element?(view, "#asset-event-count", "0 events")
-    assert has_element?(view, "#asset-event-list-empty", "No activity")
+    assert has_element?(view, "#asset-event-list-empty", "No recorded activity")
   end
 
   test "renders oracle and liquidity-driven recommendation details", %{conn: conn} do
@@ -66,14 +68,45 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
 
   test "keeps a safe return target for the dashboard", %{conn: conn} do
     {:ok, view, _html} =
-      live(conn, ~p"/assets/asset-001?#{%{return_to: "/?query=mech&chains=Arbitrum"}}")
+      live(
+        conn,
+        ~p"/assets/asset-001?#{%{return_to: "/?actions=manual_review&chains=Arbitrum&dir=desc&operator_states=unreviewed&query=mech&risks=Critical&sort=risk"}}"
+      )
 
-    assert has_element?(view, ~s(#back-to-dashboard[href="/?query=mech&chains=Arbitrum"]))
+    assert has_element?(
+             view,
+             ~s(#back-to-dashboard[href="/?actions=manual_review&chains=Arbitrum&dir=desc&operator_states=unreviewed&query=mech&risks=Critical&sort=risk"])
+           )
 
     {:ok, external_view, _html} =
       live(conn, ~p"/assets/asset-001?#{%{return_to: "https://example.com/phish"}}")
 
     assert has_element?(external_view, ~s(#back-to-dashboard[href="/"]))
+  end
+
+  test "loads persisted activity only for the inspected asset", %{conn: conn} do
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon",
+      ltv_percent: 67.8
+    }
+
+    other_asset = %{
+      id: "asset-002",
+      name: "Citadel Founder Parcel",
+      chain: "Ethereum",
+      ltv_percent: 85.5
+    }
+
+    EventStore.push_price_shock_event(other_asset, 12)
+    EventStore.push_price_shock_event(asset, 12)
+
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
+
+    assert has_element?(view, "#asset-event-count", "1 events")
+    assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Price shock applied")
+    refute has_element?(view, "#asset-event-row-event-shock-asset-002")
   end
 
   test "updates operator review state without changing system recommendation", %{conn: conn} do
@@ -217,6 +250,8 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(remounted_detail_view, "#asset-inspection", "$4,277")
     assert has_element?(remounted_detail_view, "#asset-ltv-trend-latest", "67.8%")
     assert has_element?(remounted_detail_view, "#apply-price-shock[disabled]", "Shock applied")
+    assert has_element?(remounted_detail_view, "#asset-event-count", "1 events")
+    assert has_element?(remounted_detail_view, "#asset-event-row-event-shock-asset-001")
 
     {:ok, dashboard_view, _html} = live(conn, ~p"/")
 

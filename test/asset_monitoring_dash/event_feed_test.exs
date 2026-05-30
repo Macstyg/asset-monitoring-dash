@@ -47,6 +47,46 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert [%{kind: :scenario}, %{kind: :system} | _events] = events
   end
 
+  test "filters generated event history by asset identity" do
+    generated_events = [
+      %{
+        id: "event-review-reviewed-asset-002",
+        asset_id: "asset-002",
+        time_label: "now",
+        title: "Position reviewed",
+        detail: "Citadel Founder Parcel marked reviewed by an operator.",
+        chain: "Ethereum",
+        kind: :operator,
+        status: "reviewed",
+        tone: :success
+      },
+      %{
+        id: "event-shock-asset-001",
+        asset_id: "asset-001",
+        time_label: "now",
+        title: "Price shock applied",
+        detail: "Aegis Dragon Helm repriced 12% lower; LTV is now 67.8%.",
+        chain: "Polygon",
+        kind: :scenario,
+        status: "risk",
+        tone: :danger
+      },
+      %{
+        id: "event-live-1",
+        time_label: "now",
+        title: "Oracle heartbeat",
+        detail: "Polygon and Base floor feeds confirmed within the freshness window.",
+        chain: "Multi-chain",
+        kind: :system,
+        status: "live",
+        tone: :success
+      }
+    ]
+
+    assert [%{id: "event-shock-asset-001", asset_id: "asset-001"}] =
+             EventFeed.visible_events_for_asset(generated_events, "asset-001")
+  end
+
   test "pushes a generated event to the top of the feed" do
     feed = EventFeed.push_demo_event(EventFeed.initial_events(), 0)
 
