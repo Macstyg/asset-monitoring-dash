@@ -4,7 +4,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @event_tick_interval_ms 4_000
   @asset_page_limit 50
   @asset_stream_limit 150
-  @default_asset_sort %{field: :ltv, direction: :desc}
 
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenarioStore
@@ -17,19 +16,26 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDashWeb.DashboardComponents.AssetMonitor
   alias AssetMonitoringDashWeb.DashboardComponents.EventFeed, as: DashboardEventFeed
+  alias AssetMonitoringDashWeb.DashboardURLState
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.ThemeSwitch
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
     events = EventStore.visible_events()
     review_states = ReviewStore.all_states()
-    asset_filters = Assets.default_filters()
+    asset_state = DashboardURLState.from_params(params)
 
     asset_page =
-      load_asset_page(asset_filters, @default_asset_sort, nil, review_states, shocked_asset_ids)
+      load_asset_page(
+        asset_state.filters,
+        asset_state.sort,
+        nil,
+        review_states,
+        shocked_asset_ids
+      )
 
     snapshot = portfolio_snapshot(Assets.list_assets_with_scenarios(shocked_asset_ids))
 
@@ -51,12 +57,13 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:event_source_filter_options, event_source_filter_options())
       |> assign(:active_event_filter_chips, active_event_filter_chips(default_event_filters()))
       |> assign(:chain_filter_options, Assets.chain_filter_options())
-      |> assign(:asset_filters, asset_filters)
-      |> assign(:asset_sort, @default_asset_sort)
+      |> assign(:asset_url_state, asset_state)
+      |> assign(:asset_filters, asset_state.filters)
+      |> assign(:asset_sort, asset_state.sort)
       |> assign(:asset_sort_options, asset_sort_options())
       |> assign_metric_cards()
-      |> assign(:active_filter_chips, active_filter_chips(asset_filters))
-      |> assign(:filter_form, filter_form(asset_filters))
+      |> assign(:active_filter_chips, active_filter_chips(asset_state.filters))
+      |> assign(:filter_form, filter_form(asset_state.filters))
       |> assign(:risk_filter_options, Assets.risk_filter_options())
       |> assign(:action_filter_options, Assets.action_filter_options())
       |> assign(:operator_state_filter_options, Assets.operator_state_filter_options())
@@ -72,15 +79,27 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, apply_asset_state(socket, DashboardURLState.from_params(params))}
+  end
+
+  @impl true
   def handle_event("filter_assets", %{"filters" => params}, socket) do
     filters = Assets.normalize_filters(params, socket.assigns.asset_filters)
+    asset_state = DashboardURLState.with_filters(socket.assigns.asset_url_state, filters)
 
-    {:noreply, apply_asset_filters(socket, filters)}
+    socket =
+      case DashboardURLState.same_filter_params?(asset_state, socket.assigns.asset_url_state) do
+        true -> apply_asset_state(socket, asset_state)
+        false -> patch_asset_state(socket, asset_state)
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("reset_asset_filters", _params, socket) do
-    {:noreply, apply_asset_filters(socket, Assets.default_filters())}
+    {:noreply, patch_asset_state(socket, DashboardURLState.default())}
   end
 
   @impl true
@@ -159,15 +178,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_event("sort_assets", %{"field" => field}, socket) do
-    sort =
-      field
-      |> normalize_sort_field()
-      |> next_sort(socket.assigns.asset_sort)
-
     socket =
       socket
-      |> assign(:asset_sort, sort)
-      |> apply_asset_filters(socket.assigns.asset_filters)
+      |> patch_asset_state(DashboardURLState.next_sort(socket.assigns.asset_url_state, field))
 
     {:noreply, socket}
   end
@@ -175,8 +188,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_event("remove_filter_value", %{"filter" => "query"}, socket) do
     filters = %{socket.assigns.asset_filters | query: ""}
+    asset_state = DashboardURLState.with_filters(socket.assigns.asset_url_state, filters)
 
-    {:noreply, apply_asset_filters(socket, filters)}
+    {:noreply, patch_asset_state(socket, asset_state)}
   end
 
   @impl true
@@ -344,6 +358,17 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp collateral_delta_tone(value) when value < 0, do: :negative
   defp collateral_delta_tone(_value), do: :neutral
 
+  defp apply_asset_state(socket, %DashboardURLState{} = asset_state) do
+    socket
+    |> assign(:asset_url_state, asset_state)
+    |> assign(:asset_sort, asset_state.sort)
+    |> apply_asset_filters(asset_state.filters)
+  end
+
+  defp patch_asset_state(socket, %DashboardURLState{} = asset_state) do
+    push_patch(socket, to: ~p"/?#{DashboardURLState.params(asset_state)}")
+  end
+
   defp apply_asset_filters(socket, filters) do
     page =
       load_asset_page(
@@ -411,12 +436,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   defp remove_filter_value(socket, field, value) do
-    filters =
-      Map.update!(socket.assigns.asset_filters, field, fn values ->
-        Enum.reject(values, &(&1 == value))
-      end)
+    asset_state =
+      socket.assigns.asset_url_state
+      |> DashboardURLState.remove_filter_value(field, value)
 
-    apply_asset_filters(socket, filters)
+    patch_asset_state(socket, asset_state)
   end
 
   defp active_filter_chips(filters) do
@@ -623,26 +647,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       false -> nil
     end
   end
-
-  defp normalize_sort_field("asset"), do: :asset
-  defp normalize_sort_field("chain"), do: :chain
-  defp normalize_sort_field("floor"), do: :floor
-  defp normalize_sort_field("value"), do: :value
-  defp normalize_sort_field("ltv"), do: :ltv
-  defp normalize_sort_field("risk"), do: :risk
-  defp normalize_sort_field("operator"), do: :operator
-  defp normalize_sort_field("action"), do: :action
-  defp normalize_sort_field(_field), do: @default_asset_sort.field
-
-  defp next_sort(field, %{field: field, direction: :desc}), do: %{field: field, direction: :asc}
-  defp next_sort(field, %{field: field, direction: :asc}), do: %{field: field, direction: :desc}
-
-  defp next_sort(field, _current_sort),
-    do: %{field: field, direction: default_sort_direction(field)}
-
-  defp default_sort_direction(:asset), do: :asc
-  defp default_sort_direction(:chain), do: :asc
-  defp default_sort_direction(_field), do: :desc
 
   defp push_demo_event(socket) do
     feed =

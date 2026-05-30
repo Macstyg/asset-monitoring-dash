@@ -307,10 +307,25 @@ defmodule AssetMonitoringDash.Assets do
   defp normalize_filter_values(params, list_key, legacy_key, current_values, allowed_values) do
     params
     |> filter_param_values(list_key, legacy_key, current_values)
+    |> expand_filter_values()
     |> Enum.reject(&(&1 in [nil, "", "All", "All chains"]))
     |> Enum.filter(&(&1 in allowed_values))
     |> Enum.uniq()
   end
+
+  defp expand_filter_values(values) do
+    values
+    |> List.wrap()
+    |> Enum.flat_map(&expand_filter_value/1)
+  end
+
+  defp expand_filter_value(value) when is_binary(value) do
+    value
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+  end
+
+  defp expand_filter_value(value), do: [value]
 
   defp filter_param_values(params, list_key, legacy_key, current_values) do
     cond do

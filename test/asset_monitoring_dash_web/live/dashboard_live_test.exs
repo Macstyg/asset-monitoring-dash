@@ -93,6 +93,72 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert html =~ ~s|if (!localStorage.getItem("phx:theme")) setTheme("system")|
   end
 
+  test "loads asset filters and sort from URL params", %{conn: conn} do
+    {:ok, view, _html} =
+      live(conn, ~p"/?query=mech&chains=Arbitrum&risks=Critical&sort=value&dir=asc")
+
+    filters = %{
+      Assets.default_filters()
+      | query: "mech",
+        chains: ["Arbitrum"],
+        risks: ["Critical"]
+    }
+
+    assert has_element?(view, "#asset-count", "13 monitored")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-13 of 13")
+    assert has_element?(view, "#active-filter-query-mech", "mech")
+    assert has_element?(view, "#active-filter-chains-arbitrum", "Arbitrum")
+    assert has_element?(view, "#active-filter-risks-critical", "Critical")
+
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :value, direction: :asc}, filters: filters)
+  end
+
+  test "patches the URL when asset filters change", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#asset-filters", %{
+      "filters" => %{"query" => "mech", "risks" => ["Critical"], "chains" => ["Arbitrum"]}
+    })
+    |> render_change()
+
+    params = patch_query_params(assert_patch(view))
+
+    assert params["query"] == "mech"
+    assert params["risks"] == "Critical"
+    assert params["chains"] == "Arbitrum"
+    refute Map.has_key?(params, "sort")
+    assert has_element?(view, "#asset-count", "13 monitored")
+  end
+
+  test "patches the URL when asset sorting changes and preserves filters", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/?query=mech&chains=Arbitrum")
+
+    view
+    |> element("#asset-list-sort-value")
+    |> render_click()
+
+    params = patch_query_params(assert_patch(view))
+
+    assert params["query"] == "mech"
+    assert params["chains"] == "Arbitrum"
+    assert params["sort"] == "value"
+    assert params["dir"] == "desc"
+  end
+
+  test "resetting asset filters clears filter and sort URL params", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/?query=mech&chains=Arbitrum&sort=value&dir=asc")
+
+    view
+    |> element("#reset-asset-filters")
+    |> render_click()
+
+    assert assert_patch(view) == "/"
+    assert has_element?(view, "#asset-count", "600 monitored")
+    refute has_element?(view, "#active-filter-chips")
+  end
+
   test "filters monitored assets by risk band", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
@@ -688,6 +754,16 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> LazyHTML.query("#asset-list-rows > div")
     |> LazyHTML.attribute("id")
     |> Enum.filter(&String.starts_with?(&1, "asset-row-"))
+  end
+
+  defp patch_query_params(path) do
+    path
+    |> URI.parse()
+    |> Map.fetch!(:query)
+    |> case do
+      nil -> %{}
+      query -> URI.decode_query(query)
+    end
   end
 
   defp expected_first_asset_row_id(sort, opts \\ []) do
