@@ -57,7 +57,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:event_source_filter_options, event_source_filter_options())
       |> assign(:active_event_filter_chips, active_event_filter_chips(default_event_filters()))
       |> assign(:chain_filter_options, Assets.chain_filter_options())
-      |> assign(:asset_url_state, asset_state)
+      |> assign_asset_url_state(asset_state)
       |> assign(:asset_filters, asset_state.filters)
       |> assign(:asset_sort, asset_state.sort)
       |> assign(:asset_sort_options, asset_sort_options())
@@ -240,7 +240,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_event("select_asset", %{"id" => asset_id}, socket) do
-    {:noreply, push_navigate(socket, to: ~p"/assets/#{asset_id}")}
+    {:noreply,
+     push_navigate(socket, to: asset_detail_path(asset_id, socket.assigns.asset_url_state))}
   end
 
   @impl true
@@ -360,13 +361,30 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp apply_asset_state(socket, %DashboardURLState{} = asset_state) do
     socket
-    |> assign(:asset_url_state, asset_state)
+    |> assign_asset_url_state(asset_state)
     |> assign(:asset_sort, asset_state.sort)
     |> apply_asset_filters(asset_state.filters)
   end
 
   defp patch_asset_state(socket, %DashboardURLState{} = asset_state) do
     push_patch(socket, to: ~p"/?#{DashboardURLState.params(asset_state)}")
+  end
+
+  defp assign_asset_url_state(socket, %DashboardURLState{} = asset_state) do
+    socket
+    |> assign(:asset_url_state, asset_state)
+    |> assign(:asset_view_shared?, DashboardURLState.active?(asset_state))
+  end
+
+  defp asset_detail_path(asset_id, %DashboardURLState{} = asset_state) do
+    case DashboardURLState.active?(asset_state) do
+      true -> ~p"/assets/#{asset_id}?#{%{return_to: asset_monitor_path(asset_state)}}"
+      false -> ~p"/assets/#{asset_id}"
+    end
+  end
+
+  defp asset_monitor_path(%DashboardURLState{} = asset_state) do
+    ~p"/?#{DashboardURLState.params(asset_state)}"
   end
 
   defp apply_asset_filters(socket, filters) do

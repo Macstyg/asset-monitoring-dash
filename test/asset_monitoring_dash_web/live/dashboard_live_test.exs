@@ -38,6 +38,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     assert has_element?(view, "#asset-summary-at-risk", "165")
     assert has_element?(view, "#asset-summary-highest-ltv", "80.1%")
     assert has_element?(view, "#asset-filters")
+    assert has_element?(view, "#asset-view-state", "Default view")
+    assert has_element?(view, "#copy-asset-view-link", "Copy view link")
     assert has_element?(view, "#filters_query")
     assert has_element?(view, "#filters_risks_filter")
     assert has_element?(view, "#filters_actions_filter")
@@ -106,6 +108,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     assert has_element?(view, "#asset-count", "13 monitored")
     assert has_element?(view, "#asset-loaded-count", "Showing 1-13 of 13")
+    assert has_element?(view, "#asset-view-state", "Filtered view")
     assert has_element?(view, "#active-filter-query-mech", "mech")
     assert has_element?(view, "#active-filter-chains-arbitrum", "Arbitrum")
     assert has_element?(view, "#active-filter-risks-critical", "Critical")
@@ -204,6 +207,30 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> render_click()
 
     assert_redirect(view, ~p"/assets/asset-010")
+  end
+
+  test "preserves the filtered dashboard URL when navigating to an asset", %{conn: conn} do
+    {:ok, view, _html} =
+      live(conn, ~p"/?chains=Arbitrum&dir=desc&query=mech&risks=Critical&sort=risk")
+
+    view
+    |> element("#asset-row-asset-010")
+    |> render_click()
+
+    {redirect_path, _flash} = assert_redirect(view)
+    uri = URI.parse(redirect_path)
+
+    assert uri.path == "/assets/asset-010"
+
+    assert uri.query
+           |> URI.decode_query()
+           |> Map.fetch!("return_to")
+           |> URI.decode()
+           |> URI.parse()
+           |> Map.take([:path, :query]) == %{
+             path: "/",
+             query: "chains=Arbitrum&dir=desc&query=mech&risks=Critical&sort=risk"
+           }
   end
 
   test "filters monitored assets by chain", %{conn: conn} do

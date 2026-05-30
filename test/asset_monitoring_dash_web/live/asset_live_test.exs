@@ -57,6 +57,18 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#risk-recommendation-reason-illiquid_market", "Illiquid market")
   end
 
+  test "keeps a safe return target for the dashboard", %{conn: conn} do
+    {:ok, view, _html} =
+      live(conn, ~p"/assets/asset-001?#{%{return_to: "/?query=mech&chains=Arbitrum"}}")
+
+    assert has_element?(view, ~s(#back-to-dashboard[href="/?query=mech&chains=Arbitrum"]))
+
+    {:ok, external_view, _html} =
+      live(conn, ~p"/assets/asset-001?#{%{return_to: "https://example.com/phish"}}")
+
+    assert has_element?(external_view, ~s(#back-to-dashboard[href="/"]))
+  end
+
   test "updates operator review state without changing system recommendation", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
 

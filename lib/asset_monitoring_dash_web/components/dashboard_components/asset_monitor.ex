@@ -5,6 +5,8 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetMonitor do
 
   use Phoenix.Component
 
+  import AssetMonitoringDashWeb.CoreComponents, only: [icon: 1]
+
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDashWeb.DashboardComponents.AssetSummary
   alias AssetMonitoringDashWeb.DashboardComponents.AssetTable
@@ -24,6 +26,7 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetMonitor do
   attr :asset_sort, :map, required: true
   attr :asset_sort_options, :list, required: true
   attr :asset_summary, :map, required: true
+  attr :asset_view_shared?, :boolean, required: true
   attr :chain_filter_options, :list, required: true
   attr :filter_form, :any, required: true
   attr :operator_state_filter_options, :list, required: true
@@ -39,6 +42,24 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetMonitor do
         description="Collateral assets grouped across chains, games, floor prices, and risk bands."
       >
         <:actions>
+          <span
+            id="asset-view-state"
+            class={[
+              "rounded-full px-3 py-1 text-xs font-medium ring-1",
+              view_state_class(@asset_view_shared?)
+            ]}
+          >
+            {view_state_label(@asset_view_shared?)}
+          </span>
+          <Button.render
+            id="copy-asset-view-link"
+            phx-hook="CopyCurrentUrl"
+            class="h-8 gap-2 rounded-app px-3"
+            aria-label="Copy current asset view link"
+          >
+            <.icon name="hero-link" class="size-3.5" />
+            <span data-copy-label>Copy view link</span>
+          </Button.render>
           <span
             id="asset-count"
             class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
@@ -144,4 +165,10 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetMonitor do
   defp visible_filter_options(options, query) do
     Assets.filter_options(options, query)
   end
+
+  defp view_state_label(true), do: "Filtered view"
+  defp view_state_label(false), do: "Default view"
+
+  defp view_state_class(true), do: "bg-app-accent/10 text-app-accent ring-app-accent/20"
+  defp view_state_class(false), do: "bg-app-surface-2 text-app-muted ring-app-border"
 end

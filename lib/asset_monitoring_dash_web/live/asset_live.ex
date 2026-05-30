@@ -16,7 +16,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDashWeb.UI.Button
 
   @impl true
-  def mount(%{"id" => asset_id}, _session, socket) do
+  def mount(%{"id" => asset_id} = params, _session, socket) do
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
     assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
 
@@ -27,6 +27,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       |> assign(:all_assets, assets)
       |> assign(:review_states, ReviewStore.all_states())
       |> assign(:shocked_asset_ids, shocked_asset_ids)
+      |> assign(:return_to, normalize_return_to(Map.get(params, "return_to")))
       |> assign(:visible_events, [])
       |> assign(:event_count, 0)
       |> stream(:events, [])
@@ -165,4 +166,22 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   def price_shock_button_label(true), do: "Shock applied"
   def price_shock_button_label(false), do: "Apply 12% price shock"
+
+  defp normalize_return_to(nil), do: ~p"/"
+  defp normalize_return_to(""), do: ~p"/"
+
+  defp normalize_return_to(return_to) do
+    return_to
+    |> URI.parse()
+    |> internal_dashboard_path()
+  end
+
+  defp internal_dashboard_path(%URI{scheme: nil, host: nil, path: "/", query: query}) do
+    case query do
+      nil -> ~p"/"
+      query -> "/?#{query}"
+    end
+  end
+
+  defp internal_dashboard_path(_uri), do: ~p"/"
 end

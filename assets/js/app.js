@@ -146,11 +146,46 @@ const ScrollableLoadMore = {
   },
 }
 
+const CopyCurrentUrl = {
+  mounted() {
+    this.label = this.el.querySelector("[data-copy-label]")
+    this.defaultLabel = this.label?.textContent || "Copy view link"
+
+    this.handleClick = async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        this.setStatus("Copied")
+      } catch (_error) {
+        this.setStatus("Copy failed")
+      }
+    }
+
+    this.el.addEventListener("click", this.handleClick)
+  },
+
+  destroyed() {
+    this.el.removeEventListener("click", this.handleClick)
+    clearTimeout(this.resetTimer)
+  },
+
+  setStatus(label) {
+    if (!this.label) {
+      return
+    }
+
+    this.label.textContent = label
+    clearTimeout(this.resetTimer)
+    this.resetTimer = setTimeout(() => {
+      this.label.textContent = this.defaultLabel
+    }, 1800)
+  },
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, FilterDropdown, ScrollableLoadMore},
+  hooks: {...colocatedHooks, CopyCurrentUrl, FilterDropdown, ScrollableLoadMore},
 })
 
 // Show progress bar on live navigation and form submits

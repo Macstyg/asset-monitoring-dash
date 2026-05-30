@@ -11,6 +11,7 @@ defmodule AssetMonitoringDashWeb.DashboardURLStateTest do
     assert state.filters == Assets.default_filters()
     assert state.sort == %{field: :ltv, direction: :desc}
     assert DashboardURLState.params(state) == %{}
+    refute DashboardURLState.active?(state)
   end
 
   test "parses URL filters and sort into an explicit state struct" do
@@ -32,6 +33,7 @@ defmodule AssetMonitoringDashWeb.DashboardURLStateTest do
     assert state.filters.actions == ["manual_review"]
     assert state.filters.operator_states == ["escalated"]
     assert state.sort == %{field: :value, direction: :asc}
+    assert DashboardURLState.active?(state)
   end
 
   test "serializes only shareable asset monitor params" do

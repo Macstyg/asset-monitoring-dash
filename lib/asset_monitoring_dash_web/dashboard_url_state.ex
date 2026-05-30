@@ -84,6 +84,9 @@ defmodule AssetMonitoringDashWeb.DashboardURLState do
     |> Map.merge(sort_params(state.sort))
   end
 
+  @spec active?(t()) :: boolean()
+  def active?(%__MODULE__{} = state), do: params(state) != %{}
+
   @spec filter_params(t()) :: map()
   def filter_params(%__MODULE__{filters: filters}) do
     %{}
