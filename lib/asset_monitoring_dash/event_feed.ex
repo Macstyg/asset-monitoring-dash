@@ -56,6 +56,7 @@ defmodule AssetMonitoringDash.EventFeed do
   def push_price_shock_event(visible_events, asset, drop_percent) do
     event = %{
       id: "event-shock-#{asset.id}",
+      asset_id: asset.id,
       time_label: "now",
       title: "Price shock applied",
       detail: "#{asset.name} repriced #{drop_percent}% lower; LTV is now #{asset.ltv_percent}%.",
@@ -71,6 +72,7 @@ defmodule AssetMonitoringDash.EventFeed do
   def push_scenario_reset_event(visible_events, asset) do
     event = %{
       id: "event-reset-#{asset.id}",
+      asset_id: asset.id,
       time_label: "now",
       title: "Scenario reset",
       detail: "#{asset.name} restored to the baseline demo valuation.",
@@ -159,6 +161,7 @@ defmodule AssetMonitoringDash.EventFeed do
   defp review_event(asset, %{id: :reviewed}) do
     %{
       id: "event-review-reviewed-#{asset.id}",
+      asset_id: asset.id,
       title: "Position reviewed",
       detail: "#{asset.name} marked reviewed by an operator.",
       chain: asset.chain,
@@ -171,6 +174,7 @@ defmodule AssetMonitoringDash.EventFeed do
   defp review_event(asset, %{id: :escalated}) do
     %{
       id: "event-review-escalated-#{asset.id}",
+      asset_id: asset.id,
       title: "Review escalated",
       detail: "#{asset.name} escalated for follow-up.",
       chain: asset.chain,

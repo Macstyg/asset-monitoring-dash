@@ -83,6 +83,7 @@ defmodule AssetMonitoringDash.EventFeedTest do
              feed.visible_events
 
     assert event.title == "Price shock applied"
+    assert event.asset_id == "asset-001"
     assert event.detail == "Aegis Dragon Helm repriced 12% lower; LTV is now 67.8%."
     assert event.chain == "Polygon"
     assert event.kind == :scenario
@@ -129,6 +130,7 @@ defmodule AssetMonitoringDash.EventFeedTest do
              feed.visible_events
 
     assert event.title == "Scenario reset"
+    assert event.asset_id == "asset-001"
     assert event.detail == "Aegis Dragon Helm restored to the baseline demo valuation."
     assert event.chain == "Polygon"
     assert event.kind == :scenario
@@ -151,9 +153,35 @@ defmodule AssetMonitoringDash.EventFeedTest do
              feed.visible_events
 
     assert event.title == "Position reviewed"
+    assert event.asset_id == "asset-001"
     assert event.kind == :operator
     assert event.status == "reviewed"
     assert event.tone == :success
+    assert length(feed.visible_events) == 6
+  end
+
+  test "pushes operator escalation events with asset identity" do
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon"
+    }
+
+    feed =
+      EventFeed.push_review_event(
+        EventFeed.initial_events(),
+        asset,
+        ReviewState.state(:escalated)
+      )
+
+    assert [%{id: "event-review-escalated-asset-001", time_label: "now"} = event | _events] =
+             feed.visible_events
+
+    assert event.title == "Review escalated"
+    assert event.asset_id == "asset-001"
+    assert event.kind == :operator
+    assert event.status == "review"
+    assert event.tone == :warning
     assert length(feed.visible_events) == 6
   end
 
