@@ -118,4 +118,79 @@ body {
   text-transform: uppercase;
 }
 
+/* Local tooltip primitive based on DaisyUI's data-tip wrapper pattern. */
+.amd-tooltip {
+  display: inline-flex;
+  position: relative;
+  vertical-align: middle;
+}
+
+.amd-tooltip-content {
+  background: var(--amd-fg);
+  border: 1px solid color-mix(in oklch, var(--amd-border), var(--amd-fg) 18%);
+  border-radius: 0.5rem;
+  box-shadow: var(--amd-shadow);
+  color: var(--amd-bg);
+  font-family: var(--amd-font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.25rem;
+  max-width: min(18rem, calc(100vw - 2rem));
+  opacity: 0;
+  padding: 0.5rem 0.625rem;
+  pointer-events: none;
+  position: absolute;
+  text-transform: none;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+  visibility: hidden;
+  width: max-content;
+  z-index: 50;
+}
+
+.amd-tooltip-content::after {
+  background: var(--amd-fg);
+  border: inherit;
+  content: "";
+  height: 0.5rem;
+  position: absolute;
+  rotate: 45deg;
+  width: 0.5rem;
+}
+
+.amd-tooltip-top .amd-tooltip-content {
+  bottom: calc(100% + 0.625rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(0.25rem);
+}
+
+.amd-tooltip-top .amd-tooltip-content::after {
+  border-left: 0;
+  border-top: 0;
+  bottom: -0.3125rem;
+  left: calc(50% - 0.25rem);
+}
+
+.amd-tooltip-bottom .amd-tooltip-content {
+  left: 50%;
+  top: calc(100% + 0.625rem);
+  transform: translateX(-50%) translateY(-0.25rem);
+}
+
+.amd-tooltip-bottom .amd-tooltip-content::after {
+  border-bottom: 0;
+  border-right: 0;
+  left: calc(50% - 0.25rem);
+  top: -0.3125rem;
+}
+
+.amd-tooltip:hover .amd-tooltip-content,
+.amd-tooltip:focus-within .amd-tooltip-content {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  visibility: visible;
+}
+
 /* This file is for your main application CSS */

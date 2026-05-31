@@ -5,9 +5,12 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetPositionMetrics do
 
   use Phoenix.Component
 
+  import AssetMonitoringDashWeb.CoreComponents, only: [icon: 1]
+
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.EntityIdentity
+  alias AssetMonitoringDashWeb.UI.Tooltip
 
   attr :asset, :map, required: true
   attr :health_factor, :string, required: true
@@ -35,19 +38,46 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetPositionMetrics do
         </dd>
       </Card.surface>
       <Card.surface tag="div" variant={:inset}>
-        <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">LTV</dt>
+        <dt class="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.12em] text-app-muted">
+          LTV
+          <Tooltip.render
+            id="asset-ltv-tooltip"
+            tip="Loan-to-value: borrowed amount divided by current collateral value."
+            trigger_label="Explain LTV"
+          >
+            <.icon name="hero-question-mark-circle" class="size-3.5" />
+          </Tooltip.render>
+        </dt>
         <dd class="mt-2 font-mono text-sm font-semibold tabular-nums text-app-fg">
           {Formatters.ltv(@asset.ltv_percent)}
         </dd>
       </Card.surface>
       <Card.surface tag="div" variant={:inset}>
-        <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Health</dt>
+        <dt class="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.12em] text-app-muted">
+          Health
+          <Tooltip.render
+            id="asset-health-tooltip"
+            tip="Health factor estimates collateral safety. Lower values mean less buffer before liquidation pressure."
+            trigger_label="Explain health factor"
+          >
+            <.icon name="hero-question-mark-circle" class="size-3.5" />
+          </Tooltip.render>
+        </dt>
         <dd class="mt-2 font-mono text-sm font-semibold tabular-nums text-app-fg">
           {@health_factor}
         </dd>
       </Card.surface>
       <Card.surface tag="div" variant={:inset}>
-        <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Oracle</dt>
+        <dt class="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.12em] text-app-muted">
+          Oracle
+          <Tooltip.render
+            id="asset-oracle-tooltip"
+            tip="Oracle freshness shows how recently the external price feed confirmed this asset value."
+            trigger_label="Explain oracle freshness"
+          >
+            <.icon name="hero-question-mark-circle" class="size-3.5" />
+          </Tooltip.render>
+        </dt>
         <dd class="mt-2 flex flex-wrap items-center gap-2">
           <span class={[
             "rounded-full px-2 py-0.5 font-mono text-xs font-semibold ring-1 ring-inset",
@@ -61,7 +91,16 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetPositionMetrics do
         </dd>
       </Card.surface>
       <Card.surface tag="div" variant={:inset}>
-        <dt class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">Liquidity</dt>
+        <dt class="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.12em] text-app-muted">
+          Liquidity
+          <Tooltip.render
+            id="asset-liquidity-tooltip"
+            tip="Liquidity describes how much market depth is available to exit or liquidate the collateral."
+            trigger_label="Explain liquidity"
+          >
+            <.icon name="hero-question-mark-circle" class="size-3.5" />
+          </Tooltip.render>
+        </dt>
         <dd class="mt-2 flex flex-wrap items-center gap-2">
           <span class={[
             "rounded-full px-2 py-0.5 font-mono text-xs font-semibold ring-1 ring-inset",

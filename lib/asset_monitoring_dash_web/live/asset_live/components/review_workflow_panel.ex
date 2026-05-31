@@ -5,8 +5,11 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.ReviewWorkflowPanel do
 
   use Phoenix.Component
 
+  import AssetMonitoringDashWeb.CoreComponents, only: [icon: 1]
+
   alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.Card
+  alias AssetMonitoringDashWeb.UI.Tooltip
 
   attr :recommendation, :map, required: true
   attr :review_state, :map, required: true
@@ -20,8 +23,15 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.ReviewWorkflowPanel do
     >
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
-          <p class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">
+          <p class="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.12em] text-app-muted">
             System recommendation
+            <Tooltip.render
+              id="system-recommendation-tooltip"
+              tip="The system recommendation is an automatic triage suggestion. Operator state records the human decision separately."
+              trigger_label="Explain system recommendation"
+            >
+              <.icon name="hero-question-mark-circle" class="size-3.5" />
+            </Tooltip.render>
           </p>
           <div id="risk-recommendation-label" class="mt-2">
             <Badge.render label={@recommendation.label} tone={@recommendation.tone} />

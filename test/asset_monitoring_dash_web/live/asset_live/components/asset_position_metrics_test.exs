@@ -25,6 +25,10 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetPositionMetricsTest d
     assert text =~ "24s ago"
     assert text =~ "Deep"
     assert text =~ "$42,000 depth"
+    assert document |> LazyHTML.query("#asset-ltv-tooltip") |> Enum.any?()
+    assert document |> LazyHTML.query("#asset-health-tooltip") |> Enum.any?()
+    assert document |> LazyHTML.query("#asset-oracle-tooltip") |> Enum.any?()
+    assert document |> LazyHTML.query("#asset-liquidity-tooltip") |> Enum.any?()
   end
 
   defp asset do
