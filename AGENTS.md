@@ -5,6 +5,20 @@ This is a web application written using the Phoenix web framework.
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
 
+### Project test performance guidelines
+
+- **Default to `async: true` for new tests**. Only use `async: false` when the test mutates shared database rows, writes fixed unique keys, reseeds shared reference data, or has another proven global side effect.
+- **Use the lightest test case that fits the test**:
+  - Use `AssetMonitoringDashWeb.ComponentCase` for `render_component/2` tests and other component-only assertions that do not need a `conn` or database sandbox.
+  - Use plain `ExUnit.Case, async: true` for pure modules with no Phoenix connection, LiveView, or database needs.
+  - Use `AssetMonitoringDashWeb.ConnCase` only for controller, route, and full LiveView tests that need `conn`, `live/2`, `get/2`, or route helpers backed by the endpoint.
+  - Use `AssetMonitoringDash.DataCase` only when the test directly needs repo access.
+- **Do not seed the demo catalog in individual test setup**. The canonical demo catalog is seeded once in `test/test_helper.exs` before SQL sandbox manual mode. Tests should read that shared reference data instead of calling `AssetMonitoringDash.Seeds.DemoCatalog.run!/0` again.
+- **Do not put broad resets or heavy setup in shared case modules** such as `ConnCase`. Per-test setup in shared cases runs for every module that uses them, including small tests, and can dominate suite time.
+- **Keep write-heavy tests isolated**. Tests that use `AssetScenarioStore`, `EventStore`, `ActivityLog`, or scenario/review LiveView flows may insert fixed unique keys such as `event-shock-asset-001`. Keep those modules synchronous unless the data is made unique per test.
+- **Split large LiveView suites by workflow** instead of adding many scenarios to one giant module. ExUnit runs tests within a module serially, so smaller async modules give the scheduler useful parallel work.
+- **After changing test structure or async flags**, run `mix test --seed 0` and compare the `Finished in ... (async, sync)` line. If a new async test deadlocks or flakes, prefer making its test data unique; otherwise mark only that focused module `async: false`.
+
 ### Phoenix v1.8 guidelines
 
 - **Always** begin your LiveView templates with `<Layouts.app flash={@flash} ...>` which wraps all inner content

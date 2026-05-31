@@ -1,14 +1,8 @@
 defmodule AssetMonitoringDash.ReviewStoreTest do
-  use AssetMonitoringDash.DataCase, async: false
+  use AssetMonitoringDash.DataCase, async: true
 
   alias AssetMonitoringDash.ReviewDecision
   alias AssetMonitoringDash.ReviewStore
-  alias AssetMonitoringDash.Seeds.DemoCatalog
-
-  setup do
-    DemoCatalog.run!()
-    :ok
-  end
 
   test "keeps current state map separate from decision history" do
     asset_id = asset_id("asset-001")

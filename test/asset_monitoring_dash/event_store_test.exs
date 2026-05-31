@@ -1,15 +1,7 @@
 defmodule AssetMonitoringDash.EventStoreTest do
-  use AssetMonitoringDash.DataCase, async: false
+  use AssetMonitoringDash.DataCase, async: true
 
   alias AssetMonitoringDash.EventStore
-  alias AssetMonitoringDash.Seeds.DemoCatalog
-
-  setup do
-    DemoCatalog.run!()
-    EventStore.reset_all()
-
-    :ok
-  end
 
   test "publishes generated scenario events above seeded dashboard events" do
     expected_asset_id = asset_id("asset-001")

@@ -17,8 +17,6 @@ defmodule AssetMonitoringDashWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
-  alias AssetMonitoringDash.Seeds.DemoCatalog
-
   using do
     quote do
       # The default endpoint for testing
@@ -35,10 +33,6 @@ defmodule AssetMonitoringDashWeb.ConnCase do
 
   setup tags do
     AssetMonitoringDash.DataCase.setup_sandbox(tags)
-    AssetMonitoringDash.AssetScenarioStore.reset_all()
-    AssetMonitoringDash.EventStore.reset_all()
-    AssetMonitoringDash.ReviewStore.reset_all()
-    DemoCatalog.run!()
 
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end

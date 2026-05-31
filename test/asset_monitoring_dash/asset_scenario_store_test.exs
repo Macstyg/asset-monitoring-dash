@@ -1,17 +1,9 @@
 defmodule AssetMonitoringDash.AssetScenarioStoreTest do
-  use AssetMonitoringDash.DataCase, async: false
+  use AssetMonitoringDash.DataCase, async: true
 
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenario
   alias AssetMonitoringDash.AssetScenarioStore
-  alias AssetMonitoringDash.Seeds.DemoCatalog
-
-  setup do
-    DemoCatalog.run!()
-    AssetScenarioStore.reset_all()
-
-    :ok
-  end
 
   test "persists active price shock scenarios by asset id" do
     asset_id = Assets.resolve_persisted_asset_id("asset-001")

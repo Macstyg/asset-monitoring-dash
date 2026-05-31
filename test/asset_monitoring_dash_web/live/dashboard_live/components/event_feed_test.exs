@@ -1,7 +1,5 @@
 defmodule AssetMonitoringDashWeb.DashboardLive.Components.EventFeedTest do
-  use AssetMonitoringDashWeb.ConnCase, async: true
-
-  import Phoenix.LiveViewTest
+  use AssetMonitoringDashWeb.ComponentCase, async: true
 
   alias AssetMonitoringDashWeb.DashboardLive.Components.EventFeed
 

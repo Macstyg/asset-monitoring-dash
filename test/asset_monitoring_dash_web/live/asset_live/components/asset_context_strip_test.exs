@@ -1,7 +1,5 @@
 defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetContextStripTest do
-  use AssetMonitoringDashWeb.ConnCase, async: true
-
-  import Phoenix.LiveViewTest
+  use AssetMonitoringDashWeb.ComponentCase, async: true
 
   alias AssetMonitoringDashWeb.AssetLive.Components.AssetContextStrip
 

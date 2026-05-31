@@ -1,0 +1,117 @@
+defmodule AssetMonitoringDashWeb.DashboardLive.RenderingTest do
+  use AssetMonitoringDashWeb.ConnCase, async: true
+
+  import Phoenix.LiveViewTest
+  import AssetMonitoringDashWeb.DashboardLiveTestHelpers
+  alias AssetMonitoringDash.Assets
+
+  test "renders the asset risk cockpit as a full-width monitor", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#dashboard-shell")
+    assert has_element?(view, "#metric-strip")
+    assert has_element?(view, "#collateral-value-card")
+    assert has_element?(view, "#collateral-value-card", "$3.5M")
+    assert has_element?(view, "#active-loans-card")
+    assert has_element?(view, "#weighted-apy-card")
+    assert has_element?(view, "#risk-score-card")
+    assert has_element?(view, "#risk-score-card", "54/100")
+    assert has_element?(view, "#risk-score-card", "moderate pressure")
+    assert has_element?(view, "#asset-monitor")
+    assert has_element?(view, "#theme-toggle")
+    assert has_element?(view, "#asset-count", "600 monitored")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-50 of 600")
+    assert has_element?(view, "#asset-load-hint", "Scroll to load more")
+    assert has_element?(view, "#asset-list")
+    assert has_element?(view, ~s(#asset-list-rows[phx-hook="ScrollableLoadMore"]))
+    assert has_element?(view, ~s(#asset-list-rows[data-load-more-event="load_more_assets"]))
+    assert has_element?(view, ~s(#asset-list-rows[data-load-more-target="asset-table-loading"]))
+    assert has_element?(view, ~s(#asset-list-rows[class*="overflow-y-auto"]))
+    assert has_element?(view, "#asset-table-range", "Showing 1-50 of 600")
+    assert has_element?(view, "#asset-table-loading", "Loading more...")
+    refute has_element?(view, "#asset-table-end")
+    assert has_element?(view, "#asset-summary")
+    assert has_element?(view, "#asset-summary-visible-count", "600")
+    assert has_element?(view, "#asset-summary-value", "$3,474,033")
+    assert has_element?(view, "#asset-summary-at-risk", "165")
+    assert has_element?(view, "#asset-summary-highest-ltv", "80.1%")
+    assert has_element?(view, "#asset-filters")
+    assert has_element?(view, "#asset-view-state", "Default view")
+    assert has_element?(view, "#copy-asset-view-link", "Copy view link")
+    assert has_element?(view, "#filters_query")
+    assert has_element?(view, "#filters_risks_filter")
+    assert has_element?(view, "#filters_actions_filter")
+    assert has_element?(view, "#filters_operator_states_filter")
+    assert has_element?(view, "#filters_chains_filter")
+    assert has_element?(view, "#filters_chains_Polygon")
+    assert has_element?(view, "#filters_risks_Critical")
+    assert has_element?(view, "#reset-asset-filters")
+    assert has_element?(view, "#asset-list-sort-asset")
+    assert has_element?(view, "#asset-list-sort-chain")
+    assert has_element?(view, "#asset-list-sort-floor")
+    assert has_element?(view, "#asset-list-sort-value")
+    assert has_element?(view, "#asset-list-sort-ltv")
+    assert has_element?(view, "#asset-list-sort-risk")
+    assert has_element?(view, "#asset-list-sort-operator")
+    assert has_element?(view, "#asset-list-sort-action")
+    assert has_element?(view, "#asset-mobile-sort-asset")
+    assert has_element?(view, "#asset-mobile-sort-chain")
+    assert has_element?(view, "#asset-mobile-sort-floor")
+    assert has_element?(view, "#asset-mobile-sort-value")
+    assert has_element?(view, "#asset-mobile-sort-ltv")
+    assert has_element?(view, "#asset-mobile-sort-risk")
+    assert has_element?(view, "#asset-mobile-sort-operator")
+    assert has_element?(view, "#asset-mobile-sort-action")
+    refute has_element?(view, "#active-filter-chips")
+    refute has_element?(view, "#active-scenario-banner")
+    assert length(asset_row_ids(view)) == 50
+    assert has_element?(view, "#asset-row-asset-010")
+    assert has_element?(view, ~s(#asset-row-asset-010 img[src="/images/assets/mech-core.svg"]))
+    assert has_element?(view, ~s(#asset-row-asset-010 [aria-label="Arbitrum chain"]))
+    assert has_element?(view, "#asset-row-asset-010", "Manual review")
+    refute has_element?(view, "#asset-row-asset-001")
+    refute has_element?(view, "#asset-inspection")
+    assert has_element?(view, "#event-feed")
+    assert has_element?(view, "#event-count", "5 events")
+    assert has_element?(view, "#event-feed-state", "streaming")
+    assert has_element?(view, "#event-filters")
+    assert has_element?(view, "#event_filters_sources_filter")
+    assert has_element?(view, "#event_filters_sources_system")
+    assert has_element?(view, "#event_filters_sources_operator")
+    assert has_element?(view, "#event_filters_sources_scenario")
+    refute has_element?(view, "#active-event-filter-chips")
+    assert has_element?(view, "#event-list")
+    assert has_element?(view, "#event-row-event-001")
+    assert has_element?(view, "#event-row-event-004")
+  end
+
+  test "defaults theme selection to the system preference", %{conn: conn} do
+    conn = get(conn, ~p"/")
+    html = html_response(conn, 200)
+
+    assert html =~ ~s'setTheme(localStorage.getItem("phx:theme") || "system")'
+    assert html =~ ~s|if (!localStorage.getItem("phx:theme")) setTheme("system")|
+  end
+
+  test "loads asset filters and sort from URL params", %{conn: conn} do
+    {:ok, view, _html} =
+      live(conn, ~p"/?query=mech&chains=Arbitrum&risks=Critical&sort=value&dir=asc")
+
+    filters = %{
+      Assets.default_filters()
+      | query: "mech",
+        chains: ["Arbitrum"],
+        risks: ["Critical"]
+    }
+
+    assert has_element?(view, "#asset-count", "13 monitored")
+    assert has_element?(view, "#asset-loaded-count", "Showing 1-13 of 13")
+    assert has_element?(view, "#asset-view-state", "Filtered view")
+    assert has_element?(view, "#active-filter-query-mech", "mech")
+    assert has_element?(view, "#active-filter-chains-arbitrum", "Arbitrum")
+    assert has_element?(view, "#active-filter-risks-critical", "Critical")
+
+    assert List.first(asset_row_ids(view)) ==
+             expected_first_asset_row_id(%{field: :value, direction: :asc}, filters: filters)
+  end
+end

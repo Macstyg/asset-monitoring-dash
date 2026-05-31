@@ -1,7 +1,5 @@
 defmodule AssetMonitoringDashWeb.AssetLive.Components.RiskDriversTest do
-  use AssetMonitoringDashWeb.ConnCase, async: true
-
-  import Phoenix.LiveViewTest
+  use AssetMonitoringDashWeb.ComponentCase, async: true
 
   alias AssetMonitoringDashWeb.AssetLive.Components.RiskDrivers
 

@@ -3,17 +3,8 @@ defmodule AssetMonitoringDash.ActivityLogTest do
 
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
-  alias AssetMonitoringDash.EventStore
   alias AssetMonitoringDash.ReviewAudit
   alias AssetMonitoringDash.ReviewState
-  alias AssetMonitoringDash.Seeds.DemoCatalog
-
-  setup do
-    DemoCatalog.run!()
-    EventStore.reset_all()
-
-    :ok
-  end
 
   test "records scenario events through the activity boundary" do
     asset = asset_fixture()

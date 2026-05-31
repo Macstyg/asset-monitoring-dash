@@ -1,34 +1,9 @@
 defmodule AssetMonitoringDash.Assets.PersistenceTest do
-  use AssetMonitoringDash.DataCase, async: false
+  use AssetMonitoringDash.DataCase, async: true
 
   alias AssetMonitoringDash.Assets
-  alias AssetMonitoringDash.Assets.Chain
-  alias AssetMonitoringDash.Assets.GameEcosystem
-  alias AssetMonitoringDash.Assets.MarketSnapshot
-  alias AssetMonitoringDash.Assets.MonitoredAsset
-  alias AssetMonitoringDash.Seeds.DemoCatalog
-
-  test "seeds the canonical demo asset catalog idempotently" do
-    persisted_assets = DemoCatalog.run!()
-
-    assert length(persisted_assets) == 600
-    assert Assets.catalog_seeded?()
-    assert Repo.aggregate(Chain, :count) == 6
-    assert Repo.aggregate(GameEcosystem, :count) == 6
-    assert Repo.aggregate(MonitoredAsset, :count) == 600
-    assert Repo.aggregate(MarketSnapshot, :count) == 4_200
-
-    DemoCatalog.run!()
-
-    assert Repo.aggregate(Chain, :count) == 6
-    assert Repo.aggregate(GameEcosystem, :count) == 6
-    assert Repo.aggregate(MonitoredAsset, :count) == 600
-    assert Repo.aggregate(MarketSnapshot, :count) == 4_200
-  end
 
   test "reads persisted assets in the same shape used by the dashboard" do
-    DemoCatalog.run!()
-
     assert %{
              id: id,
              chain: "Polygon",
@@ -41,8 +16,6 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   end
 
   test "reads persisted market snapshots for an asset" do
-    DemoCatalog.run!()
-
     asset_id = Assets.persisted_asset_id("asset-001")
     snapshots = Assets.list_market_snapshots(asset_id)
 
@@ -53,8 +26,6 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   end
 
   test "builds LTV trend from persisted market snapshots with current asset as latest point" do
-    DemoCatalog.run!()
-
     asset =
       MapSet.new(["asset-001"])
       |> Assets.list_persisted_assets_with_scenarios()
@@ -70,8 +41,6 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   end
 
   test "pages persisted assets through the context query boundary" do
-    DemoCatalog.run!()
-
     page =
       Assets.list_persisted_assets_page(%{
         filters: %{Assets.default_filters() | query: "citadel", chains: ["Ethereum"]},
@@ -99,8 +68,6 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   end
 
   test "applies scenario state on top of persisted assets before returning a page" do
-    DemoCatalog.run!()
-
     page =
       Assets.list_persisted_assets_page(%{
         filters: %{Assets.default_filters() | query: "aegis"},
@@ -117,8 +84,6 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   end
 
   test "reads the persisted catalog with scenario adjustments for detail pages" do
-    DemoCatalog.run!()
-
     asset =
       MapSet.new(["asset-001"])
       |> Assets.list_persisted_assets_with_scenarios()

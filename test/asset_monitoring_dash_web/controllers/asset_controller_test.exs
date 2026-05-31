@@ -1,5 +1,5 @@
 defmodule AssetMonitoringDashWeb.AssetControllerTest do
-  use AssetMonitoringDashWeb.ConnCase, async: false
+  use AssetMonitoringDashWeb.ConnCase, async: true
 
   test "GET /api/assets returns normalized monitored assets", %{conn: conn} do
     conn = get(conn, ~p"/api/assets")

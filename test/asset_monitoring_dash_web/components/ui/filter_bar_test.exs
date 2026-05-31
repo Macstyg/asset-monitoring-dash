@@ -1,7 +1,5 @@
 defmodule AssetMonitoringDashWeb.UI.FilterBarTest do
-  use AssetMonitoringDashWeb.ConnCase, async: true
-
-  import Phoenix.LiveViewTest
+  use AssetMonitoringDashWeb.ComponentCase, async: true
 
   alias AssetMonitoringDashWeb.UI.FilterBar
 
