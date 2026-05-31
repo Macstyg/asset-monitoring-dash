@@ -11,6 +11,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDashWeb.AssetDetailURLState
   alias AssetMonitoringDashWeb.DashboardComponents.AssetActivity
+  alias AssetMonitoringDashWeb.DashboardComponents.AssetContextStrip
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
   alias AssetMonitoringDashWeb.DashboardComponents.InvestigationBrief
   alias AssetMonitoringDashWeb.DashboardComponents.RelatedAssets
@@ -458,18 +459,6 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> String.trim()
     |> String.slice(0, 180)
   end
-
-  def signal_tone("Fresh"), do: :success
-  def signal_tone("Deep"), do: :success
-  def signal_tone("Low"), do: :success
-  def signal_tone("Moderate"), do: :info
-  def signal_tone("Delayed"), do: :warning
-  def signal_tone("Thin"), do: :warning
-  def signal_tone("Elevated"), do: :warning
-  def signal_tone("Stale"), do: :danger
-  def signal_tone("Illiquid"), do: :danger
-  def signal_tone("Critical"), do: :danger
-  def signal_tone(_signal), do: :neutral
 
   def price_shock_button_label(true), do: "Shock applied"
   def price_shock_button_label(false), do: "Apply 12% price shock"
