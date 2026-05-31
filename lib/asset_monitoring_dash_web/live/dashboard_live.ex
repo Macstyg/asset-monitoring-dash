@@ -23,6 +23,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def mount(params, _session, socket) do
+    Assets.ensure_demo_catalog!()
+
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
     events = ActivityLog.visible_events()
     review_states = ReviewStore.all_states()
@@ -414,7 +416,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   defp load_asset_page(filters, sort, cursor, review_states, shocked_asset_ids) do
-    Assets.list_assets_page(%{
+    Assets.list_persisted_assets_page(%{
       filters: filters,
       sort: sort,
       cursor: cursor,

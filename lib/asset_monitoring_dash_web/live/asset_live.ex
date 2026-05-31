@@ -25,8 +25,10 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   @related_asset_limit 4
   @impl true
   def mount(%{"id" => asset_id} = params, _session, socket) do
+    Assets.ensure_demo_catalog!()
+
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
-    assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
+    assets = Assets.list_persisted_assets_with_scenarios(shocked_asset_ids)
     detail_state = AssetDetailURLState.from_params(params)
     event_filters = detail_state.event_filters
 
@@ -192,7 +194,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   defp apply_price_shock(socket, false) do
     asset_id = socket.assigns.asset.id
     shocked_asset_ids = AssetScenarioStore.apply_price_shock(asset_id)
-    all_assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
+    all_assets = Assets.list_persisted_assets_with_scenarios(shocked_asset_ids)
     asset = Assets.get_asset(all_assets, asset_id)
     ActivityLog.record_price_shock(asset, 12)
     review_states = ReviewStore.reset(asset_id)
@@ -209,7 +211,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   defp reset_asset_scenario(socket, true) do
     asset_id = socket.assigns.asset.id
     shocked_asset_ids = AssetScenarioStore.reset(asset_id)
-    all_assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
+    all_assets = Assets.list_persisted_assets_with_scenarios(shocked_asset_ids)
     asset = Assets.get_asset(all_assets, asset_id)
     ActivityLog.record_scenario_reset(asset)
     review_states = ReviewStore.reset(asset_id)

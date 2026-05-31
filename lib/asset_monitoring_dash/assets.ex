@@ -79,9 +79,20 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   def persist_demo_catalog! do
-    canonical_assets()
-    |> Enum.reduce(%{chains: %{}, ecosystems: %{}, assets: []}, &persist_demo_asset!/2)
-    |> Map.fetch!(:assets)
+    assets = list_assets()
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    persist_chains!(assets, now)
+    persist_game_ecosystems!(assets, now)
+
+    chains_by_name = persisted_chains_by_name()
+    ecosystems_by_name = persisted_game_ecosystems_by_name()
+
+    assets
+    |> Enum.map(&monitored_asset_attrs(&1, chains_by_name, ecosystems_by_name, now))
+    |> persist_monitored_assets!()
+
+    list_persisted_assets()
   end
 
   def persisted_asset_count do
@@ -89,7 +100,14 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   def catalog_seeded? do
-    persisted_asset_count() > 0
+    persisted_asset_count() >= length(list_assets())
+  end
+
+  def ensure_demo_catalog! do
+    case catalog_seeded?() do
+      true -> :ok
+      false -> persist_demo_catalog!()
+    end
   end
 
   def list_persisted_assets do
@@ -100,18 +118,25 @@ defmodule AssetMonitoringDash.Assets do
     |> Enum.map(&persisted_asset_to_map/1)
   end
 
+  def list_persisted_assets_with_scenarios(shocked_asset_ids) do
+    list_persisted_assets()
+    |> apply_scenarios(shocked_asset_ids)
+  end
+
   def list_persisted_assets_page(opts) do
     filters = Map.fetch!(opts, :filters)
     sort = Map.fetch!(opts, :sort)
     cursor = Map.get(opts, :cursor)
     limit = Map.get(opts, :limit, 50)
     review_states = Map.get(opts, :review_states, %{})
+    shocked_asset_ids = Map.get(opts, :shocked_asset_ids, MapSet.new())
 
     assets =
       filters
       |> persisted_asset_query()
       |> Repo.all()
       |> Enum.map(&persisted_asset_to_map/1)
+      |> apply_scenarios(shocked_asset_ids)
       |> filter_assets_by_actions(filter_values(filters, :actions, :action, "All"))
       |> filter_assets_by_operator_states(
         filter_values(filters, :operator_states, :operator_state, "All"),
@@ -423,54 +448,89 @@ defmodule AssetMonitoringDash.Assets do
     Enum.map(DemoData.monitored_assets(), &normalize_risk_fields/1)
   end
 
-  defp persist_demo_asset!(asset, state) do
-    chain = Map.get_lazy(state.chains, asset.chain, fn -> upsert_chain!(asset.chain) end)
-
-    ecosystem =
-      Map.get_lazy(state.ecosystems, asset.ecosystem, fn ->
-        upsert_game_ecosystem!(asset.ecosystem)
-      end)
-
-    persisted_asset =
-      asset
-      |> monitored_asset_attrs(chain, ecosystem)
-      |> upsert_monitored_asset!()
-
-    %{
-      state
-      | chains: Map.put(state.chains, asset.chain, chain),
-        ecosystems: Map.put(state.ecosystems, asset.ecosystem, ecosystem),
-        assets: [persisted_asset | state.assets]
-    }
+  defp persist_chains!(assets, now) do
+    assets
+    |> Enum.map(& &1.chain)
+    |> Enum.uniq()
+    |> Enum.map(fn name ->
+      %{
+        inserted_at: now,
+        name: name,
+        native_token: native_token_for(name),
+        slug: slugify(name),
+        updated_at: now
+      }
+    end)
+    |> then(fn rows ->
+      Repo.insert_all(Chain, rows,
+        conflict_target: :slug,
+        on_conflict: {:replace, [:name, :native_token, :updated_at]}
+      )
+    end)
   end
 
-  defp upsert_chain!(name) do
-    attrs = %{name: name, native_token: native_token_for(name), slug: slugify(name)}
-    chain = Repo.get_by(Chain, slug: attrs.slug) || %Chain{}
-
-    chain
-    |> Chain.changeset(attrs)
-    |> Repo.insert_or_update!()
+  defp persist_game_ecosystems!(assets, now) do
+    assets
+    |> Enum.map(& &1.ecosystem)
+    |> Enum.uniq()
+    |> Enum.map(fn name ->
+      %{
+        genre: genre_for(name),
+        inserted_at: now,
+        name: name,
+        slug: slugify(name),
+        updated_at: now
+      }
+    end)
+    |> then(fn rows ->
+      Repo.insert_all(GameEcosystem, rows,
+        conflict_target: :slug,
+        on_conflict: {:replace, [:name, :genre, :updated_at]}
+      )
+    end)
   end
 
-  defp upsert_game_ecosystem!(name) do
-    attrs = %{name: name, genre: genre_for(name), slug: slugify(name)}
-    game_ecosystem = Repo.get_by(GameEcosystem, slug: attrs.slug) || %GameEcosystem{}
-
-    game_ecosystem
-    |> GameEcosystem.changeset(attrs)
-    |> Repo.insert_or_update!()
+  defp persisted_chains_by_name do
+    Chain
+    |> Repo.all()
+    |> Map.new(&{&1.name, &1})
   end
 
-  defp upsert_monitored_asset!(attrs) do
-    monitored_asset = Repo.get_by(MonitoredAsset, public_id: attrs.public_id) || %MonitoredAsset{}
-
-    monitored_asset
-    |> MonitoredAsset.changeset(attrs)
-    |> Repo.insert_or_update!()
+  defp persisted_game_ecosystems_by_name do
+    GameEcosystem
+    |> Repo.all()
+    |> Map.new(&{&1.name, &1})
   end
 
-  defp monitored_asset_attrs(asset, chain, ecosystem) do
+  defp persist_monitored_assets!(rows) do
+    Repo.insert_all(MonitoredAsset, rows,
+      conflict_target: :public_id,
+      on_conflict:
+        {:replace,
+         [
+           :asset_type,
+           :chain_id,
+           :current_value_usd,
+           :floor_price_usd,
+           :game_ecosystem_id,
+           :icon,
+           :loan_value_usd,
+           :ltv_percent,
+           :market_depth_usd,
+           :name,
+           :oracle_freshness_seconds,
+           :rarity,
+           :risk_band,
+           :risk_score,
+           :updated_at
+         ]}
+    )
+  end
+
+  defp monitored_asset_attrs(asset, chains_by_name, ecosystems_by_name, now) do
+    chain = Map.fetch!(chains_by_name, asset.chain)
+    ecosystem = Map.fetch!(ecosystems_by_name, asset.ecosystem)
+
     %{
       asset_type: asset.asset_type,
       chain_id: chain.id,
@@ -486,7 +546,9 @@ defmodule AssetMonitoringDash.Assets do
       public_id: asset.id,
       rarity: asset.rarity,
       risk_band: asset.risk_band,
-      risk_score: asset.risk_score
+      risk_score: asset.risk_score,
+      inserted_at: now,
+      updated_at: now
     }
   end
 
@@ -552,6 +614,10 @@ defmodule AssetMonitoringDash.Assets do
 
   defp filter_persisted_assets_by_chains(query, chain_filters) do
     where(query, [chain: chain], chain.name in ^chain_filters)
+  end
+
+  defp apply_scenarios(assets, shocked_asset_ids) do
+    Enum.reduce(shocked_asset_ids, assets, &apply_price_drop(&2, &1, 12))
   end
 
   defp native_token_for("Arbitrum"), do: "ETH"
