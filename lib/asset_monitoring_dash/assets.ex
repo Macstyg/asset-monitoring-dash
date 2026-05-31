@@ -72,8 +72,6 @@ defmodule AssetMonitoringDash.Assets do
     "asset-012" => [-0.9, -1.5, -0.4, 0.6, -0.1, 0.9]
   }
 
-  def normalize_asset_id(asset_id), do: asset_id
-
   def resolve_persisted_asset_id("asset-" <> _rest = dom_id) do
     case persisted_asset_id(dom_id) do
       nil -> dom_id
@@ -168,15 +166,6 @@ defmodule AssetMonitoringDash.Assets do
     }
   end
 
-  def list_assets_with_scenarios(shocked_asset_ids) do
-    shocked_asset_ids
-    |> Enum.reduce(list_assets(), &apply_price_drop(&2, &1, 12))
-  end
-
-  def list_assets(filters, review_states \\ %{}) do
-    filter_assets(list_assets(), filters, review_states)
-  end
-
   def filter_assets(assets, filters, review_states \\ %{}) do
     assets
     |> filter_assets_by_query(filter_value(filters, :query, ""))
@@ -189,32 +178,6 @@ defmodule AssetMonitoringDash.Assets do
     )
   end
 
-  def list_assets_page(opts) do
-    filters = Map.fetch!(opts, :filters)
-    sort = Map.fetch!(opts, :sort)
-    cursor = Map.get(opts, :cursor)
-    limit = Map.get(opts, :limit, 50)
-    review_states = Map.get(opts, :review_states, %{})
-    shocked_asset_ids = Map.get(opts, :shocked_asset_ids, MapSet.new())
-
-    assets =
-      shocked_asset_ids
-      |> list_assets_with_scenarios()
-      |> filter_assets(filters, review_states)
-      |> sort_assets(sort, review_states)
-
-    offset = cursor_to_offset(cursor)
-    entries = Enum.slice(assets, offset, limit)
-    next_offset = offset + length(entries)
-
-    %{
-      entries: entries,
-      next_cursor: next_cursor(next_offset, length(assets)),
-      total_count: length(assets),
-      summary: summarize_assets(assets)
-    }
-  end
-
   def get_asset(asset_id) do
     Enum.find(list_assets(), &asset_matches_id?(&1, asset_id))
   end
@@ -225,12 +188,6 @@ defmodule AssetMonitoringDash.Assets do
 
   def apply_price_drop(assets, asset_id, drop_percent) do
     Enum.map(assets, &apply_asset_price_drop(&1, asset_id, drop_percent))
-  end
-
-  def reset_asset(assets, asset_id) do
-    original_asset = get_asset(asset_id)
-
-    Enum.map(assets, &reset_asset_value(&1, asset_id, original_asset))
   end
 
   def list_market_snapshots(asset_id) do
@@ -804,15 +761,6 @@ defmodule AssetMonitoringDash.Assets do
     })
     |> Map.put(:oracle_status, oracle_status(repriced_asset.oracle_freshness_seconds))
     |> Map.put(:liquidity_status, liquidity_status(repriced_asset.market_depth_usd))
-  end
-
-  defp reset_asset_value(asset, _asset_id, nil), do: asset
-
-  defp reset_asset_value(asset, asset_id, original_asset) do
-    case asset_matches_id?(asset, asset_id) do
-      true -> original_asset
-      false -> asset
-    end
   end
 
   defp asset_matches_id?(asset, asset_id) do

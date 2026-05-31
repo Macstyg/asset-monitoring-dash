@@ -5,7 +5,7 @@ defmodule AssetMonitoringDash.AssetsTest do
 
   describe "list_assets/1" do
     test "returns all monitored assets with default filters" do
-      assets = Assets.list_assets(Assets.default_filters())
+      assets = Assets.list_assets()
 
       assert length(assets) == 600
       assert Enum.any?(assets, &(&1.id == "asset-001"))
@@ -22,7 +22,7 @@ defmodule AssetMonitoringDash.AssetsTest do
     end
 
     test "applies shared demo scenarios to the baseline asset book" do
-      assets = Assets.list_assets_with_scenarios(MapSet.new(["asset-001"]))
+      assets = Assets.apply_price_drop(Assets.list_assets(), "asset-001", 12)
       asset = Assets.get_asset(assets, "asset-001")
       untouched_asset = Assets.get_asset(assets, "asset-002")
 
@@ -47,7 +47,7 @@ defmodule AssetMonitoringDash.AssetsTest do
 
     test "filters by risk band" do
       filters = %{Assets.default_filters() | risks: ["Critical"]}
-      ids = Enum.map(Assets.list_assets(filters), & &1.id)
+      ids = filtered_asset_ids(filters)
 
       assert length(ids) == 14
       assert "asset-002" in ids
@@ -57,7 +57,7 @@ defmodule AssetMonitoringDash.AssetsTest do
 
     test "filters by chain" do
       filters = %{Assets.default_filters() | chains: ["Arbitrum"]}
-      ids = Enum.map(Assets.list_assets(filters), & &1.id)
+      ids = filtered_asset_ids(filters)
 
       assert length(ids) == 100
       assert "asset-005" in ids
@@ -72,7 +72,7 @@ defmodule AssetMonitoringDash.AssetsTest do
           chains: ["Ethereum", "Arbitrum"]
       }
 
-      ids = Enum.map(Assets.list_assets(filters), & &1.id)
+      ids = filtered_asset_ids(filters)
 
       assert length(ids) == 14
       assert "asset-002" in ids
@@ -83,8 +83,7 @@ defmodule AssetMonitoringDash.AssetsTest do
       manual_review_ids =
         Assets.default_filters()
         |> Map.put(:actions, ["manual_review"])
-        |> Assets.list_assets()
-        |> Enum.map(& &1.id)
+        |> filtered_asset_ids()
 
       assert "asset-001" in manual_review_ids
       assert "asset-012" in manual_review_ids
@@ -93,8 +92,7 @@ defmodule AssetMonitoringDash.AssetsTest do
       liquidation_ids =
         Assets.default_filters()
         |> Map.put(:actions, ["liquidation_candidate"])
-        |> Assets.list_assets()
-        |> Enum.map(& &1.id)
+        |> filtered_asset_ids()
 
       assert length(liquidation_ids) == 4
       assert "asset-002" in liquidation_ids
@@ -107,20 +105,17 @@ defmodule AssetMonitoringDash.AssetsTest do
       reviewed_ids =
         Assets.default_filters()
         |> Map.put(:operator_states, ["reviewed"])
-        |> Assets.list_assets(review_states)
-        |> Enum.map(& &1.id)
+        |> filtered_asset_ids(review_states)
 
       escalated_ids =
         Assets.default_filters()
         |> Map.put(:operator_states, ["escalated"])
-        |> Assets.list_assets(review_states)
-        |> Enum.map(& &1.id)
+        |> filtered_asset_ids(review_states)
 
       unreviewed_ids =
         Assets.default_filters()
         |> Map.put(:operator_states, ["unreviewed"])
-        |> Assets.list_assets(review_states)
-        |> Enum.map(& &1.id)
+        |> filtered_asset_ids(review_states)
 
       assert reviewed_ids == ["asset-001"]
       assert escalated_ids == ["asset-003"]
@@ -131,75 +126,11 @@ defmodule AssetMonitoringDash.AssetsTest do
 
     test "combines risk, chain, and query filters" do
       filters = %{query: "mech", risk: "Critical", chain: "Arbitrum"}
-      ids = Enum.map(Assets.list_assets(filters), & &1.id)
+      ids = filtered_asset_ids(filters)
 
       assert length(ids) == 13
       assert "asset-010" in ids
       assert "asset-010-variant-005" in ids
-    end
-  end
-
-  describe "list_assets_page/1" do
-    test "returns the first page plus count, summary, and cursor" do
-      page =
-        Assets.list_assets_page(%{
-          filters: Assets.default_filters(),
-          sort: %{field: :ltv, direction: :desc},
-          cursor: nil,
-          limit: 50,
-          review_states: %{},
-          shocked_asset_ids: MapSet.new()
-        })
-
-      assert length(page.entries) == 50
-      assert page.total_count == 600
-      assert page.next_cursor == 50
-      assert page.summary.visible_count == 600
-      assert List.first(page.entries).id == "asset-010"
-    end
-
-    test "returns later pages without duplicating previous rows" do
-      first_page =
-        Assets.list_assets_page(%{
-          filters: Assets.default_filters(),
-          sort: %{field: :ltv, direction: :desc},
-          cursor: nil,
-          limit: 50,
-          review_states: %{},
-          shocked_asset_ids: MapSet.new()
-        })
-
-      second_page =
-        Assets.list_assets_page(%{
-          filters: Assets.default_filters(),
-          sort: %{field: :ltv, direction: :desc},
-          cursor: first_page.next_cursor,
-          limit: 50,
-          review_states: %{},
-          shocked_asset_ids: MapSet.new()
-        })
-
-      first_ids = MapSet.new(Enum.map(first_page.entries, & &1.id))
-      second_ids = MapSet.new(Enum.map(second_page.entries, & &1.id))
-
-      assert MapSet.disjoint?(first_ids, second_ids)
-      assert second_page.next_cursor == 100
-    end
-
-    test "summarizes the full filtered result, not only the current page" do
-      page =
-        Assets.list_assets_page(%{
-          filters: %{Assets.default_filters() | chains: ["Arbitrum"]},
-          sort: %{field: :ltv, direction: :desc},
-          cursor: nil,
-          limit: 10,
-          review_states: %{},
-          shocked_asset_ids: MapSet.new()
-        })
-
-      assert length(page.entries) == 10
-      assert page.total_count == 100
-      assert page.summary.visible_count == 100
     end
   end
 
@@ -225,19 +156,6 @@ defmodule AssetMonitoringDash.AssetsTest do
     assert_decimal_equal(asset.ltv_percent, "67.8")
     assert asset.risk_score == 80
     assert asset.risk_band == "Elevated"
-  end
-
-  test "resets one changed asset back to its baseline values" do
-    assets =
-      Assets.list_assets()
-      |> Assets.apply_price_drop("asset-001", 12)
-      |> Assets.reset_asset("asset-001")
-
-    asset = Assets.get_asset(assets, "asset-001")
-
-    assert_decimal_equal(asset.current_value_usd, "4860.00")
-    assert_decimal_equal(asset.ltv_percent, "59.7")
-    assert asset.risk_score == 70
   end
 
   test "builds an LTV trend with the current asset as the latest point" do
@@ -350,6 +268,12 @@ defmodule AssetMonitoringDash.AssetsTest do
 
   defp assert_decimal_equal(actual, expected) do
     assert Decimal.equal?(actual, Decimal.new(expected))
+  end
+
+  defp filtered_asset_ids(filters, review_states \\ %{}) do
+    Assets.list_assets()
+    |> Assets.filter_assets(filters, review_states)
+    |> Enum.map(& &1.id)
   end
 
   defp decimal_string(value) do

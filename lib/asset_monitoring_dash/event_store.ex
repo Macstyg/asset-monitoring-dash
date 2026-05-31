@@ -20,7 +20,7 @@ defmodule AssetMonitoringDash.EventStore do
   end
 
   def visible_events_for_asset(asset_id) do
-    asset_id = Assets.normalize_asset_id(asset_id)
+    asset_id = Assets.resolve_persisted_asset_id(asset_id)
 
     persisted_events()
     |> EventFeed.visible_events_for_asset(asset_id)
@@ -115,7 +115,6 @@ defmodule AssetMonitoringDash.EventStore do
     %{
       id: record.event_key,
       asset_id: record.asset_id,
-      actor: actor(record.kind),
       chain: record.chain,
       detail: record.detail,
       kind: kind_atom(record.kind),
@@ -123,12 +122,7 @@ defmodule AssetMonitoringDash.EventStore do
       operator_note: record.operator_note,
       review_audit: ReviewAudit.new(%{note: record.operator_note, reason: record.review_reason}),
       review_reason: record.review_reason,
-      source_label: source_label(record.kind),
-      source_tone: source_tone(record.kind),
-      source_value: record.kind,
       status: record.status,
-      severity_label: severity_label(record.tone),
-      severity_tone: severity_tone(record.tone),
       time_label: "now",
       title: record.title,
       tone: tone_atom(record.tone)
@@ -143,26 +137,4 @@ defmodule AssetMonitoringDash.EventStore do
   defp tone_atom("success"), do: :success
   defp tone_atom("warning"), do: :warning
   defp tone_atom(_tone), do: :neutral
-
-  defp source_label("operator"), do: "Operator"
-  defp source_label("scenario"), do: "Scenario"
-  defp source_label(_kind), do: "System"
-
-  defp source_tone("operator"), do: :success
-  defp source_tone("scenario"), do: :warning
-  defp source_tone(_kind), do: :info
-
-  defp severity_label("danger"), do: "Critical"
-  defp severity_label("success"), do: "Normal"
-  defp severity_label("warning"), do: "Watch"
-  defp severity_label(_tone), do: "Info"
-
-  defp severity_tone("danger"), do: :danger
-  defp severity_tone("success"), do: :success
-  defp severity_tone("warning"), do: :warning
-  defp severity_tone(_tone), do: :neutral
-
-  defp actor("operator"), do: "Operator"
-  defp actor("scenario"), do: "Scenario engine"
-  defp actor(_kind), do: "Monitoring system"
 end

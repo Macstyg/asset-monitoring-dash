@@ -47,7 +47,7 @@ defmodule AssetMonitoringDashWeb.Formatters do
     |> Decimal.to_string(:normal)
   end
 
-  def number(value) do
+  defp number(value) do
     value
     |> Money.decimal()
     |> Decimal.round(0)

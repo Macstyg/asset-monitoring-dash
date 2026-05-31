@@ -2,8 +2,8 @@ defmodule AssetMonitoringDash.ActivityLog do
   @moduledoc """
   Boundary for recorded operational activity.
 
-  Today this delegates to the runtime `EventStore`. Keeping LiveViews behind this
-  module makes the eventual move to Ecto-backed persistence a narrower change.
+  LiveViews call this module instead of the lower-level event store so activity
+  logging stays behind one product boundary.
   """
 
   alias AssetMonitoringDash.EventStore
