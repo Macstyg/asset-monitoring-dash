@@ -198,11 +198,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     all_assets = Assets.list_persisted_assets_with_scenarios(shocked_asset_ids)
     asset = Assets.get_asset(all_assets, asset_id)
     ActivityLog.record_price_shock(asset, 12)
-    review_states = ReviewStore.reset(asset_id)
+    review_reset = ReviewStore.reset_after_scenario(asset_id)
+    record_review_decision(asset, review_reset.decision)
 
     socket
     |> assign(:all_assets, all_assets)
-    |> assign(:review_states, review_states)
+    |> assign(:review_states, review_reset.states)
     |> assign(:shocked_asset_ids, shocked_asset_ids)
     |> assign_asset(asset)
   end
@@ -215,11 +216,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     all_assets = Assets.list_persisted_assets_with_scenarios(shocked_asset_ids)
     asset = Assets.get_asset(all_assets, asset_id)
     ActivityLog.record_scenario_reset(asset)
-    review_states = ReviewStore.reset(asset_id)
+    review_reset = ReviewStore.reset_after_scenario(asset_id)
+    record_review_decision(asset, review_reset.decision)
 
     socket
     |> assign(:all_assets, all_assets)
-    |> assign(:review_states, review_states)
+    |> assign(:review_states, review_reset.states)
     |> assign(:shocked_asset_ids, shocked_asset_ids)
     |> assign_asset(asset)
   end
@@ -246,6 +248,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> assign(:review_states, review_states)
     |> assign(:review_action_form, ReviewAction.form())
     |> assign_asset(asset)
+  end
+
+  defp record_review_decision(_asset, nil), do: :ok
+
+  defp record_review_decision(asset, decision) do
+    ActivityLog.record_review_decision(asset, decision)
   end
 
   defp assign_asset_events(socket, asset_id) do

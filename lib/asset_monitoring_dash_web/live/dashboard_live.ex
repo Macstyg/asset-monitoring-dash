@@ -105,10 +105,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_event("reset_asset_scenarios", _params, socket) do
-    review_states =
-      reset_review_states(socket.assigns.shocked_asset_ids, socket.assigns.review_states)
+    shocked_assets = shocked_assets(socket.assigns.shocked_asset_ids)
+    review_states = reset_review_states(shocked_assets)
 
-    push_scenario_reset_events(socket.assigns.shocked_asset_ids)
+    push_scenario_reset_events(shocked_assets)
 
     shocked_asset_ids = AssetScenarioStore.reset_all()
     events = ActivityLog.visible_events()
@@ -451,17 +451,29 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:asset_next_cursor, page.next_cursor)
   end
 
-  defp reset_review_states(shocked_asset_ids, review_states) do
-    Enum.reduce(shocked_asset_ids, review_states, fn asset_id, _states ->
-      ReviewStore.reset(asset_id)
+  defp reset_review_states(assets) do
+    Enum.reduce(assets, ReviewStore.all_states(), fn asset, _states ->
+      review_reset = ReviewStore.reset_after_scenario(asset.id)
+      record_review_decision(asset, review_reset.decision)
+
+      review_reset.states
     end)
   end
 
-  defp push_scenario_reset_events(shocked_asset_ids) do
+  defp push_scenario_reset_events(assets) do
+    Enum.each(assets, &ActivityLog.record_scenario_reset/1)
+  end
+
+  defp shocked_assets(shocked_asset_ids) do
     shocked_asset_ids
     |> Assets.list_persisted_assets_with_scenarios()
     |> Enum.filter(&Assets.asset_id_in_set?(&1.id, shocked_asset_ids))
-    |> Enum.each(&ActivityLog.record_scenario_reset/1)
+  end
+
+  defp record_review_decision(_asset, nil), do: :ok
+
+  defp record_review_decision(asset, decision) do
+    ActivityLog.record_review_decision(asset, decision)
   end
 
   defp remove_filter_value(socket, field, value) do

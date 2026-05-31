@@ -27,4 +27,8 @@ defmodule AssetMonitoringDash.ActivityLog do
   def record_review(asset, review_state, review_audit \\ %{}) do
     EventStore.push_review_event(asset, review_state, review_audit)
   end
+
+  def record_review_decision(asset, review_decision) do
+    EventStore.push_review_decision_event(asset, review_decision)
+  end
 end

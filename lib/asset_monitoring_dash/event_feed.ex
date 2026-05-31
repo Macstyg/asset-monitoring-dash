@@ -113,6 +113,26 @@ defmodule AssetMonitoringDash.EventFeed do
     push_event(visible_events, event)
   end
 
+  def push_review_decision_event(visible_events, asset, review_decision) do
+    review_audit = ReviewAudit.normalize(review_decision.audit)
+
+    event =
+      asset
+      |> review_event(
+        %{
+          id: review_decision.state_id,
+          label: review_decision.state_label,
+          tone: review_decision.state_tone
+        },
+        review_audit
+      )
+      |> Map.put(:actor, review_decision.actor)
+      |> Map.put(:occurred_at, review_decision.occurred_at)
+      |> Map.put(:time_label, "now")
+
+    push_event(visible_events, event)
+  end
+
   defp push_event(visible_events, event) do
     event = put_event_metadata(event)
 
@@ -295,6 +315,28 @@ defmodule AssetMonitoringDash.EventFeed do
       operator_note: audit_context.note,
       status: "review",
       tone: :warning
+    }
+  end
+
+  defp review_event(asset, %{id: :unreviewed}, audit_context) do
+    event_asset_key = event_asset_key(asset)
+
+    %{
+      id: "event-review-unreviewed-#{event_asset_key}",
+      asset_id: asset.id,
+      title: "Review state reset",
+      detail:
+        review_event_detail(
+          "#{asset.name} returned to unreviewed after scenario inputs changed.",
+          audit_context
+        ),
+      chain: asset.chain,
+      kind: :operator,
+      review_audit: audit_context,
+      review_reason: audit_context.reason,
+      operator_note: audit_context.note,
+      status: "review",
+      tone: :neutral
     }
   end
 

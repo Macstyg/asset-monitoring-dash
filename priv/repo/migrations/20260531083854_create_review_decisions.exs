@@ -46,6 +46,7 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateReviewDecisions do
       add :asset_id, references(:monitored_assets, type: :uuid, on_delete: :delete_all)
 
       add :kind, :string, null: false
+      add :actor, :string, null: false
       add :status, :string, null: false
       add :tone, :string, null: false
       add :title, :string, null: false

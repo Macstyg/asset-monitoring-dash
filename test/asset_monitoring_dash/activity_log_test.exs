@@ -4,6 +4,7 @@ defmodule AssetMonitoringDash.ActivityLogTest do
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.ReviewAudit
+  alias AssetMonitoringDash.ReviewDecision
   alias AssetMonitoringDash.ReviewState
 
   test "records scenario events through the activity boundary" do
@@ -25,6 +26,15 @@ defmodule AssetMonitoringDash.ActivityLogTest do
     )
 
     assert [%{review_audit: %ReviewAudit{reason: "Oracle checked", note: "Feed matched"}}] =
+             ActivityLog.visible_events_for_asset("asset-001")
+  end
+
+  test "records persisted review decisions through the activity boundary" do
+    asset = asset_fixture()
+
+    ActivityLog.record_review_decision(asset, ReviewDecision.system_reset(asset.id))
+
+    assert [%{id: "event-review-unreviewed-asset-001", actor: "System"}] =
              ActivityLog.visible_events_for_asset("asset-001")
   end
 

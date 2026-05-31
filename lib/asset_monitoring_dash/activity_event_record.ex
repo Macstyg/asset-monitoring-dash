@@ -15,6 +15,7 @@ defmodule AssetMonitoringDash.ActivityEventRecord do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   schema "activity_events" do
+    field :actor, :string
     field :asset_id, :binary_id
     field :chain, :string
     field :detail, :string
@@ -33,6 +34,7 @@ defmodule AssetMonitoringDash.ActivityEventRecord do
   def changeset(activity_event_record, attrs) do
     activity_event_record
     |> cast(attrs, [
+      :actor,
       :asset_id,
       :chain,
       :detail,
@@ -46,6 +48,7 @@ defmodule AssetMonitoringDash.ActivityEventRecord do
       :tone
     ])
     |> validate_required([
+      :actor,
       :chain,
       :detail,
       :event_key,

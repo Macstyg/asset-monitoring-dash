@@ -138,5 +138,12 @@ defmodule AssetMonitoringDashWeb.AssetLive.ReviewWorkflowTest do
     assert has_element?(view, "#review-history-count", "2")
     assert has_element?(view, "#review-history-list", "Scenario changed")
     assert has_element?(view, "#review-history-list", "by System")
+    assert has_element?(view, "#asset-event-row-event-review-unreviewed-asset-001")
+
+    assert has_element?(
+             view,
+             "#asset-event-row-event-review-unreviewed-asset-001",
+             "Review state reset"
+           )
   end
 end

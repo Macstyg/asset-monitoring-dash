@@ -3,6 +3,7 @@ defmodule AssetMonitoringDash.EventFeedTest do
 
   alias AssetMonitoringDash.EventFeed
   alias AssetMonitoringDash.ReviewAudit
+  alias AssetMonitoringDash.ReviewDecision
   alias AssetMonitoringDash.ReviewState
 
   test "starts with deterministic feed events" do
@@ -275,6 +276,31 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert event.status == "review"
     assert event.tone == :warning
     assert length(feed.visible_events) == 6
+  end
+
+  test "pushes system reset decisions as operator workflow events" do
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon"
+    }
+
+    decision = ReviewDecision.system_reset("asset-001")
+
+    feed = EventFeed.push_review_decision_event(EventFeed.initial_events(), asset, decision)
+
+    assert [%{id: "event-review-unreviewed-asset-001", time_label: "now"} = event | _events] =
+             feed.visible_events
+
+    assert event.title == "Review state reset"
+    assert event.asset_id == "asset-001"
+    assert event.kind == :operator
+    assert event.source_label == "Operator"
+    assert event.actor == "System"
+    assert event.review_reason == "Scenario changed"
+    assert event.operator_note == "Operator state reset after scenario inputs changed."
+    assert event.status == "review"
+    assert event.tone == :neutral
   end
 
   test "keeps generated event labels relative and bounds visible history" do

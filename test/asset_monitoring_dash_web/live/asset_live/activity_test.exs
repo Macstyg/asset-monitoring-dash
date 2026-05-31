@@ -49,8 +49,9 @@ defmodule AssetMonitoringDashWeb.AssetLive.ActivityTest do
 
     assert assert_patch(view) == asset_path("asset-001", "focus=activity")
 
-    assert has_element?(view, "#asset-event-count", "2 events")
+    assert has_element?(view, "#asset-event-count", "3 events")
     assert has_element?(view, "#asset-event-row-event-review-reviewed-asset-001")
+    assert has_element?(view, "#asset-event-row-event-review-unreviewed-asset-001")
 
     assert has_element?(
              view,
@@ -85,13 +86,14 @@ defmodule AssetMonitoringDashWeb.AssetLive.ActivityTest do
     assert has_element?(view, "#active-filter-asset-event-sources-scenario", "Scenario")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001")
     refute has_element?(view, "#asset-event-row-event-review-reviewed-asset-001")
+    refute has_element?(view, "#asset-event-row-event-review-unreviewed-asset-001")
 
     view
     |> element("#active-filter-asset-event-sources-scenario")
     |> render_click()
 
     assert assert_patch(view) == asset_path("asset-001", "focus=activity")
-    assert has_element?(view, "#asset-event-count", "2 events")
+    assert has_element?(view, "#asset-event-count", "3 events")
     refute has_element?(view, "#active-filter-asset-event-sources-scenario")
   end
 

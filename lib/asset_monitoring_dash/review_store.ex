@@ -23,14 +23,14 @@ defmodule AssetMonitoringDash.ReviewStore do
   }
 
   def all_states do
-    ReviewDecisionRecord
-    |> order_by([decision],
-      asc: decision.asset_id,
-      desc: decision.occurred_at,
-      desc: decision.id
-    )
-    |> Repo.all()
+    latest_decision_records()
     |> current_states_from_records()
+  end
+
+  def current_state(asset_id) do
+    asset_id
+    |> current_state_id()
+    |> ReviewState.state()
   end
 
   def history_for(asset_id) do
@@ -64,19 +64,25 @@ defmodule AssetMonitoringDash.ReviewStore do
   end
 
   def reset(asset_id) do
-    asset_id = Assets.resolve_persisted_asset_id(asset_id)
-    states = all_states()
+    asset_id
+    |> reset_after_scenario()
+    |> Map.fetch!(:states)
+  end
 
-    case Map.get(states, asset_id, :unreviewed) do
+  def reset_after_scenario(asset_id) do
+    asset_id = Assets.resolve_persisted_asset_id(asset_id)
+
+    case current_state_id(asset_id) do
       :unreviewed ->
-        states
+        %{decision: nil, states: all_states()}
 
       _state_id ->
-        asset_id
-        |> ReviewDecision.system_reset()
-        |> persist_decision!()
+        decision =
+          asset_id
+          |> ReviewDecision.system_reset()
+          |> persist_decision!()
 
-        all_states()
+        %{decision: decision, states: all_states()}
     end
   end
 
@@ -90,6 +96,7 @@ defmodule AssetMonitoringDash.ReviewStore do
     %ReviewDecisionRecord{}
     |> ReviewDecisionRecord.changeset(decision_attrs(decision))
     |> Repo.insert!()
+    |> record_to_decision()
   end
 
   defp decision_attrs(%ReviewDecision{} = decision) do
@@ -105,23 +112,42 @@ defmodule AssetMonitoringDash.ReviewStore do
     }
   end
 
-  defp current_states_from_records(records) do
-    records
-    |> Enum.reduce({%{}, MapSet.new()}, &put_current_state_from_record/2)
-    |> elem(0)
+  defp latest_decision_records do
+    ReviewDecisionRecord
+    |> distinct([decision], decision.asset_id)
+    |> order_by([decision],
+      asc: decision.asset_id,
+      desc: decision.occurred_at,
+      desc: decision.id
+    )
+    |> Repo.all()
   end
 
-  defp put_current_state_from_record(record, {states, seen_asset_ids}) do
-    case MapSet.member?(seen_asset_ids, record.asset_id) do
-      true ->
-        {states, seen_asset_ids}
+  defp current_state_id(asset_id) do
+    asset_id = Assets.resolve_persisted_asset_id(asset_id)
 
-      false ->
-        state_id = state_atom(record.state_id)
-        states = put_current_state(states, record.asset_id, state_id)
-
-        {states, MapSet.put(seen_asset_ids, record.asset_id)}
+    asset_id
+    |> latest_decision_record_for()
+    |> case do
+      nil -> :unreviewed
+      record -> state_atom(record.state_id)
     end
+  end
+
+  defp latest_decision_record_for(asset_id) do
+    ReviewDecisionRecord
+    |> where([decision], decision.asset_id == ^asset_id)
+    |> order_by([decision], desc: decision.occurred_at, desc: decision.id)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  defp current_states_from_records(records) do
+    Enum.reduce(records, %{}, fn record, states ->
+      record.state_id
+      |> state_atom()
+      |> then(&put_current_state(states, record.asset_id, &1))
+    end)
   end
 
   defp put_current_state(states, _asset_id, :unreviewed), do: states

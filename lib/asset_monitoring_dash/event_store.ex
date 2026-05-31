@@ -62,6 +62,18 @@ defmodule AssetMonitoringDash.EventStore do
     visible_events()
   end
 
+  def push_review_decision_event(asset, review_decision) do
+    event =
+      []
+      |> EventFeed.push_review_decision_event(asset, review_decision)
+      |> Map.fetch!(:visible_events)
+      |> List.first()
+
+    persist_event!(event)
+
+    visible_events()
+  end
+
   def reset_all do
     Repo.delete_all(ActivityEventRecord)
 
@@ -93,6 +105,7 @@ defmodule AssetMonitoringDash.EventStore do
     review_audit = ReviewAudit.normalize(Map.get(event, :review_audit, %{}))
 
     %{
+      actor: event.actor,
       asset_id: event_asset_id(event),
       chain: event.chain,
       detail: event.detail,
@@ -114,6 +127,7 @@ defmodule AssetMonitoringDash.EventStore do
   defp record_to_event(record) do
     %{
       id: record.event_key,
+      actor: record.actor,
       asset_id: record.asset_id,
       chain: record.chain,
       detail: record.detail,
