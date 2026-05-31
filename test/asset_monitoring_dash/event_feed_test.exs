@@ -25,20 +25,21 @@ defmodule AssetMonitoringDash.EventFeedTest do
     assert Enum.all?(events, &match?(%DateTime{}, &1.occurred_at))
   end
 
-  test "combines generated event history with seeded events" do
-    generated_events = [
-      %{
-        id: "event-shock-asset-001",
-        time_label: "now",
-        title: "Price shock applied",
-        detail: "Aegis Dragon Helm repriced 12% lower; LTV is now 67.8%.",
-        chain: "Polygon",
-        status: "risk",
-        tone: :danger
-      }
-    ]
-
-    events = EventFeed.visible_events(generated_events)
+  test "prepares a persisted event timeline for display" do
+    events =
+      [
+        %{
+          id: "event-shock-asset-001",
+          time_label: "now",
+          title: "Price shock applied",
+          detail: "Aegis Dragon Helm repriced 12% lower; LTV is now 67.8%.",
+          chain: "Polygon",
+          status: "risk",
+          tone: :danger
+        }
+      ]
+      |> Kernel.++(EventFeed.initial_events())
+      |> EventFeed.timeline_events()
 
     assert Enum.map(events, & &1.id) == [
              "event-shock-asset-001",
@@ -93,26 +94,14 @@ defmodule AssetMonitoringDash.EventFeedTest do
              EventFeed.visible_events_for_asset(generated_events, "asset-001")
   end
 
-  test "pushes a generated event to the top of the feed" do
-    feed = EventFeed.push_demo_event(EventFeed.initial_events(), 0)
+  test "builds deterministic demo tick events" do
+    event = EventFeed.demo_event(0)
 
-    assert feed.next_event_index == 1
-    assert [%{id: "event-live-1", time_label: "now"} | _events] = feed.visible_events
-    assert length(feed.visible_events) == 6
-  end
-
-  test "keeps a larger event history for source-filtered dashboard slices" do
-    feed =
-      0..6
-      |> Enum.reduce(
-        %{event_history: EventFeed.initial_events(), next_event_index: 0},
-        fn _push, feed ->
-          EventFeed.push_demo_event_history(feed.event_history, feed.next_event_index)
-        end
-      )
-
-    assert length(feed.event_history) == 12
-    assert Enum.any?(feed.event_history, &(&1.id == "event-005"))
+    assert event.id == "event-live-1"
+    assert event.time_label == "now"
+    assert event.kind == :system
+    assert event.source_label == "System"
+    assert %DateTime{} = event.occurred_at
   end
 
   test "pushes a price shock event to explain a scenario change" do
@@ -304,18 +293,14 @@ defmodule AssetMonitoringDash.EventFeedTest do
   end
 
   test "keeps generated event labels relative and bounds visible history" do
-    feed =
-      0..2
-      |> Enum.reduce(
-        %{visible_events: EventFeed.initial_events(), next_event_index: 0},
-        fn _push, feed ->
-          EventFeed.push_demo_event(feed.visible_events, feed.next_event_index)
-        end
-      )
+    visible_events =
+      [EventFeed.demo_event(2), EventFeed.demo_event(1), EventFeed.demo_event(0)]
+      |> Kernel.++(EventFeed.initial_events())
+      |> EventFeed.timeline_events()
 
-    assert length(feed.visible_events) == 6
+    assert length(visible_events) == 6
 
-    assert Enum.map(feed.visible_events, & &1.id) == [
+    assert Enum.map(visible_events, & &1.id) == [
              "event-live-3",
              "event-live-2",
              "event-live-1",
@@ -324,7 +309,7 @@ defmodule AssetMonitoringDash.EventFeedTest do
              "event-003"
            ]
 
-    assert Enum.map(feed.visible_events, & &1.time_label) == [
+    assert Enum.map(visible_events, & &1.time_label) == [
              "now",
              "4s ago",
              "8s ago",

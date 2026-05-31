@@ -2,9 +2,9 @@ defmodule AssetMonitoringDash.EventFeed do
   @moduledoc """
   Product rules for the dashboard activity feed.
 
-  The current feed is driven by deterministic demo events, but the module owns
-  the same rules a real feed will need: inserting newest items first, bounding
-  visible history, and refreshing relative labels for generated live events.
+  The feed is persisted by `EventStore`, while this module owns event
+  enrichment and list presentation rules: source/severity metadata, relative
+  labels, replacement by event id, and visible history bounds.
   """
 
   alias AssetMonitoringDash.Assets
@@ -13,7 +13,6 @@ defmodule AssetMonitoringDash.EventFeed do
   alias AssetMonitoringDash.ReviewAudit
 
   @visible_event_limit 6
-  @event_history_limit 24
   @event_tick_interval_seconds 4
   @demo_event_date ~D[2026-05-31]
 
@@ -42,43 +41,12 @@ defmodule AssetMonitoringDash.EventFeed do
     |> put_event_metadata()
   end
 
-  def visible_events(generated_events) do
-    generated_events
-    |> Enum.map(&put_event_metadata/1)
-    |> Kernel.++(initial_events())
-    |> Enum.take(@visible_event_limit)
-    |> refresh_live_event_labels()
-  end
-
   def visible_events_for_asset(generated_events, asset_id) do
     generated_events
     |> Enum.map(&put_event_metadata/1)
     |> Enum.filter(&asset_event?(&1, asset_id))
     |> Enum.take(@visible_event_limit)
     |> refresh_live_event_labels()
-  end
-
-  def push_demo_event(visible_events, next_event_index) do
-    feed = push_demo_event_history(visible_events, next_event_index)
-
-    %{
-      visible_events: Enum.take(feed.event_history, @visible_event_limit),
-      next_event_index: feed.next_event_index
-    }
-  end
-
-  def push_demo_event_history(event_history, next_event_index) do
-    event = demo_event(next_event_index)
-
-    event_history =
-      [event | Enum.reject(event_history, &(&1.id == event.id))]
-      |> Enum.take(@event_history_limit)
-      |> refresh_live_event_labels()
-
-    %{
-      event_history: event_history,
-      next_event_index: next_event_index + 1
-    }
   end
 
   def push_price_shock_event(visible_events, asset, drop_percent) do

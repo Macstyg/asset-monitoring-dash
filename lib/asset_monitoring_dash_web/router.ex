@@ -10,21 +10,11 @@ defmodule AssetMonitoringDashWeb.Router do
     plug :put_secure_browser_headers
   end
 
-  pipeline :api do
-    plug :accepts, ["json"]
-  end
-
   scope "/", AssetMonitoringDashWeb do
     pipe_through :browser
 
     live "/", DashboardLive, :show
     live "/assets/:id", AssetLive, :show
-  end
-
-  scope "/api", AssetMonitoringDashWeb do
-    pipe_through :api
-
-    get "/assets", AssetController, :index
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

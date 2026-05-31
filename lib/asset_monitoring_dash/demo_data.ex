@@ -1,10 +1,9 @@
 defmodule AssetMonitoringDash.DemoData do
   @moduledoc """
-  Deterministic demo data for the first dashboard slices.
+  Deterministic source data for the local demo catalog and event templates.
 
-  The values here are deliberately small and explicit while the product shape is
-  still forming. Later milestones can replace these functions with Ecto-backed
-  contexts without forcing the LiveView to know where the data came from.
+  Runtime screens read through Ecto-backed contexts. This module remains the
+  repeatable source used by seeds and pure domain tests.
   """
 
   alias AssetMonitoringDash.Money

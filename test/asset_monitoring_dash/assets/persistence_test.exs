@@ -41,8 +41,7 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     asset =
       "asset-001"
       |> AssetScenarioStore.apply_price_shock()
-      |> Assets.list_persisted_assets_with_scenarios()
-      |> Assets.get_asset("asset-001")
+      |> then(&Assets.get_persisted_asset_with_scenarios("asset-001", &1))
 
     trend = Assets.ltv_trend(asset)
 
@@ -51,6 +50,15 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert %{label: "Now", value: last_value} = List.last(trend)
     assert_decimal_equal(first_value, "56.5")
     assert_decimal_equal(last_value, "67.8")
+  end
+
+  test "projects a persisted price drop and recalculates loan risk fields" do
+    asset = Assets.price_drop_projection("asset-001", 12)
+
+    assert_decimal_equal(asset.current_value_usd, "4276.80")
+    assert_decimal_equal(asset.ltv_percent, "67.8")
+    assert asset.risk_score == 80
+    assert asset.risk_band == "Elevated"
   end
 
   test "pages persisted assets through the context query boundary" do

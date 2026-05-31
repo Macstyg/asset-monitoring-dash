@@ -2,9 +2,8 @@ defmodule AssetMonitoringDash.Seeds.DemoCatalog do
   @moduledoc """
   Seeds the local demo catalog used by the asset monitoring dashboard.
 
-  The application reads this data at runtime, but this module is the only place
-  that creates the demo catalog. That keeps persistence setup explicit and easy
-  to reset while the schema is still evolving.
+  Runtime screens read the seeded records through Ecto contexts. This module is
+  the repeatable import boundary for the deterministic local catalog.
   """
 
   alias AssetMonitoringDash.Assets

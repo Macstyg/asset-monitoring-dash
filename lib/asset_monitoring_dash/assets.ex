@@ -155,11 +155,6 @@ defmodule AssetMonitoringDash.Assets do
     end
   end
 
-  def list_persisted_assets_with_scenarios(shocked_asset_ids) do
-    list_persisted_assets()
-    |> apply_scenarios(shocked_asset_ids)
-  end
-
   def list_persisted_assets_by_ids(asset_ids, shocked_asset_ids \\ MapSet.new()) do
     resolved_asset_ids =
       asset_ids
@@ -283,28 +278,12 @@ defmodule AssetMonitoringDash.Assets do
     }
   end
 
-  def filter_assets(assets, filters, review_states \\ %{}) do
-    assets
-    |> filter_assets_by_query(filter_value(filters, :query, ""))
-    |> filter_assets_by_risks(filter_values(filters, :risks, :risk, "All"))
-    |> filter_assets_by_chains(filter_values(filters, :chains, :chain, "All chains"))
-    |> filter_assets_by_actions(filter_values(filters, :actions, :action, "All"))
-    |> filter_assets_by_operator_states(
-      filter_values(filters, :operator_states, :operator_state, "All"),
-      review_states
-    )
-  end
-
   def get_asset(asset_id) do
     Enum.find(list_assets(), &asset_matches_id?(&1, asset_id))
   end
 
   def get_asset(assets, asset_id) do
     Enum.find(assets, &asset_matches_id?(&1, asset_id))
-  end
-
-  def apply_price_drop(assets, asset_id, drop_percent) do
-    Enum.map(assets, &apply_asset_price_drop(&1, asset_id, drop_percent))
   end
 
   def price_drop_projection(asset_id, drop_percent) do
@@ -439,34 +418,6 @@ defmodule AssetMonitoringDash.Assets do
       true -> "Illiquid"
     end
   end
-
-  defp filter_assets_by_query(assets, ""), do: assets
-
-  defp filter_assets_by_query(assets, query) do
-    Enum.filter(assets, &asset_matches_query?(&1, query))
-  end
-
-  defp asset_matches_query?(asset, query) do
-    [
-      asset.name,
-      asset.asset_type,
-      asset.chain,
-      asset.ecosystem,
-      asset.rarity,
-      asset.risk_band
-    ]
-    |> Enum.any?(&String.contains?(String.downcase(&1), query))
-  end
-
-  defp filter_assets_by_risks(assets, []), do: assets
-
-  defp filter_assets_by_risks(assets, risk_filters),
-    do: Enum.filter(assets, &(&1.risk_band in risk_filters))
-
-  defp filter_assets_by_chains(assets, []), do: assets
-
-  defp filter_assets_by_chains(assets, chain_filters),
-    do: Enum.filter(assets, &(&1.chain in chain_filters))
 
   defp filter_assets_by_actions(assets, []), do: assets
 
@@ -1231,13 +1182,6 @@ defmodule AssetMonitoringDash.Assets do
     })
     |> Map.put(:oracle_status, oracle_status(asset.oracle_freshness_seconds))
     |> Map.put(:liquidity_status, liquidity_status(asset.market_depth_usd))
-  end
-
-  defp apply_asset_price_drop(asset, asset_id, drop_percent) do
-    case asset_matches_id?(asset, asset_id) do
-      true -> reprice_asset(asset, drop_percent)
-      false -> asset
-    end
   end
 
   defp reprice_asset(asset, drop_percent) do

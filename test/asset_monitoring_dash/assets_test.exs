@@ -21,16 +21,6 @@ defmodule AssetMonitoringDash.AssetsTest do
       assert asset.risk_band == "Elevated"
     end
 
-    test "applies shared demo scenarios to the baseline asset book" do
-      assets = Assets.apply_price_drop(Assets.list_assets(), "asset-001", 12)
-      asset = Assets.get_asset(assets, "asset-001")
-      untouched_asset = Assets.get_asset(assets, "asset-002")
-
-      assert_decimal_equal(asset.current_value_usd, "4276.80")
-      assert_decimal_equal(asset.ltv_percent, "67.8")
-      assert_decimal_equal(untouched_asset.current_value_usd, "21150.00")
-    end
-
     test "derives oracle status from freshness seconds" do
       assert Assets.oracle_status(24) == "Fresh"
       assert Assets.oracle_status(184) == "Delayed"
@@ -44,94 +34,6 @@ defmodule AssetMonitoringDash.AssetsTest do
       assert Assets.liquidity_status(2_750) == "Illiquid"
       assert Assets.get_asset("asset-009").liquidity_status == "Illiquid"
     end
-
-    test "filters by risk band" do
-      filters = %{Assets.default_filters() | risks: ["Critical"]}
-      ids = filtered_asset_ids(filters)
-
-      assert length(ids) == 14
-      assert "asset-002" in ids
-      assert "asset-010" in ids
-      assert "asset-010-variant-005" in ids
-    end
-
-    test "filters by chain" do
-      filters = %{Assets.default_filters() | chains: ["Arbitrum"]}
-      ids = filtered_asset_ids(filters)
-
-      assert length(ids) == 100
-      assert "asset-005" in ids
-      assert "asset-010" in ids
-      assert "asset-005-variant-001" in ids
-    end
-
-    test "filters by multiple selected values" do
-      filters = %{
-        Assets.default_filters()
-        | risks: ["Low", "Critical"],
-          chains: ["Ethereum", "Arbitrum"]
-      }
-
-      ids = filtered_asset_ids(filters)
-
-      assert length(ids) == 14
-      assert "asset-002" in ids
-      assert "asset-010" in ids
-    end
-
-    test "filters by system recommendation action" do
-      manual_review_ids =
-        Assets.default_filters()
-        |> Map.put(:actions, ["manual_review"])
-        |> filtered_asset_ids()
-
-      assert "asset-001" in manual_review_ids
-      assert "asset-012" in manual_review_ids
-      refute "asset-002" in manual_review_ids
-
-      liquidation_ids =
-        Assets.default_filters()
-        |> Map.put(:actions, ["liquidation_candidate"])
-        |> filtered_asset_ids()
-
-      assert length(liquidation_ids) == 4
-      assert "asset-002" in liquidation_ids
-      refute "asset-001" in liquidation_ids
-    end
-
-    test "filters by operator review state" do
-      review_states = %{"asset-001" => :reviewed, "asset-003" => :escalated}
-
-      reviewed_ids =
-        Assets.default_filters()
-        |> Map.put(:operator_states, ["reviewed"])
-        |> filtered_asset_ids(review_states)
-
-      escalated_ids =
-        Assets.default_filters()
-        |> Map.put(:operator_states, ["escalated"])
-        |> filtered_asset_ids(review_states)
-
-      unreviewed_ids =
-        Assets.default_filters()
-        |> Map.put(:operator_states, ["unreviewed"])
-        |> filtered_asset_ids(review_states)
-
-      assert reviewed_ids == ["asset-001"]
-      assert escalated_ids == ["asset-003"]
-      assert length(unreviewed_ids) == 598
-      refute "asset-001" in unreviewed_ids
-      refute "asset-003" in unreviewed_ids
-    end
-
-    test "combines risk, chain, and query filters" do
-      filters = %{query: "mech", risk: "Critical", chain: "Arbitrum"}
-      ids = filtered_asset_ids(filters)
-
-      assert length(ids) == 13
-      assert "asset-010" in ids
-      assert "asset-010-variant-005" in ids
-    end
   end
 
   test "gets one asset by id" do
@@ -144,33 +46,6 @@ defmodule AssetMonitoringDash.AssetsTest do
 
     assert %{name: "Aegis Dragon Helm"} = Assets.get_asset(assets, "asset-001")
     assert is_nil(Assets.get_asset(assets, "missing-asset"))
-  end
-
-  test "applies a price drop and recalculates loan risk fields" do
-    [asset] =
-      Assets.list_assets()
-      |> Assets.apply_price_drop("asset-001", 12)
-      |> Enum.filter(&(&1.id == "asset-001"))
-
-    assert_decimal_equal(asset.current_value_usd, "4276.80")
-    assert_decimal_equal(asset.ltv_percent, "67.8")
-    assert asset.risk_score == 80
-    assert asset.risk_band == "Elevated"
-  end
-
-  test "builds an LTV trend with the current asset as the latest point" do
-    asset =
-      Assets.list_assets()
-      |> Assets.apply_price_drop("asset-001", 12)
-      |> Assets.get_asset("asset-001")
-
-    trend = Assets.ltv_trend(asset)
-
-    assert length(trend) == 7
-    assert %{label: "6d", value: first_value} = List.first(trend)
-    assert %{label: "Now", value: last_value} = List.last(trend)
-    assert_decimal_equal(first_value, "56.5")
-    assert_decimal_equal(last_value, "67.8")
   end
 
   test "uses different LTV trend shapes for different assets" do
@@ -268,12 +143,6 @@ defmodule AssetMonitoringDash.AssetsTest do
 
   defp assert_decimal_equal(actual, expected) do
     assert Decimal.equal?(actual, Decimal.new(expected))
-  end
-
-  defp filtered_asset_ids(filters, review_states \\ %{}) do
-    Assets.list_assets()
-    |> Assets.filter_assets(filters, review_states)
-    |> Enum.map(& &1.id)
   end
 
   defp decimal_string(value) do
