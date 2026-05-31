@@ -11,6 +11,10 @@ config :asset_monitoring_dash,
   ecto_repos: [AssetMonitoringDash.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :asset_monitoring_dash, AssetMonitoringDash.Simulator,
+  enabled: true,
+  interval_ms: 4_000
+
 # Configure the endpoint
 config :asset_monitoring_dash, AssetMonitoringDashWeb.Endpoint,
   url: [host: "localhost"],

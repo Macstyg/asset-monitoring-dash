@@ -1,7 +1,6 @@
 defmodule AssetMonitoringDashWeb.DashboardLive do
   use AssetMonitoringDashWeb, :live_view
 
-  @event_tick_interval_ms 4_000
   @asset_page_limit 50
   @asset_stream_limit 150
 
@@ -13,6 +12,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.RiskRecommendation
+  alias AssetMonitoringDash.Simulator
   alias AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor
   alias AssetMonitoringDashWeb.DashboardLive.Components.EventFeed, as: DashboardEventFeed
   alias AssetMonitoringDashWeb.DashboardURLState
@@ -48,7 +48,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
       |> assign(:review_states, review_states)
       |> assign_asset_page(asset_page, :reset)
-      |> assign(:feed_paused, false)
+      |> assign(:feed_paused, simulator_paused?())
       |> assign(:next_event_index, 0)
       |> assign(:event_filters, default_event_filters())
       |> assign(:event_history, events)
@@ -72,7 +72,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       )
       |> apply_event_filter()
 
-    schedule_event_tick_for_connection(connected?(socket))
+    subscribe_to_simulator(connected?(socket))
 
     {:ok, socket}
   end
@@ -247,16 +247,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_event("toggle_event_feed", _params, socket) do
-    feed_paused = !socket.assigns.feed_paused
-
-    schedule_event_tick_for_feed(feed_paused)
-
-    {:noreply, assign(socket, :feed_paused, feed_paused)}
+    {:noreply, toggle_event_feed(socket.assigns.feed_paused, socket)}
   end
 
   @impl true
-  def handle_info(:push_demo_event, socket) do
-    {:noreply, push_scheduled_demo_event(socket)}
+  def handle_info({Simulator, :event_recorded, feed}, %{assigns: %{feed_paused: true}} = socket) do
+    {:noreply, assign(socket, :next_event_index, feed.next_event_index)}
+  end
+
+  def handle_info({Simulator, :event_recorded, feed}, socket) do
+    {:noreply, apply_demo_feed(socket, feed)}
   end
 
   defp assign_metric_cards(socket) do
@@ -638,28 +638,47 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   defp push_demo_event(socket) do
-    feed = ActivityLog.record_demo_event(socket.assigns.next_event_index)
+    feed = record_demo_event(socket.assigns.next_event_index)
 
+    apply_demo_feed(socket, feed)
+  end
+
+  defp apply_demo_feed(socket, feed) do
     socket
     |> assign(:next_event_index, feed.next_event_index)
     |> assign(:event_history, feed.event_history)
     |> apply_event_filter()
   end
 
-  defp push_scheduled_demo_event(%{assigns: %{feed_paused: true}} = socket), do: socket
+  defp toggle_event_feed(true, socket) do
+    Simulator.resume()
 
-  defp push_scheduled_demo_event(%{assigns: %{feed_paused: false}} = socket) do
-    schedule_event_tick()
-    push_demo_event(socket)
+    socket
+    |> assign(:feed_paused, false)
+    |> assign(:event_history, ActivityLog.visible_events())
+    |> apply_event_filter()
   end
 
-  defp schedule_event_tick_for_connection(true), do: schedule_event_tick()
-  defp schedule_event_tick_for_connection(false), do: :ok
+  defp toggle_event_feed(false, socket) do
+    Simulator.pause()
 
-  defp schedule_event_tick_for_feed(false), do: schedule_event_tick()
-  defp schedule_event_tick_for_feed(true), do: :ok
-
-  defp schedule_event_tick do
-    Process.send_after(self(), :push_demo_event, @event_tick_interval_ms)
+    assign(socket, :feed_paused, true)
   end
+
+  defp record_demo_event(next_event_index) do
+    case Simulator.tick() do
+      {:error, :not_started} -> ActivityLog.record_demo_event(next_event_index)
+      feed -> feed
+    end
+  end
+
+  defp simulator_paused? do
+    case Simulator.status() do
+      %{paused?: paused?} -> paused?
+      {:error, :not_started} -> false
+    end
+  end
+
+  defp subscribe_to_simulator(true), do: Simulator.subscribe()
+  defp subscribe_to_simulator(false), do: :ok
 end

@@ -35,4 +35,8 @@ defmodule AssetMonitoringDash.ActivityLog do
   def record_demo_event(next_event_index) do
     EventStore.push_demo_event(next_event_index)
   end
+
+  def next_demo_event_index do
+    EventStore.next_demo_event_index()
+  end
 end

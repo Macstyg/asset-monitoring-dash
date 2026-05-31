@@ -44,6 +44,14 @@ defmodule AssetMonitoringDash.EventStore do
     }
   end
 
+  def next_demo_event_index do
+    ActivityEventRecord
+    |> where([event], like(event.event_key, "event-live-%"))
+    |> select([event], event.event_key)
+    |> Repo.all()
+    |> Enum.reduce(0, &max_demo_event_index/2)
+  end
+
   def push_price_shock_event(asset, drop_percent) do
     event =
       []
@@ -186,4 +194,13 @@ defmodule AssetMonitoringDash.EventStore do
   defp tone_atom("success"), do: :success
   defp tone_atom("warning"), do: :warning
   defp tone_atom(_tone), do: :neutral
+
+  defp max_demo_event_index("event-live-" <> event_number, max_index) do
+    case Integer.parse(event_number) do
+      {event_index, ""} -> max(event_index, max_index)
+      _invalid_event_key -> max_index
+    end
+  end
+
+  defp max_demo_event_index(_event_key, max_index), do: max_index
 end

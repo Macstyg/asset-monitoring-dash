@@ -23,6 +23,8 @@ config :asset_monitoring_dash, AssetMonitoringDashWeb.Endpoint,
 # In test we don't send emails
 config :asset_monitoring_dash, AssetMonitoringDash.Mailer, adapter: Swoosh.Adapters.Test
 
+config :asset_monitoring_dash, AssetMonitoringDash.Simulator, enabled: false
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

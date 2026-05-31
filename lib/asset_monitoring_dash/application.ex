@@ -13,8 +13,7 @@ defmodule AssetMonitoringDash.Application do
       {DNSCluster,
        query: Application.get_env(:asset_monitoring_dash, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: AssetMonitoringDash.PubSub},
-      # Start a worker by calling: AssetMonitoringDash.Worker.start_link(arg)
-      # {AssetMonitoringDash.Worker, arg},
+      AssetMonitoringDash.Simulator,
       # Start to serve requests, typically the last entry
       AssetMonitoringDashWeb.Endpoint
     ]
