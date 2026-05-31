@@ -14,10 +14,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
   alias AssetMonitoringDashWeb.DashboardComponents.InvestigationBrief
   alias AssetMonitoringDashWeb.DashboardComponents.RelatedAssets
+  alias AssetMonitoringDashWeb.DashboardComponents.ReviewHistory
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.Card
+  alias AssetMonitoringDashWeb.UI.Tabs
 
   @related_asset_limit 4
   @default_review_reason "signal_reviewed"
@@ -40,6 +42,8 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       |> assign(:visible_events, [])
       |> assign(:event_count, 0)
       |> assign(:asset_detail_url_state, detail_state)
+      |> assign(:asset_detail_focus, detail_state.focus)
+      |> assign(:asset_detail_focus_options, asset_detail_focus_options())
       |> assign(:asset_event_source_filter_options, asset_event_source_filter_options())
       |> assign(:review_reason_options, review_reason_options())
       |> assign(:review_action_form, review_action_form(default_review_action_params()))
@@ -58,6 +62,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       socket
       |> assign(:return_to, normalize_return_to(Map.get(params, "return_to")))
       |> assign(:asset_detail_url_state, detail_state)
+      |> assign(:asset_detail_focus, detail_state.focus)
       |> assign_asset_event_filter_state(detail_state.event_filters)
       |> assign_asset_from_id(asset_id)
 
@@ -111,6 +116,22 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   end
 
   @impl true
+  def handle_event("focus_asset_section", %{"tab" => section}, socket) do
+    detail_state = AssetDetailURLState.with_focus(socket.assigns.asset_detail_url_state, section)
+
+    socket =
+      case AssetDetailURLState.same_url_params?(
+             detail_state,
+             socket.assigns.asset_detail_url_state
+           ) do
+        true -> assign(socket, :asset_detail_focus, detail_state.focus)
+        false -> patch_asset_detail_state(socket, detail_state)
+      end
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event(
         "remove_filter_value",
         %{"filter" => "asset_event_sources", "option" => value},
@@ -157,6 +178,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> assign(:asset_risk_explanation, Risk.explanation(asset))
     |> assign(:asset_risk_recommendation, risk_recommendation)
     |> assign(:asset_review_state, review_state)
+    |> assign(:review_history, ReviewStore.history_for(asset.id))
     |> assign(:related_assets, related_assets(asset, socket.assigns.all_assets))
     |> assign_asset_events(asset.id)
   end
@@ -197,7 +219,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   defp mark_asset_reviewed(socket, audit_context) do
     asset = socket.assigns.asset
-    review_states = ReviewStore.mark_reviewed(asset.id)
+    review_states = ReviewStore.mark_reviewed(asset.id, audit_context)
     review_state = ReviewState.state_for(asset.id, review_states)
     ActivityLog.record_review(asset, review_state, audit_context)
 
@@ -209,7 +231,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   defp escalate_asset_review(socket, audit_context) do
     asset = socket.assigns.asset
-    review_states = ReviewStore.escalate(asset.id)
+    review_states = ReviewStore.escalate(asset.id, audit_context)
     review_state = ReviewState.state_for(asset.id, review_states)
     ActivityLog.record_review(asset, review_state, audit_context)
 
@@ -248,6 +270,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     socket =
       socket
       |> assign(:asset_detail_url_state, detail_state)
+      |> assign(:asset_detail_focus, detail_state.focus)
       |> assign_asset_event_filter_state(filters)
       |> assign_asset_events(socket.assigns.asset.id)
 
@@ -274,6 +297,14 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     [
       %{value: "scenario", label: "Scenario", icon_text: "Sc", tone: :warning},
       %{value: "operator", label: "Operator", icon_text: "O", tone: :success}
+    ]
+  end
+
+  defp asset_detail_focus_options do
+    [
+      %{value: "overview", label: "Overview"},
+      %{value: "activity", label: "Activity"},
+      %{value: "related", label: "Related"}
     ]
   end
 

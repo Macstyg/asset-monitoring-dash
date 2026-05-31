@@ -6,6 +6,7 @@ defmodule AssetMonitoringDashWeb.AssetDetailURLStateTest do
   test "defaults to no persisted activity filters" do
     state = AssetDetailURLState.default()
 
+    assert state.focus == "overview"
     assert state.event_filters.sources == []
     assert state.event_filters.source_option_query == ""
     assert AssetDetailURLState.params(state) == %{}
@@ -14,11 +15,17 @@ defmodule AssetMonitoringDashWeb.AssetDetailURLStateTest do
   test "loads selected activity sources from URL params" do
     state =
       AssetDetailURLState.from_params(%{
-        "activity_sources" => "scenario,operator,unknown"
+        "activity_sources" => "scenario,operator,unknown",
+        "focus" => "activity"
       })
 
+    assert state.focus == "activity"
     assert state.event_filters.sources == ["scenario", "operator"]
-    assert AssetDetailURLState.params(state) == %{"activity_sources" => "scenario,operator"}
+
+    assert AssetDetailURLState.params(state) == %{
+             "activity_sources" => "scenario,operator",
+             "focus" => "activity"
+           }
   end
 
   test "keeps local option search out of URL params" do
@@ -46,5 +53,13 @@ defmodule AssetMonitoringDashWeb.AssetDetailURLStateTest do
       })
 
     assert AssetDetailURLState.same_url_params?(left, right)
+  end
+
+  test "treats selected focus as URL-backed state" do
+    left = AssetDetailURLState.with_focus(AssetDetailURLState.default(), "activity")
+    right = AssetDetailURLState.default()
+
+    assert AssetDetailURLState.params(left) == %{"focus" => "activity"}
+    refute AssetDetailURLState.same_url_params?(left, right)
   end
 end

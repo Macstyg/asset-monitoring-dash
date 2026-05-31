@@ -37,80 +37,96 @@
         </div>
       </div>
 
-      <section
-        id="asset-context-strip"
-        aria-label="Asset context"
-        class="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4"
-      >
-        <Card.surface padding="p-4">
-          <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
-            Chain / game
-          </p>
-          <p id="asset-context-chain" class="mt-3 text-sm font-semibold text-app-fg">
-            {@asset.chain}
-          </p>
-          <p id="asset-context-game" class="mt-1 truncate font-mono text-xs text-app-muted">
-            {@asset.ecosystem}
-          </p>
-        </Card.surface>
-
-        <Card.surface padding="p-4">
-          <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
-            Collateral class
-          </p>
-          <p id="asset-context-rarity" class="mt-3 text-sm font-semibold text-app-fg">
-            {@asset.rarity}
-          </p>
-          <p id="asset-context-type" class="mt-1 truncate font-mono text-xs text-app-muted">
-            {@asset.asset_type}
-          </p>
-        </Card.surface>
-
-        <Card.surface padding="p-4">
-          <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
-            Position size
-          </p>
-          <p
-            id="asset-context-value"
-            class="mt-3 font-mono text-sm font-semibold tabular-nums text-app-fg"
-          >
-            {Formatters.usd(@asset.current_value_usd)} collateral
-          </p>
-          <p id="asset-context-loan" class="mt-1 font-mono text-xs text-app-muted">
-            {Formatters.usd(@asset.loan_value_usd)} borrowed
-          </p>
-        </Card.surface>
-
-        <Card.surface padding="p-4">
-          <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
-            Signal quality
-          </p>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <Badge.render
-              id="asset-context-oracle"
-              label={@asset.oracle_status}
-              tone={signal_tone(@asset.oracle_status)}
-            />
-            <Badge.render
-              id="asset-context-liquidity"
-              label={@asset.liquidity_status}
-              tone={signal_tone(@asset.liquidity_status)}
-            />
-          </div>
-          <p id="asset-context-depth" class="mt-2 font-mono text-xs text-app-muted">
-            {Formatters.usd(@asset.market_depth_usd)} market depth
-          </p>
-        </Card.surface>
-      </section>
-
-      <InvestigationBrief.render
-        asset={@asset}
-        health_factor={@asset_health_factor}
-        risk_recommendation={@asset_risk_recommendation}
-        review_state={@asset_review_state}
+      <Tabs.render
+        id="asset-detail-focus-nav"
+        active={@asset_detail_focus}
+        change_event="focus_asset_section"
+        label="Asset detail focus"
+        panel_id_prefix="asset-detail-tab"
+        tab_id_prefix="asset-focus"
+        tabs={@asset_detail_focus_options}
       />
 
-      <section class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.55fr)]">
+      <div
+        :if={@asset_detail_focus == "overview"}
+        id="asset-detail-tab-overview"
+        role="tabpanel"
+        aria-labelledby="asset-focus-overview"
+        class="grid min-w-0 gap-6"
+      >
+        <section
+          id="asset-context-strip"
+          aria-label="Asset context"
+          class="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4"
+        >
+          <Card.surface padding="p-4">
+            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+              Chain / game
+            </p>
+            <p id="asset-context-chain" class="mt-3 text-sm font-semibold text-app-fg">
+              {@asset.chain}
+            </p>
+            <p id="asset-context-game" class="mt-1 truncate font-mono text-xs text-app-muted">
+              {@asset.ecosystem}
+            </p>
+          </Card.surface>
+
+          <Card.surface padding="p-4">
+            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+              Collateral class
+            </p>
+            <p id="asset-context-rarity" class="mt-3 text-sm font-semibold text-app-fg">
+              {@asset.rarity}
+            </p>
+            <p id="asset-context-type" class="mt-1 truncate font-mono text-xs text-app-muted">
+              {@asset.asset_type}
+            </p>
+          </Card.surface>
+
+          <Card.surface padding="p-4">
+            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+              Position size
+            </p>
+            <p
+              id="asset-context-value"
+              class="mt-3 font-mono text-sm font-semibold tabular-nums text-app-fg"
+            >
+              {Formatters.usd(@asset.current_value_usd)} collateral
+            </p>
+            <p id="asset-context-loan" class="mt-1 font-mono text-xs text-app-muted">
+              {Formatters.usd(@asset.loan_value_usd)} borrowed
+            </p>
+          </Card.surface>
+
+          <Card.surface padding="p-4">
+            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+              Signal quality
+            </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <Badge.render
+                id="asset-context-oracle"
+                label={@asset.oracle_status}
+                tone={signal_tone(@asset.oracle_status)}
+              />
+              <Badge.render
+                id="asset-context-liquidity"
+                label={@asset.liquidity_status}
+                tone={signal_tone(@asset.liquidity_status)}
+              />
+            </div>
+            <p id="asset-context-depth" class="mt-2 font-mono text-xs text-app-muted">
+              {Formatters.usd(@asset.market_depth_usd)} market depth
+            </p>
+          </Card.surface>
+        </section>
+
+        <InvestigationBrief.render
+          asset={@asset}
+          health_factor={@asset_health_factor}
+          risk_recommendation={@asset_risk_recommendation}
+          review_state={@asset_review_state}
+        />
+
         <AssetInspection.render
           asset={@asset}
           health_factor={@asset_health_factor}
@@ -186,23 +202,39 @@
             </.form>
           </:actions>
         </AssetInspection.render>
+      </div>
 
-        <div class="grid min-w-0 gap-4">
-          <AssetActivity.render
-            active_filter_chips={@active_asset_event_filter_chips}
-            event_count={@event_count}
-            event_filter_form={@asset_event_filter_form}
-            event_filters={@asset_event_filters}
-            rows={@streams.events}
-            source_filter_options={@asset_event_source_filter_options}
-          />
+      <section
+        :if={@asset_detail_focus == "activity"}
+        id="asset-detail-tab-activity"
+        role="tabpanel"
+        aria-labelledby="asset-focus-activity"
+        class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.45fr)]"
+      >
+        <AssetActivity.render
+          active_filter_chips={@active_asset_event_filter_chips}
+          event_count={@event_count}
+          event_filter_form={@asset_event_filter_form}
+          event_filters={@asset_event_filters}
+          rows={@streams.events}
+          source_filter_options={@asset_event_source_filter_options}
+        />
 
-          <RelatedAssets.render
-            activity_sources={@asset_event_filters.sources}
-            related_assets={@related_assets}
-            return_to={@return_to}
-          />
-        </div>
+        <ReviewHistory.render decisions={@review_history} />
+      </section>
+
+      <section
+        :if={@asset_detail_focus == "related"}
+        id="asset-detail-tab-related"
+        role="tabpanel"
+        aria-labelledby="asset-focus-related"
+      >
+        <RelatedAssets.render
+          activity_sources={@asset_event_filters.sources}
+          focus={@asset_detail_focus}
+          related_assets={@related_assets}
+          return_to={@return_to}
+        />
       </section>
     </div>
   </section>

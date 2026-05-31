@@ -4,15 +4,17 @@ defmodule AssetMonitoringDashWeb.AssetDetailURLState do
   """
 
   @source_options ["scenario", "operator"]
+  @focus_options ["overview", "activity", "related"]
+  @default_focus "overview"
 
   @type event_filters :: %{
           required(:sources) => [String.t()],
           required(:source_option_query) => String.t()
         }
-  @type t :: %__MODULE__{event_filters: event_filters()}
+  @type t :: %__MODULE__{event_filters: event_filters(), focus: String.t()}
 
-  @enforce_keys [:event_filters]
-  defstruct [:event_filters]
+  @enforce_keys [:event_filters, :focus]
+  defstruct [:event_filters, :focus]
 
   @spec default() :: t()
   def default do
@@ -23,17 +25,19 @@ defmodule AssetMonitoringDashWeb.AssetDetailURLState do
   def from_params(params) do
     new(%{
       sources: normalize_sources(Map.get(params, "activity_sources")),
-      source_option_query: ""
+      source_option_query: "",
+      focus: Map.get(params, "focus")
     })
   end
 
-  @spec new(event_filters()) :: t()
-  def new(event_filters) do
+  @spec new(map()) :: t()
+  def new(attrs) do
     %__MODULE__{
       event_filters: %{
-        sources: normalize_sources(Map.get(event_filters, :sources)),
-        source_option_query: normalize_query(Map.get(event_filters, :source_option_query))
-      }
+        sources: normalize_sources(Map.get(attrs, :sources)),
+        source_option_query: normalize_query(Map.get(attrs, :source_option_query))
+      },
+      focus: normalize_focus(Map.get(attrs, :focus))
     }
   end
 
@@ -42,9 +46,16 @@ defmodule AssetMonitoringDashWeb.AssetDetailURLState do
     %{state | event_filters: new(event_filters).event_filters}
   end
 
+  @spec with_focus(t(), String.t()) :: t()
+  def with_focus(%__MODULE__{} = state, focus) do
+    %{state | focus: normalize_focus(focus)}
+  end
+
   @spec params(t()) :: map()
-  def params(%__MODULE__{event_filters: event_filters}) do
-    put_sources_param(%{}, event_filters.sources)
+  def params(%__MODULE__{event_filters: event_filters, focus: focus}) do
+    %{}
+    |> put_sources_param(event_filters.sources)
+    |> put_focus_param(focus)
   end
 
   @spec same_url_params?(t(), t()) :: boolean()
@@ -53,7 +64,7 @@ defmodule AssetMonitoringDashWeb.AssetDetailURLState do
   end
 
   defp default_event_filters do
-    %{sources: [], source_option_query: ""}
+    %{sources: [], source_option_query: "", focus: @default_focus}
   end
 
   defp normalize_sources(nil), do: []
@@ -79,9 +90,15 @@ defmodule AssetMonitoringDashWeb.AssetDetailURLState do
     |> String.downcase()
   end
 
+  defp normalize_focus(focus) when focus in @focus_options, do: focus
+  defp normalize_focus(_focus), do: @default_focus
+
   defp put_sources_param(params, []), do: params
 
   defp put_sources_param(params, sources) do
     Map.put(params, "activity_sources", Enum.join(sources, ","))
   end
+
+  defp put_focus_param(params, @default_focus), do: params
+  defp put_focus_param(params, focus), do: Map.put(params, "focus", focus)
 end

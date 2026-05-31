@@ -11,7 +11,8 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
 
     assert has_element?(view, "#asset-detail-shell")
     assert has_element?(view, "#back-to-dashboard")
-    assert has_element?(view, "#asset-inspection", "Aegis Dragon Helm")
+    assert has_element?(view, "#asset-detail-shell", "Aegis Dragon Helm")
+    assert has_element?(view, "#asset-inspection")
     assert has_element?(view, ~s(#asset-inspection img[src="/images/assets/dragon-helm.svg"]))
     assert has_element?(view, "#asset-context-strip")
     assert has_element?(view, "#asset-context-chain", "Polygon")
@@ -51,16 +52,52 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#risk-reason-ltv_pressure")
     assert has_element?(view, "#risk-reason-health_factor")
     assert has_element?(view, "#risk-reason-valuation_gap")
+    assert has_element?(view, "#review-action-form")
+    assert has_element?(view, "#review_action_reason")
+    assert has_element?(view, "#review_action_note")
+    assert has_element?(view, "#asset-detail-focus-nav.border-b")
+    assert has_element?(view, "#asset-focus-overview")
+    assert has_element?(view, "#asset-focus-activity")
+    assert has_element?(view, "#asset-focus-related")
+    assert has_element?(view, "#asset-detail-tab-overview")
+    refute has_element?(view, "#asset-detail-tab-activity")
+    refute has_element?(view, "#asset-detail-tab-related")
+    refute has_element?(view, "#asset-activity")
+    refute has_element?(view, "#review-history")
+    refute has_element?(view, "#related-assets")
+  end
+
+  test "renders the activity tab as an activity workspace", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?focus=activity")
+
+    assert has_element?(view, "#asset-focus-activity")
+    assert has_element?(view, "#asset-detail-tab-activity")
     assert has_element?(view, "#asset-activity")
     assert has_element?(view, "#asset-activity-filters")
     assert has_element?(view, "#asset-event-count", "0 events")
     assert has_element?(view, "#asset-event-list-empty", "No recorded activity")
-    assert has_element?(view, "#review-action-form")
-    assert has_element?(view, "#review_action_reason")
-    assert has_element?(view, "#review_action_note")
+    assert has_element?(view, "#review-history")
+    assert has_element?(view, "#review-history-count", "0")
+    assert has_element?(view, "#review-history-empty", "No operator decisions")
+    refute has_element?(view, "#asset-inspection")
+    refute has_element?(view, "#related-assets")
+  end
+
+  test "renders the related tab as a related-position workspace", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?focus=related")
+
+    assert has_element?(view, "#asset-focus-related")
+    assert has_element?(view, "#asset-detail-tab-related")
     assert has_element?(view, "#related-assets")
     assert has_element?(view, "#related-asset-asset-009", "Moonwell Guild Charter")
-    assert has_element?(view, ~s(#related-asset-asset-009[href="/assets/asset-009"]))
+
+    assert has_element?(
+             view,
+             ~s(#related-asset-asset-009[href="/assets/asset-009?focus=related"])
+           )
+
+    refute has_element?(view, "#asset-inspection")
+    refute has_element?(view, "#asset-activity")
   end
 
   test "renders oracle and liquidity-driven recommendation details", %{conn: conn} do
@@ -110,7 +147,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     ActivityLog.record_price_shock(other_asset, 12)
     ActivityLog.record_price_shock(asset, 12)
 
-    {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?focus=activity")
 
     assert has_element?(view, "#asset-event-count", "1 events")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Price shock applied")
@@ -128,6 +165,12 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     view
     |> element("#apply-price-shock")
     |> render_click()
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert assert_patch(view) == "/assets/asset-001?focus=activity"
 
     assert has_element?(view, "#asset-event-count", "2 events")
     assert has_element?(view, "#asset-event-row-event-review-reviewed-asset-001")
@@ -155,7 +198,12 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     })
     |> render_change()
 
-    assert assert_patch(view) == "/assets/asset-001?activity_sources=scenario"
+    patch = assert_patch(view)
+    params = patch_query_params(patch)
+
+    assert URI.parse(patch).path == "/assets/asset-001"
+    assert params["activity_sources"] == "scenario"
+    assert params["focus"] == "activity"
     assert has_element?(view, "#asset-event-count", "1 events")
     assert has_element?(view, "#active-filter-asset-event-sources-scenario", "Scenario")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001")
@@ -165,9 +213,28 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#active-filter-asset-event-sources-scenario")
     |> render_click()
 
-    assert assert_patch(view) == "/assets/asset-001"
+    assert assert_patch(view) == "/assets/asset-001?focus=activity"
     assert has_element?(view, "#asset-event-count", "2 events")
     refute has_element?(view, "#active-filter-asset-event-sources-scenario")
+  end
+
+  test "loads and patches asset detail focus state from the URL", %{conn: conn} do
+    {:ok, view, _html} =
+      live(conn, ~p"/assets/asset-001?activity_sources=scenario&focus=activity")
+
+    assert has_element?(view, "#active-filter-asset-event-sources-scenario", "Scenario")
+    assert has_element?(view, "#asset-focus-activity", "Activity")
+
+    view
+    |> element("#asset-focus-related")
+    |> render_click()
+
+    patch = assert_patch(view)
+    params = patch_query_params(patch)
+
+    assert URI.parse(patch).path == "/assets/asset-001"
+    assert params["activity_sources"] == "scenario"
+    assert params["focus"] == "related"
   end
 
   test "loads asset activity source filters from the URL", %{conn: conn} do
@@ -181,7 +248,8 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     ActivityLog.record_price_shock(asset, 12)
     ActivityLog.record_review(asset, ReviewState.state(:reviewed))
 
-    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?activity_sources=scenario")
+    {:ok, view, _html} =
+      live(conn, ~p"/assets/asset-001?activity_sources=scenario&focus=activity")
 
     assert has_element?(view, "#asset-event-count", "1 events")
     assert has_element?(view, "#active-filter-asset-event-sources-scenario", "Scenario")
@@ -190,12 +258,21 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
   end
 
   test "keeps asset activity source filters on related asset links", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?activity_sources=scenario")
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?activity_sources=scenario&focus=related")
 
-    assert has_element?(
-             view,
-             ~s(#related-asset-asset-009[href="/assets/asset-009?activity_sources=scenario"])
-           )
+    [href] =
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#related-asset-asset-009")
+      |> LazyHTML.attribute("href")
+
+    uri = URI.parse(href)
+    params = URI.decode_query(uri.query)
+
+    assert uri.path == "/assets/asset-009"
+    assert params["activity_sources"] == "scenario"
+    assert params["focus"] == "related"
   end
 
   test "updates operator review state without changing system recommendation", %{conn: conn} do
@@ -211,6 +288,16 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#risk-recommendation-label", "Manual review")
     assert has_element?(view, "#operator-review-state-label", "Reviewed")
     assert has_element?(view, "#mark-asset-reviewed[disabled]")
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert assert_patch(view) == "/assets/asset-001?focus=activity"
+    assert has_element?(view, "#review-history-count", "1")
+    assert has_element?(view, "#review-history-list", "Reviewed")
+    assert has_element?(view, "#review-history-list", "by Operator")
+    assert has_element?(view, "#review-history-list", "Signal reviewed")
     assert has_element?(view, "#asset-event-count", "1 events")
     assert has_element?(view, "#asset-event-row-event-review-reviewed-asset-001")
 
@@ -269,6 +356,16 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#risk-recommendation-label", "Watch")
     assert has_element?(view, "#operator-review-state-label", "Escalated")
     assert has_element?(view, "#escalate-asset-review[disabled]")
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert assert_patch(view) == "/assets/asset-003?focus=activity"
+    assert has_element?(view, "#review-history-count", "1")
+    assert has_element?(view, "#review-history-list", "Escalated")
+    assert has_element?(view, "#review-history-list", "Borrower follow-up")
+    assert has_element?(view, "#review-history-list", "Need borrower context.")
     assert has_element?(view, "#asset-event-row-event-review-escalated-asset-003")
 
     assert has_element?(
@@ -303,6 +400,15 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
 
     assert has_element?(view, "#risk-recommendation-label", "Manual review")
     assert has_element?(view, "#operator-review-state-label", "Unreviewed")
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert assert_patch(view) == "/assets/asset-001?focus=activity"
+    assert has_element?(view, "#review-history-count", "2")
+    assert has_element?(view, "#review-history-list", "Scenario changed")
+    assert has_element?(view, "#review-history-list", "by System")
   end
 
   test "applies a price shock to the inspected asset", %{conn: conn} do
@@ -324,13 +430,18 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#risk-reason-ltv_pressure", "Rising LTV")
     assert has_element?(view, "#risk-reason-ltv_pressure", "67.8%")
     assert has_element?(view, "#apply-price-shock[disabled]", "Shock applied")
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert assert_patch(view) == "/assets/asset-001?focus=activity"
     assert has_element?(view, "#asset-event-row-event-shock-asset-001")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Price shock applied")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "67.8%")
 
     render_click(view, :apply_price_shock)
 
-    assert has_element?(view, "#asset-inspection", "$4,277")
     assert has_element?(view, "#asset-event-count", "1 events")
   end
 
@@ -346,6 +457,12 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(remounted_detail_view, "#asset-inspection", "$4,277")
     assert has_element?(remounted_detail_view, "#asset-ltv-trend-latest", "67.8%")
     assert has_element?(remounted_detail_view, "#apply-price-shock[disabled]", "Shock applied")
+
+    remounted_detail_view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert assert_patch(remounted_detail_view) == "/assets/asset-001?focus=activity"
     assert has_element?(remounted_detail_view, "#asset-event-count", "1 events")
     assert has_element?(remounted_detail_view, "#asset-event-row-event-shock-asset-001")
 
@@ -366,6 +483,12 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(dashboard_view, "#event-row-event-shock-asset-001", "Price shock applied")
     assert has_element?(dashboard_view, "#asset-row-asset-001", "$4,277")
     assert has_element?(dashboard_view, "#asset-row-asset-001", "67.8%")
+
+    remounted_detail_view
+    |> element("#asset-focus-overview")
+    |> render_click()
+
+    assert assert_patch(remounted_detail_view) == "/assets/asset-001"
 
     remounted_detail_view
     |> element("#reset-asset-scenario")
@@ -406,6 +529,12 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     assert has_element?(view, "#asset-ltv-trend-delta", "+3.2 pts")
     refute has_element?(view, "#apply-price-shock[disabled]")
     assert has_element?(view, "#reset-asset-scenario[disabled]")
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert assert_patch(view) == "/assets/asset-001?focus=activity"
     assert has_element?(view, "#asset-event-row-event-reset-asset-001")
     assert has_element?(view, "#asset-event-row-event-reset-asset-001", "Scenario reset")
   end
@@ -424,5 +553,15 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
         "note" => note
       }
     })
+  end
+
+  defp patch_query_params(path) do
+    path
+    |> URI.parse()
+    |> Map.fetch!(:query)
+    |> case do
+      nil -> %{}
+      query -> URI.decode_query(query)
+    end
   end
 end
