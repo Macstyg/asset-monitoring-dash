@@ -1,5 +1,5 @@
 defmodule AssetMonitoringDash.EventStoreTest do
-  use AssetMonitoringDash.DataCase, async: true
+  use AssetMonitoringDash.DataCase, async: false
 
   alias AssetMonitoringDash.EventStore
 
@@ -41,7 +41,7 @@ defmodule AssetMonitoringDash.EventStoreTest do
     }
 
     EventStore.push_price_shock_event(asset, 12)
-    EventStore.reset_all()
+    EventStore.reset_mutable_events()
 
     assert Enum.map(EventStore.visible_events(), & &1.id) == [
              "event-001",

@@ -2,8 +2,8 @@ defmodule AssetMonitoringDash.ActivityEventRecord do
   @moduledoc """
   Persisted generated activity feed event.
 
-  Static seed events still come from `EventFeed`; this schema captures user and
-  scenario events created while operating the demo.
+  Seeded narrative events and generated operator/scenario events share this
+  table so the dashboard feed can be queried from one persistence boundary.
   """
 
   use Ecto.Schema

@@ -13,7 +13,7 @@ defmodule AssetMonitoringDash.DemoOperations do
   def reset_mutable_state do
     AssetScenarioStore.reset_all()
     ReviewStore.reset_all()
-    EventStore.reset_all()
+    EventStore.reset_mutable_events()
 
     :ok
   end

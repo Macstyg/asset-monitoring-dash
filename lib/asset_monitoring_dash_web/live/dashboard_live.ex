@@ -8,12 +8,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenarioStore
-  alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.EventFeed
   alias AssetMonitoringDash.Money
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.ReviewStore
-  alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor
   alias AssetMonitoringDashWeb.DashboardLive.Components.EventFeed, as: DashboardEventFeed
@@ -38,7 +36,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         shocked_asset_ids
       )
 
-    snapshot = portfolio_snapshot(Assets.list_persisted_assets_with_scenarios(shocked_asset_ids))
+    snapshot = Assets.portfolio_snapshot(shocked_asset_ids)
 
     socket =
       socket
@@ -115,10 +113,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
     socket =
       socket
-      |> assign(
-        :snapshot,
-        portfolio_snapshot(Assets.list_persisted_assets_with_scenarios(shocked_asset_ids))
-      )
+      |> assign(:snapshot, Assets.portfolio_snapshot(shocked_asset_ids))
       |> assign(:review_states, review_states)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
@@ -264,24 +259,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     {:noreply, push_scheduled_demo_event(socket)}
   end
 
-  defp portfolio_snapshot(assets) do
-    snapshot = DemoData.portfolio_snapshot()
-    baseline_assets = Assets.list_assets()
-    baseline_total_value = total_collateral_value_usd(baseline_assets)
-    risk_score = average_risk_score(assets)
-    baseline_risk_score = average_risk_score(baseline_assets)
-
-    %{
-      snapshot
-      | total_collateral_value_usd: total_collateral_value_usd(assets),
-        collateral_delta_percent:
-          percent_delta(total_collateral_value_usd(assets), baseline_total_value),
-        risk_score: risk_score,
-        risk_delta: risk_score - baseline_risk_score,
-        risk_band: Risk.risk_band(risk_score)
-    }
-  end
-
   defp assign_metric_cards(socket) do
     assign(socket, :metric_cards, metric_cards(socket.assigns.snapshot))
   end
@@ -325,34 +302,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         description: "#{String.downcase(snapshot.risk_band)} pressure"
       }
     ]
-  end
-
-  defp total_collateral_value_usd(assets),
-    do: assets |> Enum.map(& &1.current_value_usd) |> Money.sum()
-
-  defp average_risk_score([]), do: 0
-
-  defp average_risk_score(assets) do
-    assets
-    |> Enum.map(& &1.risk_score)
-    |> Enum.sum()
-    |> Kernel./(length(assets))
-    |> round()
-  end
-
-  defp percent_delta(current_value, baseline_value) do
-    case Decimal.compare(Money.decimal(baseline_value), Decimal.new("0")) do
-      :eq ->
-        Decimal.new("0.0")
-
-      _comparison ->
-        current_value
-        |> Money.decimal()
-        |> Decimal.sub(Money.decimal(baseline_value))
-        |> Decimal.div(Money.decimal(baseline_value))
-        |> Decimal.mult(100)
-        |> Decimal.round(1)
-    end
   end
 
   defp signed_integer(value) when value > 0, do: "+#{value}"
@@ -466,8 +415,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp shocked_assets(shocked_asset_ids) do
     shocked_asset_ids
-    |> Assets.list_persisted_assets_with_scenarios()
-    |> Enum.filter(&Assets.asset_id_in_set?(&1.id, shocked_asset_ids))
+    |> Assets.list_persisted_assets_by_ids(shocked_asset_ids)
   end
 
   defp record_review_decision(_asset, nil), do: :ok
@@ -690,11 +638,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   defp push_demo_event(socket) do
-    feed =
-      EventFeed.push_demo_event_history(
-        socket.assigns.event_history,
-        socket.assigns.next_event_index
-      )
+    feed = ActivityLog.record_demo_event(socket.assigns.next_event_index)
 
     socket
     |> assign(:next_event_index, feed.next_event_index)

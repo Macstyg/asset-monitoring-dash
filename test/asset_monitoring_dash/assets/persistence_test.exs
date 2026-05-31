@@ -80,6 +80,26 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert id == Assets.persisted_asset_id("asset-002-variant-001")
   end
 
+  test "builds the portfolio snapshot from persisted aggregate queries" do
+    snapshot = Assets.portfolio_snapshot()
+
+    assert_decimal_equal(snapshot.total_collateral_value_usd, "3474032.80")
+    assert_decimal_equal(snapshot.collateral_delta_percent, "0.0")
+    assert snapshot.risk_score == 54
+    assert snapshot.risk_delta == 0
+    assert snapshot.risk_band == "Moderate"
+  end
+
+  test "applies scenario state to the persisted portfolio snapshot" do
+    shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-001")
+
+    snapshot = Assets.portfolio_snapshot(shocked_asset_ids)
+
+    assert_decimal_equal(snapshot.total_collateral_value_usd, "3473449.60")
+    assert_decimal_equal(snapshot.collateral_delta_percent, "0.0")
+    assert snapshot.risk_score == 54
+  end
+
   test "applies scenario state on top of persisted assets before returning a page" do
     shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-001")
 

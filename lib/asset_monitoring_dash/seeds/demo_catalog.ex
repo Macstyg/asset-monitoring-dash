@@ -12,6 +12,7 @@ defmodule AssetMonitoringDash.Seeds.DemoCatalog do
   alias AssetMonitoringDash.Assets.GameEcosystem
   alias AssetMonitoringDash.Assets.MarketSnapshot
   alias AssetMonitoringDash.Assets.MonitoredAsset
+  alias AssetMonitoringDash.EventStore
   alias AssetMonitoringDash.Money
   alias AssetMonitoringDash.Repo
 
@@ -41,6 +42,7 @@ defmodule AssetMonitoringDash.Seeds.DemoCatalog do
     Enum.each(assets, &seed_monitored_asset!(&1, chains_by_name, ecosystems_by_name))
 
     seed_market_snapshots!()
+    EventStore.seed_initial_events!()
 
     Assets.list_persisted_assets()
   end

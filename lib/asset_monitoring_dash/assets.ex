@@ -160,6 +160,25 @@ defmodule AssetMonitoringDash.Assets do
     |> apply_scenarios(shocked_asset_ids)
   end
 
+  def list_persisted_assets_by_ids(asset_ids, shocked_asset_ids \\ MapSet.new()) do
+    resolved_asset_ids =
+      asset_ids
+      |> Enum.map(&resolve_persisted_asset_id/1)
+      |> Enum.reject(&is_nil/1)
+
+    case resolved_asset_ids do
+      [] ->
+        []
+
+      asset_ids ->
+        persisted_asset_base_query()
+        |> where([asset], asset.id in ^asset_ids)
+        |> Repo.all()
+        |> Enum.map(&persisted_asset_to_map/1)
+        |> apply_scenarios(shocked_asset_ids)
+    end
+  end
+
   def list_related_asset_candidates(asset, shocked_asset_ids, opts \\ []) do
     candidate_limit = Keyword.get(opts, :limit, 24)
 
@@ -189,6 +208,24 @@ defmodule AssetMonitoringDash.Assets do
       end
 
     Map.put(page, :summary, normalize_summary(page.summary))
+  end
+
+  def portfolio_snapshot(shocked_asset_ids \\ MapSet.new()) do
+    baseline = portfolio_aggregate(MapSet.new())
+    current = portfolio_aggregate(shocked_asset_ids)
+    snapshot = DemoData.portfolio_snapshot()
+    risk_score = rounded_average_score(current.average_risk_score)
+    baseline_risk_score = rounded_average_score(baseline.average_risk_score)
+
+    %{
+      snapshot
+      | total_collateral_value_usd: Money.usd(current.total_collateral_value_usd),
+        collateral_delta_percent:
+          percent_delta(current.total_collateral_value_usd, baseline.total_collateral_value_usd),
+        risk_score: risk_score,
+        risk_delta: risk_score - baseline_risk_score,
+        risk_band: Risk.risk_band(risk_score)
+    }
   end
 
   defp runtime_asset_page?(filters, %{field: field}) do
@@ -369,13 +406,11 @@ defmodule AssetMonitoringDash.Assets do
   def operator_state_filter_options, do: @operator_state_filter_options
 
   def chain_filter_options do
-    chains =
-      list_assets()
-      |> Enum.map(& &1.chain)
-      |> Enum.uniq()
-      |> Enum.sort()
-
-    Enum.map(chains, &%{label: &1, value: &1, icon: :chain})
+    list_assets()
+    |> Enum.map(& &1.chain)
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.map(&%{label: &1, value: &1, icon: :chain})
   end
 
   def filter_options(options, ""), do: options
@@ -734,6 +769,51 @@ defmodule AssetMonitoringDash.Assets do
       highest_ltv_percent:
         summary |> Map.get(:highest_ltv_percent, 0) |> Money.decimal() |> Decimal.round(1)
     }
+  end
+
+  defp portfolio_aggregate(shocked_asset_ids) do
+    @default_filters
+    |> persisted_asset_query(shocked_asset_ids, %{field: :asset, direction: :asc})
+    |> countable_query()
+    |> select([asset, scenario: scenario], %{
+      total_collateral_value_usd:
+        type(
+          fragment(
+            "COALESCE(SUM(COALESCE(?, ?)), 0)",
+            scenario.current_value_usd,
+            asset.current_value_usd
+          ),
+          :decimal
+        ),
+      average_risk_score:
+        type(
+          fragment("COALESCE(AVG(COALESCE(?, ?)), 0)", scenario.risk_score, asset.risk_score),
+          :decimal
+        )
+    })
+    |> Repo.one()
+  end
+
+  defp rounded_average_score(value) do
+    value
+    |> Money.decimal()
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+  end
+
+  defp percent_delta(current_value, baseline_value) do
+    case Decimal.compare(Money.decimal(baseline_value), Decimal.new("0")) do
+      :eq ->
+        Decimal.new("0.0")
+
+      _comparison ->
+        current_value
+        |> Money.decimal()
+        |> Decimal.sub(Money.decimal(baseline_value))
+        |> Decimal.div(Money.decimal(baseline_value))
+        |> Decimal.mult(100)
+        |> Decimal.round(1)
+    end
   end
 
   defp scenario_asset_ids(shocked_asset_ids) do

@@ -23,6 +23,25 @@ defmodule AssetMonitoringDash.EventFeed do
     Enum.map(DemoData.live_events(), &put_event_metadata(Map.put_new(&1, :kind, :system)))
   end
 
+  def initial_event_keys do
+    initial_events()
+    |> Enum.map(& &1.id)
+  end
+
+  def timeline_events(events) do
+    events
+    |> Enum.map(&put_event_metadata/1)
+    |> Enum.take(@visible_event_limit)
+    |> refresh_live_event_labels()
+  end
+
+  def demo_event(next_event_index) do
+    next_event_index
+    |> DemoData.next_live_event()
+    |> Map.put(:kind, :system)
+    |> put_event_metadata()
+  end
+
   def visible_events(generated_events) do
     generated_events
     |> Enum.map(&put_event_metadata/1)
@@ -49,11 +68,7 @@ defmodule AssetMonitoringDash.EventFeed do
   end
 
   def push_demo_event_history(event_history, next_event_index) do
-    event =
-      next_event_index
-      |> DemoData.next_live_event()
-      |> Map.put(:kind, :system)
-      |> put_event_metadata()
+    event = demo_event(next_event_index)
 
     event_history =
       [event | Enum.reject(event_history, &(&1.id == event.id))]
@@ -230,7 +245,7 @@ defmodule AssetMonitoringDash.EventFeed do
   defp put_occurred_at(%{occurred_at: _occurred_at} = event), do: event
 
   defp put_occurred_at(%{time_label: "now"} = event) do
-    Map.put(event, :occurred_at, DateTime.utc_now(:second))
+    Map.put(event, :occurred_at, DateTime.utc_now(:microsecond))
   end
 
   defp put_occurred_at(%{time_label: time_label} = event) do
