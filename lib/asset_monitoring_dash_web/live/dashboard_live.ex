@@ -7,6 +7,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenarioStore
+  alias AssetMonitoringDash.DemoOperations
   alias AssetMonitoringDash.EventFeed
   alias AssetMonitoringDash.Money
   alias AssetMonitoringDash.ReviewState
@@ -122,6 +123,29 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
       |> assign(:event_history, events)
       |> assign_metric_cards()
+      |> apply_asset_filters(socket.assigns.asset_filters)
+      |> apply_event_filter()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("reset_demo_runtime", _params, socket) do
+    DemoOperations.reset_mutable_state()
+
+    shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
+    review_states = ReviewStore.all_states()
+    events = ActivityLog.visible_events()
+
+    socket =
+      socket
+      |> assign(:snapshot, Assets.portfolio_snapshot(shocked_asset_ids))
+      |> assign(:review_states, review_states)
+      |> assign(:shocked_asset_ids, shocked_asset_ids)
+      |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
+      |> assign(:event_history, events)
+      |> assign_metric_cards()
+      |> assign_simulator_status()
       |> apply_asset_filters(socket.assigns.asset_filters)
       |> apply_event_filter()
 

@@ -44,7 +44,15 @@ defmodule AssetMonitoringDashWeb.Formatters do
     value
     |> Money.decimal()
     |> Decimal.round(1)
+    |> normalize_zero()
     |> Decimal.to_string(:normal)
+  end
+
+  defp normalize_zero(decimal) do
+    case Decimal.compare(decimal, Decimal.new("0")) do
+      :eq -> Decimal.new("0.0")
+      _comparison -> decimal
+    end
   end
 
   defp number(value) do

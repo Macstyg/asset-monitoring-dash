@@ -26,5 +26,9 @@ defmodule AssetMonitoringDashWeb.FormattersTest do
       assert Formatters.signed_percent(4.8) == "+4.8%"
       assert Formatters.signed_percent(-0.4) == "-0.4%"
     end
+
+    test "normalizes rounded negative zero percentages" do
+      assert Formatters.signed_percent(Decimal.new("-0.04")) == "0.0%"
+    end
   end
 end

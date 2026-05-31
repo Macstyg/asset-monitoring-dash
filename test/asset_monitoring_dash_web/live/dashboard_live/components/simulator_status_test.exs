@@ -37,6 +37,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatusTest do
            |> LazyHTML.query("#simulator-toggle[phx-click=\"toggle_event_feed\"]")
            |> Enum.any?()
 
+    assert document
+           |> LazyHTML.query("#simulator-reset-runtime[phx-click=\"reset_demo_runtime\"]")
+           |> Enum.any?()
+
     assert document |> LazyHTML.query("#simulator-toggle") |> LazyHTML.text() =~ "Pause process"
   end
 

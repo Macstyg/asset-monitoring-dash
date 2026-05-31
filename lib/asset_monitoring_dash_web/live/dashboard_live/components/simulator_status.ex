@@ -91,6 +91,14 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
           <.icon name={toggle_icon(@status)} class="size-3.5" />
           {toggle_label(@status)}
         </Button.render>
+
+        <Button.render
+          id="simulator-reset-runtime"
+          phx-click="reset_demo_runtime"
+          class="h-9 gap-2 rounded-app px-3"
+        >
+          <.icon name="hero-arrow-path" class="size-3.5" /> Reset runtime
+        </Button.render>
       </div>
     </Panel.render>
     """
