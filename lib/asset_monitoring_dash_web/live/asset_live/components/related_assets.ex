@@ -28,7 +28,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets do
       <div class="mt-4 grid gap-2">
         <.link
           :for={related_asset <- @related_assets}
-          id={"related-asset-#{related_asset.id}"}
+          id={"related-asset-#{Map.get(related_asset, :dom_id, related_asset.id)}"}
           navigate={asset_detail_path(related_asset.id, @return_to, @activity_sources, @focus)}
           class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-app border border-app-border bg-app-surface-2 px-3 py-3 transition hover:border-app-accent/40 hover:bg-app-bg"
         >
@@ -43,7 +43,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets do
           </span>
           <span class="text-right">
             <Badge.render
-              id={"related-asset-risk-#{related_asset.id}"}
+              id={"related-asset-risk-#{Map.get(related_asset, :dom_id, related_asset.id)}"}
               label={related_asset.risk_band}
               tone={risk_tone(related_asset.risk_band)}
             />

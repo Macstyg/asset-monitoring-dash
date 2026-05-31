@@ -5,7 +5,10 @@ defmodule AssetMonitoringDashWeb.AssetController do
 
   def index(conn, params) do
     filters = asset_filters(params)
-    assets = Assets.list_assets(filters)
+
+    assets =
+      Assets.list_persisted_assets()
+      |> Assets.filter_assets(filters)
 
     json(conn, %{
       data: Enum.map(assets, &asset_json/1),

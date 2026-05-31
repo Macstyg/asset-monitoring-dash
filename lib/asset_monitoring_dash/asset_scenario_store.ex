@@ -8,6 +8,8 @@ defmodule AssetMonitoringDash.AssetScenarioStore do
 
   use Agent
 
+  alias AssetMonitoringDash.Assets
+
   def start_link(opts) do
     Agent.start_link(fn -> MapSet.new() end, Keyword.put_new(opts, :name, __MODULE__))
   end
@@ -21,13 +23,13 @@ defmodule AssetMonitoringDash.AssetScenarioStore do
   def apply_price_shock(asset_id) do
     ensure_started()
 
-    update_shocked_asset_ids(&MapSet.put(&1, asset_id))
+    update_shocked_asset_ids(&MapSet.put(&1, Assets.normalize_asset_id(asset_id)))
   end
 
   def reset(asset_id) do
     ensure_started()
 
-    update_shocked_asset_ids(&MapSet.delete(&1, asset_id))
+    update_shocked_asset_ids(&MapSet.delete(&1, Assets.normalize_asset_id(asset_id)))
   end
 
   def reset_all do

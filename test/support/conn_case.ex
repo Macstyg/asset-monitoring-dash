@@ -17,6 +17,8 @@ defmodule AssetMonitoringDashWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias AssetMonitoringDash.Seeds.DemoCatalog
+
   using do
     quote do
       # The default endpoint for testing
@@ -36,7 +38,19 @@ defmodule AssetMonitoringDashWeb.ConnCase do
     AssetMonitoringDash.AssetScenarioStore.reset_all()
     AssetMonitoringDash.EventStore.reset_all()
     AssetMonitoringDash.ReviewStore.reset_all()
+    DemoCatalog.run!()
 
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  def asset_id(code) do
+    AssetMonitoringDash.Assets.persisted_asset_id(code)
+  end
+
+  def asset_row_selector(code), do: "#asset-row-#{asset_id(code)}"
+  def related_asset_selector(code), do: "#related-asset-#{asset_id(code)}"
+
+  def event_id(prefix, code), do: "#{prefix}-#{asset_id(code)}"
+  def event_row_selector(prefix, code), do: "#event-row-#{event_id(prefix, code)}"
+  def asset_event_row_selector(prefix, code), do: "#asset-event-row-#{event_id(prefix, code)}"
 end

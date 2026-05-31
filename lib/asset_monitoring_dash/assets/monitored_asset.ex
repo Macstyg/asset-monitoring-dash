@@ -10,6 +10,7 @@ defmodule AssetMonitoringDash.Assets.MonitoredAsset do
   alias AssetMonitoringDash.Assets.Chain
   alias AssetMonitoringDash.Assets.GameEcosystem
 
+  @primary_key {:id, :binary_id, autogenerate: true}
   schema "monitored_assets" do
     field :asset_type, :string
     field :current_value_usd, :integer
@@ -20,7 +21,6 @@ defmodule AssetMonitoringDash.Assets.MonitoredAsset do
     field :market_depth_usd, :integer
     field :name, :string
     field :oracle_freshness_seconds, :integer
-    field :public_id, :string
     field :rarity, :string
     field :risk_band, :string
     field :risk_score, :integer
@@ -45,7 +45,6 @@ defmodule AssetMonitoringDash.Assets.MonitoredAsset do
       :market_depth_usd,
       :name,
       :oracle_freshness_seconds,
-      :public_id,
       :rarity,
       :risk_band,
       :risk_score
@@ -62,13 +61,11 @@ defmodule AssetMonitoringDash.Assets.MonitoredAsset do
       :market_depth_usd,
       :name,
       :oracle_freshness_seconds,
-      :public_id,
       :rarity,
       :risk_band,
       :risk_score
     ])
     |> foreign_key_constraint(:chain_id)
     |> foreign_key_constraint(:game_ecosystem_id)
-    |> unique_constraint(:public_id)
   end
 end

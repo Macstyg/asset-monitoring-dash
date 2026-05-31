@@ -25,8 +25,6 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   @related_asset_limit 4
   @impl true
   def mount(%{"id" => asset_id} = params, _session, socket) do
-    Assets.ensure_demo_catalog!()
-
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
     assets = Assets.list_persisted_assets_with_scenarios(shocked_asset_ids)
     detail_state = AssetDetailURLState.from_params(params)
@@ -171,7 +169,10 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     socket
     |> assign(:page_title, "#{asset.name} · Asset detail")
     |> assign(:asset, asset)
-    |> assign(:asset_shocked?, MapSet.member?(socket.assigns.shocked_asset_ids, asset.id))
+    |> assign(
+      :asset_shocked?,
+      Assets.asset_id_in_set?(asset.id, socket.assigns.shocked_asset_ids)
+    )
     |> assign(:asset_reviewed?, review_state.id == :reviewed)
     |> assign(:asset_escalated?, review_state.id == :escalated)
     |> assign(:asset_health_factor, asset |> Risk.health_factor() |> Formatters.decimal())

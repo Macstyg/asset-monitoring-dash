@@ -1,5 +1,5 @@
 defmodule AssetMonitoringDashWeb.AssetControllerTest do
-  use AssetMonitoringDashWeb.ConnCase, async: true
+  use AssetMonitoringDashWeb.ConnCase, async: false
 
   test "GET /api/assets returns normalized monitored assets", %{conn: conn} do
     conn = get(conn, ~p"/api/assets")
@@ -10,7 +10,7 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
     assert response["meta"]["summary"]["at_risk_count"] == 165
 
     assert %{
-             "id" => "asset-001",
+             "id" => id,
              "name" => "Aegis Dragon Helm",
              "icon" => "dragon-helm",
              "chain" => "Polygon",
@@ -18,6 +18,8 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
              "risk_score" => 70,
              "risk_band" => "Elevated"
            } = List.first(response["data"])
+
+    assert id == asset_id("asset-001")
   end
 
   test "GET /api/assets filters by risk band", %{conn: conn} do
@@ -28,9 +30,9 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
 
     assert response["meta"]["count"] == 14
     assert response["meta"]["filters"]["risks"] == ["Critical"]
-    assert "asset-002" in asset_ids
-    assert "asset-010" in asset_ids
-    assert "asset-010-variant-005" in asset_ids
+    assert asset_id("asset-002") in asset_ids
+    assert asset_id("asset-010") in asset_ids
+    assert asset_id("asset-010-variant-005") in asset_ids
   end
 
   test "GET /api/assets combines query and chain filters", %{conn: conn} do
@@ -42,7 +44,7 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
     assert response["meta"]["count"] == 50
     assert response["meta"]["filters"]["query"] == "vault"
     assert response["meta"]["filters"]["chains"] == ["Arbitrum"]
-    assert "asset-005" in asset_ids
-    assert "asset-005-variant-001" in asset_ids
+    assert asset_id("asset-005") in asset_ids
+    assert asset_id("asset-005-variant-001") in asset_ids
   end
 end

@@ -93,7 +93,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
 
     assert has_element?(
              view,
-             ~s(#related-asset-asset-009[href="/assets/asset-009?focus=related"])
+             ~s(#related-asset-asset-009[href="/assets/#{asset_id("asset-009")}?focus=related"])
            )
 
     refute has_element?(view, "#asset-inspection")
@@ -170,7 +170,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#asset-focus-activity")
     |> render_click()
 
-    assert assert_patch(view) == "/assets/asset-001?focus=activity"
+    assert assert_patch(view) == asset_path("asset-001", "focus=activity")
 
     assert has_element?(view, "#asset-event-count", "2 events")
     assert has_element?(view, "#asset-event-row-event-review-reviewed-asset-001")
@@ -201,7 +201,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     patch = assert_patch(view)
     params = patch_query_params(patch)
 
-    assert URI.parse(patch).path == "/assets/asset-001"
+    assert URI.parse(patch).path == asset_path("asset-001")
     assert params["activity_sources"] == "scenario"
     assert params["focus"] == "activity"
     assert has_element?(view, "#asset-event-count", "1 events")
@@ -213,7 +213,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#active-filter-asset-event-sources-scenario")
     |> render_click()
 
-    assert assert_patch(view) == "/assets/asset-001?focus=activity"
+    assert assert_patch(view) == asset_path("asset-001", "focus=activity")
     assert has_element?(view, "#asset-event-count", "2 events")
     refute has_element?(view, "#active-filter-asset-event-sources-scenario")
   end
@@ -232,7 +232,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     patch = assert_patch(view)
     params = patch_query_params(patch)
 
-    assert URI.parse(patch).path == "/assets/asset-001"
+    assert URI.parse(patch).path == asset_path("asset-001")
     assert params["activity_sources"] == "scenario"
     assert params["focus"] == "related"
   end
@@ -270,7 +270,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     uri = URI.parse(href)
     params = URI.decode_query(uri.query)
 
-    assert uri.path == "/assets/asset-009"
+    assert uri.path == asset_path("asset-009")
     assert params["activity_sources"] == "scenario"
     assert params["focus"] == "related"
   end
@@ -293,7 +293,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#asset-focus-activity")
     |> render_click()
 
-    assert assert_patch(view) == "/assets/asset-001?focus=activity"
+    assert assert_patch(view) == asset_path("asset-001", "focus=activity")
     assert has_element?(view, "#review-history-count", "1")
     assert has_element?(view, "#review-history-list", "Reviewed")
     assert has_element?(view, "#review-history-list", "by Operator")
@@ -361,7 +361,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#asset-focus-activity")
     |> render_click()
 
-    assert assert_patch(view) == "/assets/asset-003?focus=activity"
+    assert assert_patch(view) == asset_path("asset-003", "focus=activity")
     assert has_element?(view, "#review-history-count", "1")
     assert has_element?(view, "#review-history-list", "Escalated")
     assert has_element?(view, "#review-history-list", "Borrower follow-up")
@@ -405,7 +405,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#asset-focus-activity")
     |> render_click()
 
-    assert assert_patch(view) == "/assets/asset-001?focus=activity"
+    assert assert_patch(view) == asset_path("asset-001", "focus=activity")
     assert has_element?(view, "#review-history-count", "2")
     assert has_element?(view, "#review-history-list", "Scenario changed")
     assert has_element?(view, "#review-history-list", "by System")
@@ -435,7 +435,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#asset-focus-activity")
     |> render_click()
 
-    assert assert_patch(view) == "/assets/asset-001?focus=activity"
+    assert assert_patch(view) == asset_path("asset-001", "focus=activity")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Price shock applied")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "67.8%")
@@ -462,7 +462,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#asset-focus-activity")
     |> render_click()
 
-    assert assert_patch(remounted_detail_view) == "/assets/asset-001?focus=activity"
+    assert assert_patch(remounted_detail_view) == asset_path("asset-001", "focus=activity")
     assert has_element?(remounted_detail_view, "#asset-event-count", "1 events")
     assert has_element?(remounted_detail_view, "#asset-event-row-event-shock-asset-001")
 
@@ -488,7 +488,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#asset-focus-overview")
     |> render_click()
 
-    assert assert_patch(remounted_detail_view) == "/assets/asset-001"
+    assert assert_patch(remounted_detail_view) == asset_path("asset-001")
 
     remounted_detail_view
     |> element("#reset-asset-scenario")
@@ -534,7 +534,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#asset-focus-activity")
     |> render_click()
 
-    assert assert_patch(view) == "/assets/asset-001?focus=activity"
+    assert assert_patch(view) == asset_path("asset-001", "focus=activity")
     assert has_element?(view, "#asset-event-row-event-reset-asset-001")
     assert has_element?(view, "#asset-event-row-event-reset-asset-001", "Scenario reset")
   end
@@ -564,4 +564,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
       query -> URI.decode_query(query)
     end
   end
+
+  defp asset_path(code), do: "/assets/#{asset_id(code)}"
+  defp asset_path(code, query), do: "#{asset_path(code)}?#{query}"
 end

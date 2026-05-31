@@ -12,7 +12,6 @@ defmodule AssetMonitoringDash.Application do
       AssetMonitoringDash.Repo,
       AssetMonitoringDash.AssetScenarioStore,
       AssetMonitoringDash.EventStore,
-      AssetMonitoringDash.ReviewStore,
       {DNSCluster,
        query: Application.get_env(:asset_monitoring_dash, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: AssetMonitoringDash.PubSub},

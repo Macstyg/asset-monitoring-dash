@@ -1,15 +1,16 @@
 defmodule AssetMonitoringDash.Assets.PersistenceTest do
-  use AssetMonitoringDash.DataCase, async: true
+  use AssetMonitoringDash.DataCase, async: false
 
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.Assets.Chain
   alias AssetMonitoringDash.Assets.GameEcosystem
   alias AssetMonitoringDash.Assets.MonitoredAsset
+  alias AssetMonitoringDash.Seeds.DemoCatalog
 
-  test "persists the canonical demo asset catalog idempotently" do
+  test "seeds the canonical demo asset catalog idempotently" do
     assert Assets.catalog_seeded?() == false
 
-    persisted_assets = Assets.persist_demo_catalog!()
+    persisted_assets = DemoCatalog.run!()
 
     assert length(persisted_assets) == 600
     assert Assets.catalog_seeded?()
@@ -17,7 +18,7 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert Repo.aggregate(GameEcosystem, :count) == 6
     assert Repo.aggregate(MonitoredAsset, :count) == 600
 
-    Assets.persist_demo_catalog!()
+    DemoCatalog.run!()
 
     assert Repo.aggregate(Chain, :count) == 6
     assert Repo.aggregate(GameEcosystem, :count) == 6
@@ -25,22 +26,21 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   end
 
   test "reads persisted assets in the same shape used by the dashboard" do
-    Assets.persist_demo_catalog!()
+    DemoCatalog.run!()
 
-    assert [
-             %{
-               id: "asset-001",
-               chain: "Polygon",
-               ecosystem: "Skyforge Arena",
-               oracle_status: "Fresh",
-               liquidity_status: "Deep"
-             }
-             | _assets
-           ] = Assets.list_persisted_assets()
+    assert %{
+             id: id,
+             chain: "Polygon",
+             ecosystem: "Skyforge Arena",
+             oracle_status: "Fresh",
+             liquidity_status: "Deep"
+           } = Enum.find(Assets.list_persisted_assets(), &(&1.dom_id == "asset-001"))
+
+    assert Ecto.UUID.cast(id) == {:ok, id}
   end
 
   test "pages persisted assets through the context query boundary" do
-    Assets.persist_demo_catalog!()
+    DemoCatalog.run!()
 
     page =
       Assets.list_persisted_assets_page(%{
@@ -52,7 +52,8 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert page.total_count == 50
     assert page.next_cursor == 1
     assert page.summary.visible_count == 50
-    assert [%{id: "asset-002", chain: "Ethereum", ecosystem: "Embervale"}] = page.entries
+    assert [%{id: id, chain: "Ethereum", ecosystem: "Embervale"}] = page.entries
+    assert id == Assets.persisted_asset_id("asset-002")
 
     next_page =
       Assets.list_persisted_assets_page(%{
@@ -63,11 +64,12 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
       })
 
     assert next_page.next_cursor == 2
-    assert [%{id: "asset-002-variant-001"}] = next_page.entries
+    assert [%{id: id}] = next_page.entries
+    assert id == Assets.persisted_asset_id("asset-002-variant-001")
   end
 
   test "applies scenario state on top of persisted assets before returning a page" do
-    Assets.persist_demo_catalog!()
+    DemoCatalog.run!()
 
     page =
       Assets.list_persisted_assets_page(%{
@@ -78,11 +80,12 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
       })
 
     assert page.total_count == 50
-    assert [%{id: "asset-001", current_value_usd: 4_277, ltv_percent: 67.8}] = page.entries
+    assert [%{id: id, current_value_usd: 4_277, ltv_percent: 67.8}] = page.entries
+    assert id == Assets.persisted_asset_id("asset-001")
   end
 
   test "reads the persisted catalog with scenario adjustments for detail pages" do
-    Assets.persist_demo_catalog!()
+    DemoCatalog.run!()
 
     asset =
       MapSet.new(["asset-001"])

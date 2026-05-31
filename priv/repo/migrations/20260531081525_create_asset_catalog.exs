@@ -24,8 +24,8 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateAssetCatalog do
     create unique_index(:game_ecosystems, [:slug])
     create unique_index(:game_ecosystems, [:name])
 
-    create table(:monitored_assets) do
-      add :public_id, :string, null: false
+    create table(:monitored_assets, primary_key: false) do
+      add :id, :uuid, primary_key: true
       add :name, :string, null: false
       add :icon, :string, null: false
       add :asset_type, :string, null: false
@@ -45,7 +45,7 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateAssetCatalog do
       timestamps(type: :utc_datetime)
     end
 
-    create unique_index(:monitored_assets, [:public_id])
+    create unique_index(:monitored_assets, [:name])
     create index(:monitored_assets, [:chain_id])
     create index(:monitored_assets, [:game_ecosystem_id])
     create index(:monitored_assets, [:risk_band])

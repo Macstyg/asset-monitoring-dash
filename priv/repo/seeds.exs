@@ -1,1 +1,1 @@
-AssetMonitoringDash.Assets.persist_demo_catalog!()
+AssetMonitoringDash.Seeds.DemoCatalog.run!()

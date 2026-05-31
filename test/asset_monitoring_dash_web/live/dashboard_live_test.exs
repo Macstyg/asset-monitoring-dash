@@ -206,7 +206,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> element("#asset-row-asset-010")
     |> render_click()
 
-    assert_redirect(view, ~p"/assets/asset-010")
+    assert_redirect(view, ~p"/assets/#{asset_id("asset-010")}")
   end
 
   test "preserves the filtered dashboard URL when navigating to an asset", %{conn: conn} do
@@ -220,7 +220,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     {redirect_path, _flash} = assert_redirect(view)
     uri = URI.parse(redirect_path)
 
-    assert uri.path == "/assets/asset-010"
+    assert uri.path == "/assets/#{asset_id("asset-010")}"
 
     assert uri.query
            |> URI.decode_query()
@@ -533,7 +533,10 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     |> element("#asset-list-sort-operator")
     |> render_click()
 
-    review_states = %{"asset-001" => :reviewed, "asset-003" => :escalated}
+    review_states = %{
+      asset_id("asset-001") => :reviewed,
+      asset_id("asset-003") => :escalated
+    }
 
     assert List.first(asset_row_ids(view)) ==
              expected_first_asset_row_id(%{field: :operator, direction: :desc},
@@ -813,13 +816,12 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
       review_states: review_states,
       shocked_asset_ids: shocked_asset_ids
     }
-    |> Assets.list_assets_page()
+    |> Assets.list_persisted_assets_page()
     |> Map.fetch!(:entries)
-    |> Enum.map(&"asset-row-#{&1.id}")
+    |> Enum.map(&"asset-row-#{&1.dom_id}")
   end
 
   defp asset_fixture(asset_id) do
-    Assets.list_assets()
-    |> Enum.find(&(&1.id == asset_id))
+    Assets.get_asset(asset_id)
   end
 end

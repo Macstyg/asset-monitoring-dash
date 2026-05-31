@@ -24,6 +24,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.RelatedAssetRanker do
       risk_band_match_score(asset, related_asset)
   end
 
+  defp canonical_asset?(%{dom_id: dom_id}), do: !String.contains?(dom_id, "-variant-")
   defp canonical_asset?(%{id: id}), do: !String.contains?(id, "-variant-")
 
   defp chain_match_score(%{chain: chain}, %{chain: chain}), do: 3

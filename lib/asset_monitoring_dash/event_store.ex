@@ -8,6 +8,7 @@ defmodule AssetMonitoringDash.EventStore do
 
   use Agent
 
+  alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.EventFeed
 
   def start_link(opts) do
@@ -22,6 +23,8 @@ defmodule AssetMonitoringDash.EventStore do
 
   def visible_events_for_asset(asset_id) do
     ensure_started()
+
+    asset_id = Assets.normalize_asset_id(asset_id)
 
     Agent.get(__MODULE__, &EventFeed.visible_events_for_asset(&1, asset_id))
   end

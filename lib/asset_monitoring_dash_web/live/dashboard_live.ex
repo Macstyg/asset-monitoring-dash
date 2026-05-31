@@ -23,8 +23,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def mount(params, _session, socket) do
-    Assets.ensure_demo_catalog!()
-
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
     events = ActivityLog.visible_events()
     review_states = ReviewStore.all_states()
@@ -39,11 +37,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         shocked_asset_ids
       )
 
-    snapshot = portfolio_snapshot(Assets.list_assets_with_scenarios(shocked_asset_ids))
+    snapshot = portfolio_snapshot(Assets.list_persisted_assets_with_scenarios(shocked_asset_ids))
 
     socket =
       socket
-      |> stream_configure(:assets, dom_id: &"asset-row-#{&1.id}")
+      |> stream_configure(:assets, dom_id: &"asset-row-#{&1.dom_id}")
       |> stream_configure(:events, dom_id: &"event-row-#{&1.id}")
       |> assign(:page_title, "Asset Risk Cockpit")
       |> assign(:snapshot, snapshot)
@@ -118,7 +116,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       socket
       |> assign(
         :snapshot,
-        portfolio_snapshot(Assets.list_assets_with_scenarios(shocked_asset_ids))
+        portfolio_snapshot(Assets.list_persisted_assets_with_scenarios(shocked_asset_ids))
       )
       |> assign(:review_states, review_states)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
@@ -450,8 +448,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp push_scenario_reset_events(shocked_asset_ids) do
     shocked_asset_ids
-    |> Assets.list_assets_with_scenarios()
-    |> Enum.filter(&MapSet.member?(shocked_asset_ids, &1.id))
+    |> Assets.list_persisted_assets_with_scenarios()
+    |> Enum.filter(&Assets.asset_id_in_set?(&1.id, shocked_asset_ids))
     |> Enum.each(&ActivityLog.record_scenario_reset/1)
   end
 
@@ -657,12 +655,12 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       risk_recommendation: recommendation,
       recommendation_reason: List.first(recommendation.reasons),
       review_state: review_state,
-      scenario: scenario_for_asset(asset.id, shocked_asset_ids)
+      scenario: scenario_for_asset(asset, shocked_asset_ids)
     })
   end
 
-  defp scenario_for_asset(asset_id, shocked_asset_ids) do
-    case MapSet.member?(shocked_asset_ids, asset_id) do
+  defp scenario_for_asset(asset, shocked_asset_ids) do
+    case Assets.asset_id_in_set?(asset.id, shocked_asset_ids) do
       true -> %{label: "Price shock", tone: :warning}
       false -> nil
     end

@@ -7,6 +7,7 @@ defmodule AssetMonitoringDash.EventFeed do
   visible history, and refreshing relative labels for generated live events.
   """
 
+  alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.ReviewAudit
 
@@ -65,8 +66,10 @@ defmodule AssetMonitoringDash.EventFeed do
   end
 
   def push_price_shock_event(visible_events, asset, drop_percent) do
+    event_asset_key = event_asset_key(asset)
+
     event = %{
-      id: "event-shock-#{asset.id}",
+      id: "event-shock-#{event_asset_key}",
       asset_id: asset.id,
       time_label: "now",
       title: "Price shock applied",
@@ -81,8 +84,10 @@ defmodule AssetMonitoringDash.EventFeed do
   end
 
   def push_scenario_reset_event(visible_events, asset) do
+    event_asset_key = event_asset_key(asset)
+
     event = %{
-      id: "event-reset-#{asset.id}",
+      id: "event-reset-#{event_asset_key}",
       asset_id: asset.id,
       time_label: "now",
       title: "Scenario reset",
@@ -246,12 +251,17 @@ defmodule AssetMonitoringDash.EventFeed do
   defp actor_label(:system), do: "Monitoring system"
   defp actor_label(_kind), do: "Monitoring system"
 
-  defp asset_event?(%{asset_id: asset_id}, asset_id), do: true
+  defp asset_event?(%{asset_id: event_asset_id}, asset_id) do
+    Assets.same_asset_id?(event_asset_id, asset_id)
+  end
+
   defp asset_event?(_event, _asset_id), do: false
 
   defp review_event(asset, %{id: :reviewed}, audit_context) do
+    event_asset_key = event_asset_key(asset)
+
     %{
-      id: "event-review-reviewed-#{asset.id}",
+      id: "event-review-reviewed-#{event_asset_key}",
       asset_id: asset.id,
       title: "Position reviewed",
       detail:
@@ -270,8 +280,10 @@ defmodule AssetMonitoringDash.EventFeed do
   end
 
   defp review_event(asset, %{id: :escalated}, audit_context) do
+    event_asset_key = event_asset_key(asset)
+
     %{
-      id: "event-review-escalated-#{asset.id}",
+      id: "event-review-escalated-#{event_asset_key}",
       asset_id: asset.id,
       title: "Review escalated",
       detail: review_event_detail("#{asset.name} escalated for follow-up.", audit_context),
@@ -298,4 +310,7 @@ defmodule AssetMonitoringDash.EventFeed do
   defp review_event_detail(detail, %{reason: reason, note: note}) do
     "#{detail} Reason: #{reason}. Note: #{note}"
   end
+
+  defp event_asset_key(%{dom_id: dom_id}) when is_binary(dom_id), do: dom_id
+  defp event_asset_key(%{id: id}), do: id
 end

@@ -127,7 +127,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetTable do
               />
               <Badge.render
                 :if={asset.scenario}
-                id={"asset-scenario-#{asset.id}"}
+                id={"asset-scenario-#{Map.get(asset, :dom_id, asset.id)}"}
                 label={asset.scenario.label}
                 tone={asset.scenario.tone}
               />

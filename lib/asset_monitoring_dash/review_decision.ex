@@ -7,7 +7,6 @@ defmodule AssetMonitoringDash.ReviewDecision do
   alias AssetMonitoringDash.ReviewState
 
   @enforce_keys [
-    :id,
     :asset_id,
     :state_id,
     :state_label,
@@ -45,20 +44,13 @@ defmodule AssetMonitoringDash.ReviewDecision do
 
   defp build(asset_id, review_state, actor, audit_context) do
     %__MODULE__{
-      id: decision_id(asset_id, review_state.id),
       asset_id: asset_id,
       state_id: review_state.id,
       state_label: review_state.label,
       state_tone: review_state.tone,
       actor: actor,
       audit: ReviewAudit.new(audit_context),
-      occurred_at: DateTime.utc_now(:second)
+      occurred_at: DateTime.utc_now()
     }
-  end
-
-  defp decision_id(asset_id, state_id) do
-    sequence = System.unique_integer([:positive, :monotonic])
-
-    "review-decision-#{asset_id}-#{state_id}-#{sequence}"
   end
 end

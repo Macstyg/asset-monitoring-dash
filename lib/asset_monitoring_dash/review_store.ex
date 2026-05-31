@@ -1,117 +1,146 @@
 defmodule AssetMonitoringDash.ReviewStore do
   @moduledoc """
-  Runtime store for demo operator review states.
+  Persistent boundary for operator review states and audit history.
 
-  This gives separate LiveViews a shared view of what the operator has done
-  without introducing database persistence before the workflow is settled.
+  Review workflow is stored as an append-only decision log. The current state is
+  derived from the latest decision for each asset, while `history_for/1` keeps
+  the full audit trail visible on the asset detail page.
   """
 
-  use Agent
+  import Ecto.Query
 
+  alias AssetMonitoringDash.Assets
+  alias AssetMonitoringDash.Repo
+  alias AssetMonitoringDash.ReviewAudit
   alias AssetMonitoringDash.ReviewDecision
+  alias AssetMonitoringDash.ReviewDecisionRecord
   alias AssetMonitoringDash.ReviewState
 
-  @empty_store %{states: %{}, history: %{}}
-
-  def start_link(opts) do
-    Agent.start_link(fn -> @empty_store end, Keyword.put_new(opts, :name, __MODULE__))
-  end
+  @state_atoms %{
+    "unreviewed" => :unreviewed,
+    "reviewed" => :reviewed,
+    "escalated" => :escalated
+  }
 
   def all_states do
-    ensure_started()
-
-    Agent.get(__MODULE__, &normalize_store(&1).states)
+    ReviewDecisionRecord
+    |> order_by([decision],
+      asc: decision.asset_id,
+      desc: decision.occurred_at,
+      desc: decision.id
+    )
+    |> Repo.all()
+    |> current_states_from_records()
   end
 
   def history_for(asset_id) do
-    ensure_started()
+    asset_id = Assets.resolve_persisted_asset_id(asset_id)
 
-    Agent.get(__MODULE__, fn store ->
-      store
-      |> normalize_store()
-      |> Map.fetch!(:history)
-      |> Map.get(asset_id, [])
-    end)
+    ReviewDecisionRecord
+    |> where([decision], decision.asset_id == ^asset_id)
+    |> order_by([decision], desc: decision.occurred_at, desc: decision.id)
+    |> Repo.all()
+    |> Enum.map(&record_to_decision/1)
   end
 
   def mark_reviewed(asset_id, audit_context \\ %{}) do
-    ensure_started()
+    asset_id = Assets.resolve_persisted_asset_id(asset_id)
 
-    update_store(fn store ->
-      put_operator_decision(store, asset_id, ReviewState.state(:reviewed), audit_context)
-    end)
+    asset_id
+    |> ReviewDecision.operator(ReviewState.state(:reviewed), audit_context)
+    |> persist_decision!()
+
+    all_states()
   end
 
   def escalate(asset_id, audit_context \\ %{}) do
-    ensure_started()
+    asset_id = Assets.resolve_persisted_asset_id(asset_id)
 
-    update_store(fn store ->
-      put_operator_decision(store, asset_id, ReviewState.state(:escalated), audit_context)
-    end)
+    asset_id
+    |> ReviewDecision.operator(ReviewState.state(:escalated), audit_context)
+    |> persist_decision!()
+
+    all_states()
   end
 
   def reset(asset_id) do
-    ensure_started()
+    asset_id = Assets.resolve_persisted_asset_id(asset_id)
+    states = all_states()
 
-    update_store(fn store ->
-      previous_state_id = Map.get(store.states, asset_id, :unreviewed)
-      store = %{store | states: ReviewState.reset(store.states, asset_id)}
+    case Map.get(states, asset_id, :unreviewed) do
+      :unreviewed ->
+        states
 
-      case previous_state_id do
-        :unreviewed -> store
-        _state_id -> put_decision(store, asset_id, ReviewDecision.system_reset(asset_id))
-      end
-    end)
+      _state_id ->
+        asset_id
+        |> ReviewDecision.system_reset()
+        |> persist_decision!()
+
+        all_states()
+    end
   end
 
   def reset_all do
-    ensure_started()
+    Repo.delete_all(ReviewDecisionRecord)
 
-    Agent.update(__MODULE__, fn _store -> @empty_store end)
+    :ok
   end
 
-  defp ensure_started do
-    case Process.whereis(__MODULE__) do
-      nil -> start_standalone()
-      _pid -> :ok
+  defp persist_decision!(%ReviewDecision{} = decision) do
+    %ReviewDecisionRecord{}
+    |> ReviewDecisionRecord.changeset(decision_attrs(decision))
+    |> Repo.insert!()
+  end
+
+  defp decision_attrs(%ReviewDecision{} = decision) do
+    audit = ReviewAudit.normalize(decision.audit)
+
+    %{
+      actor: decision.actor,
+      asset_id: decision.asset_id,
+      note: audit.note,
+      occurred_at: decision.occurred_at,
+      reason: audit.reason,
+      state_id: Atom.to_string(decision.state_id)
+    }
+  end
+
+  defp current_states_from_records(records) do
+    records
+    |> Enum.reduce({%{}, MapSet.new()}, &put_current_state_from_record/2)
+    |> elem(0)
+  end
+
+  defp put_current_state_from_record(record, {states, seen_asset_ids}) do
+    case MapSet.member?(seen_asset_ids, record.asset_id) do
+      true ->
+        {states, seen_asset_ids}
+
+      false ->
+        state_id = state_atom(record.state_id)
+        states = put_current_state(states, record.asset_id, state_id)
+
+        {states, MapSet.put(seen_asset_ids, record.asset_id)}
     end
   end
 
-  defp start_standalone do
-    case start_link([]) do
-      {:ok, _pid} -> :ok
-      {:error, {:already_started, _pid}} -> :ok
-    end
+  defp put_current_state(states, _asset_id, :unreviewed), do: states
+  defp put_current_state(states, asset_id, state_id), do: Map.put(states, asset_id, state_id)
+
+  defp record_to_decision(record) do
+    state = ReviewState.state(state_atom(record.state_id))
+
+    %ReviewDecision{
+      actor: record.actor,
+      asset_id: record.asset_id,
+      audit: ReviewAudit.new(%{note: record.note, reason: record.reason}),
+      id: record.id,
+      occurred_at: record.occurred_at,
+      state_id: state.id,
+      state_label: state.label,
+      state_tone: state.tone
+    }
   end
 
-  defp update_store(fun) do
-    Agent.get_and_update(__MODULE__, fn states ->
-      store =
-        states
-        |> normalize_store()
-        |> fun.()
-
-      {store.states, store}
-    end)
-  end
-
-  defp put_operator_decision(store, asset_id, review_state, audit_context) do
-    store
-    |> Map.update!(:states, fn states -> Map.put(states, asset_id, review_state.id) end)
-    |> put_decision(asset_id, ReviewDecision.operator(asset_id, review_state, audit_context))
-  end
-
-  defp put_decision(store, asset_id, %ReviewDecision{} = decision) do
-    Map.update!(store, :history, fn history ->
-      Map.update(history, asset_id, [decision], &[decision | &1])
-    end)
-  end
-
-  defp normalize_store(%{states: states, history: history}) do
-    %{states: states, history: history}
-  end
-
-  defp normalize_store(states) when is_map(states) do
-    %{states: states, history: %{}}
-  end
+  defp state_atom(state_id), do: Map.get(@state_atoms, state_id, :unreviewed)
 end

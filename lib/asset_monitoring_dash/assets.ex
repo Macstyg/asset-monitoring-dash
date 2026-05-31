@@ -9,8 +9,6 @@ defmodule AssetMonitoringDash.Assets do
 
   import Ecto.Query
 
-  alias AssetMonitoringDash.Assets.Chain
-  alias AssetMonitoringDash.Assets.GameEcosystem
   alias AssetMonitoringDash.Assets.MonitoredAsset
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.Repo
@@ -72,27 +70,46 @@ defmodule AssetMonitoringDash.Assets do
     "asset-012" => [-0.9, -1.5, -0.4, 0.6, -0.1, 0.9]
   }
 
+  def normalize_asset_id(asset_id), do: asset_id
+
+  def resolve_persisted_asset_id("asset-" <> _rest = dom_id) do
+    case persisted_asset_id(dom_id) do
+      nil -> dom_id
+      asset_id -> asset_id
+    end
+  end
+
+  def resolve_persisted_asset_id(asset_id), do: asset_id
+
+  def persisted_asset_id(dom_id) do
+    list_persisted_assets()
+    |> Enum.find(&(&1.dom_id == dom_id))
+    |> case do
+      nil -> nil
+      asset -> asset.id
+    end
+  end
+
+  def same_asset_id?(asset_id, asset_id), do: true
+
+  def same_asset_id?("asset-" <> _rest, "asset-" <> _other_rest), do: false
+
+  def same_asset_id?("asset-" <> _rest = dom_id, asset_id),
+    do: persisted_asset_id(dom_id) == asset_id
+
+  def same_asset_id?(asset_id, "asset-" <> _rest = dom_id),
+    do: persisted_asset_id(dom_id) == asset_id
+
+  def same_asset_id?(_asset_id, _other_asset_id), do: false
+
+  def asset_id_in_set?(asset_id, asset_ids) do
+    Enum.any?(asset_ids, &same_asset_id?(&1, asset_id))
+  end
+
   def list_assets do
     canonical_assets = canonical_assets()
 
     canonical_assets ++ generated_variant_assets(canonical_assets)
-  end
-
-  def persist_demo_catalog! do
-    assets = list_assets()
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-    persist_chains!(assets, now)
-    persist_game_ecosystems!(assets, now)
-
-    chains_by_name = persisted_chains_by_name()
-    ecosystems_by_name = persisted_game_ecosystems_by_name()
-
-    assets
-    |> Enum.map(&monitored_asset_attrs(&1, chains_by_name, ecosystems_by_name, now))
-    |> persist_monitored_assets!()
-
-    list_persisted_assets()
   end
 
   def persisted_asset_count do
@@ -103,16 +120,9 @@ defmodule AssetMonitoringDash.Assets do
     persisted_asset_count() >= length(list_assets())
   end
 
-  def ensure_demo_catalog! do
-    case catalog_seeded?() do
-      true -> :ok
-      false -> persist_demo_catalog!()
-    end
-  end
-
   def list_persisted_assets do
     MonitoredAsset
-    |> order_by([asset], asc: asset.public_id)
+    |> order_by([asset], asc: asset.name)
     |> preload([:chain, :game_ecosystem])
     |> Repo.all()
     |> Enum.map(&persisted_asset_to_map/1)
@@ -204,11 +214,11 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   def get_asset(asset_id) do
-    Enum.find(list_assets(), &(&1.id == asset_id))
+    Enum.find(list_assets(), &asset_matches_id?(&1, asset_id))
   end
 
   def get_asset(assets, asset_id) do
-    Enum.find(assets, &(&1.id == asset_id))
+    Enum.find(assets, &asset_matches_id?(&1, asset_id))
   end
 
   def apply_price_drop(assets, asset_id, drop_percent) do
@@ -222,7 +232,7 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   def ltv_trend(asset) do
-    baseline_asset = get_asset(asset.id) || asset
+    baseline_asset = get_asset(Map.get(asset, :dom_id, asset.id)) || asset
     baseline_ltv = baseline_asset.ltv_percent
 
     baseline_asset.id
@@ -445,116 +455,17 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   defp canonical_assets do
-    Enum.map(DemoData.monitored_assets(), &normalize_risk_fields/1)
-  end
-
-  defp persist_chains!(assets, now) do
-    assets
-    |> Enum.map(& &1.chain)
-    |> Enum.uniq()
-    |> Enum.map(fn name ->
-      %{
-        inserted_at: now,
-        name: name,
-        native_token: native_token_for(name),
-        slug: slugify(name),
-        updated_at: now
-      }
+    Enum.map(DemoData.monitored_assets(), fn asset ->
+      asset
+      |> Map.put(:dom_id, asset.id)
+      |> normalize_risk_fields()
     end)
-    |> then(fn rows ->
-      Repo.insert_all(Chain, rows,
-        conflict_target: :slug,
-        on_conflict: {:replace, [:name, :native_token, :updated_at]}
-      )
-    end)
-  end
-
-  defp persist_game_ecosystems!(assets, now) do
-    assets
-    |> Enum.map(& &1.ecosystem)
-    |> Enum.uniq()
-    |> Enum.map(fn name ->
-      %{
-        genre: genre_for(name),
-        inserted_at: now,
-        name: name,
-        slug: slugify(name),
-        updated_at: now
-      }
-    end)
-    |> then(fn rows ->
-      Repo.insert_all(GameEcosystem, rows,
-        conflict_target: :slug,
-        on_conflict: {:replace, [:name, :genre, :updated_at]}
-      )
-    end)
-  end
-
-  defp persisted_chains_by_name do
-    Chain
-    |> Repo.all()
-    |> Map.new(&{&1.name, &1})
-  end
-
-  defp persisted_game_ecosystems_by_name do
-    GameEcosystem
-    |> Repo.all()
-    |> Map.new(&{&1.name, &1})
-  end
-
-  defp persist_monitored_assets!(rows) do
-    Repo.insert_all(MonitoredAsset, rows,
-      conflict_target: :public_id,
-      on_conflict:
-        {:replace,
-         [
-           :asset_type,
-           :chain_id,
-           :current_value_usd,
-           :floor_price_usd,
-           :game_ecosystem_id,
-           :icon,
-           :loan_value_usd,
-           :ltv_percent,
-           :market_depth_usd,
-           :name,
-           :oracle_freshness_seconds,
-           :rarity,
-           :risk_band,
-           :risk_score,
-           :updated_at
-         ]}
-    )
-  end
-
-  defp monitored_asset_attrs(asset, chains_by_name, ecosystems_by_name, now) do
-    chain = Map.fetch!(chains_by_name, asset.chain)
-    ecosystem = Map.fetch!(ecosystems_by_name, asset.ecosystem)
-
-    %{
-      asset_type: asset.asset_type,
-      chain_id: chain.id,
-      current_value_usd: asset.current_value_usd,
-      floor_price_usd: asset.floor_price_usd,
-      game_ecosystem_id: ecosystem.id,
-      icon: asset.icon,
-      loan_value_usd: asset.loan_value_usd,
-      ltv_percent: asset.ltv_percent,
-      market_depth_usd: asset.market_depth_usd,
-      name: asset.name,
-      oracle_freshness_seconds: asset.oracle_freshness_seconds,
-      public_id: asset.id,
-      rarity: asset.rarity,
-      risk_band: asset.risk_band,
-      risk_score: asset.risk_score,
-      inserted_at: now,
-      updated_at: now
-    }
   end
 
   defp persisted_asset_to_map(asset) do
     %{
-      id: asset.public_id,
+      id: asset.id,
+      dom_id: demo_dom_id_from_name(asset.name),
       name: asset.name,
       icon: asset.icon,
       asset_type: asset.asset_type,
@@ -584,7 +495,7 @@ defmodule AssetMonitoringDash.Assets do
     |> filter_persisted_assets_by_query(filter_value(filters, :query, ""))
     |> filter_persisted_assets_by_risks(filter_values(filters, :risks, :risk, "All"))
     |> filter_persisted_assets_by_chains(filter_values(filters, :chains, :chain, "All chains"))
-    |> order_by([asset], asc: asset.public_id)
+    |> order_by([asset], asc: asset.name)
   end
 
   defp filter_persisted_assets_by_query(query, ""), do: query
@@ -620,27 +531,35 @@ defmodule AssetMonitoringDash.Assets do
     Enum.reduce(shocked_asset_ids, assets, &apply_price_drop(&2, &1, 12))
   end
 
-  defp native_token_for("Arbitrum"), do: "ETH"
-  defp native_token_for("Base"), do: "ETH"
-  defp native_token_for("Ethereum"), do: "ETH"
-  defp native_token_for("Immutable"), do: "IMX"
-  defp native_token_for("Polygon"), do: "POL"
-  defp native_token_for("Ronin"), do: "RON"
-  defp native_token_for(_chain), do: "ETH"
-
-  defp genre_for("Embervale"), do: "MMO strategy"
-  defp genre_for("Mecha Rift"), do: "Tactical battler"
-  defp genre_for("Moonwell Tactics"), do: "Guild strategy"
-  defp genre_for("Neon Dominion"), do: "Sci-fi economy"
-  defp genre_for("Rift Racers"), do: "Racing"
-  defp genre_for("Skyforge Arena"), do: "Arena RPG"
-  defp genre_for(_ecosystem), do: "Game economy"
-
   defp slugify(value) do
     value
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9]+/, "-")
     |> String.trim("-")
+  end
+
+  defp demo_dom_id_from_name(name) do
+    canonical_names_by_id =
+      DemoData.monitored_assets()
+      |> Map.new(&{&1.name, &1.id})
+
+    case Map.fetch(canonical_names_by_id, name) do
+      {:ok, dom_id} -> dom_id
+      :error -> variant_dom_id_from_name(name, canonical_names_by_id)
+    end
+  end
+
+  defp variant_dom_id_from_name(name, canonical_names_by_id) do
+    case Regex.run(~r/^(.+) V(\d{3})$/, name) do
+      [_name, base_name, suffix] ->
+        case Map.fetch(canonical_names_by_id, base_name) do
+          {:ok, dom_id} -> "#{dom_id}-variant-#{suffix}"
+          :error -> slugify(name)
+        end
+
+      _no_match ->
+        slugify(name)
+    end
   end
 
   defp generated_variant_assets(canonical_assets) do
@@ -655,6 +574,7 @@ defmodule AssetMonitoringDash.Assets do
   defp variant_asset(asset, asset_index, variant_index) do
     sequence = asset_index * @variant_count_per_asset + variant_index
     suffix = variant_suffix(variant_index)
+    dom_id = "#{canonical_asset_code(asset_index)}-variant-#{suffix}"
     current_factor = 0.86 + rem(sequence * 7, 29) / 100
     ltv_factor = 0.72 + rem(sequence * 5, 24) / 100
     floor_factor = current_factor * (0.92 + rem(sequence * 11, 17) / 100)
@@ -662,7 +582,8 @@ defmodule AssetMonitoringDash.Assets do
 
     %{
       asset
-      | id: "#{asset.id}-variant-#{suffix}",
+      | id: dom_id,
+        dom_id: dom_id,
         name: "#{asset.name} V#{suffix}",
         floor_price_usd: asset.floor_price_usd |> Kernel.*(floor_factor) |> round() |> max(1),
         current_value_usd:
@@ -683,6 +604,10 @@ defmodule AssetMonitoringDash.Assets do
     |> String.pad_leading(3, "0")
   end
 
+  defp canonical_asset_code(asset_index) do
+    "asset-#{String.pad_leading(Integer.to_string(asset_index + 1), 3, "0")}"
+  end
+
   defp variant_oracle_freshness(sequence) do
     Enum.at([18, 24, 36, 58, 92, 184, 216, 420, 620, 760], rem(sequence, 10))
   end
@@ -698,7 +623,7 @@ defmodule AssetMonitoringDash.Assets do
     case compare_sort_values(asset_value, other_value, direction) do
       :before -> true
       :after -> false
-      :same -> asset.id <= other_asset.id
+      :same -> asset_tiebreaker(asset) <= asset_tiebreaker(other_asset)
     end
   end
 
@@ -747,6 +672,8 @@ defmodule AssetMonitoringDash.Assets do
   defp operator_sort_rank(:unreviewed), do: 2
   defp operator_sort_rank(:reviewed), do: 1
 
+  defp asset_tiebreaker(asset), do: Map.get(asset, :dom_id, asset.id)
+
   defp cursor_to_offset(nil), do: 0
   defp cursor_to_offset(cursor) when is_integer(cursor) and cursor >= 0, do: cursor
   defp cursor_to_offset(_cursor), do: 0
@@ -780,7 +707,14 @@ defmodule AssetMonitoringDash.Assets do
     |> Map.put(:liquidity_status, liquidity_status(asset.market_depth_usd))
   end
 
-  defp apply_asset_price_drop(%{id: asset_id} = asset, asset_id, drop_percent) do
+  defp apply_asset_price_drop(asset, asset_id, drop_percent) do
+    case asset_matches_id?(asset, asset_id) do
+      true -> reprice_asset(asset, drop_percent)
+      false -> asset
+    end
+  end
+
+  defp reprice_asset(asset, drop_percent) do
     value_multiplier = 1 - drop_percent / 100
     current_value_usd = round(asset.current_value_usd * value_multiplier)
     repriced_asset = %{asset | current_value_usd: current_value_usd}
@@ -797,11 +731,18 @@ defmodule AssetMonitoringDash.Assets do
     |> Map.put(:liquidity_status, liquidity_status(repriced_asset.market_depth_usd))
   end
 
-  defp apply_asset_price_drop(asset, _asset_id, _drop_percent), do: asset
+  defp reset_asset_value(asset, _asset_id, nil), do: asset
 
-  defp reset_asset_value(%{id: asset_id} = asset, asset_id, nil), do: asset
-  defp reset_asset_value(%{id: asset_id}, asset_id, original_asset), do: original_asset
-  defp reset_asset_value(asset, _asset_id, _original_asset), do: asset
+  defp reset_asset_value(asset, asset_id, original_asset) do
+    case asset_matches_id?(asset, asset_id) do
+      true -> original_asset
+      false -> asset
+    end
+  end
+
+  defp asset_matches_id?(asset, asset_id) do
+    asset.id == asset_id || Map.get(asset, :dom_id) == asset_id
+  end
 
   defp total_value_usd(assets) do
     Enum.sum(Enum.map(assets, & &1.current_value_usd))
