@@ -29,6 +29,15 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatusTest do
 
     assert document |> LazyHTML.query("#simulator-active-scenarios") |> LazyHTML.text() =~ "2 / 5"
 
+    assert document |> LazyHTML.query("#simulator-runtime-path") |> LazyHTML.text() =~
+             "Supervised GenServer"
+
+    assert document |> LazyHTML.query("#simulator-runtime-path") |> LazyHTML.text() =~
+             "Scenarios, events, audit log"
+
+    assert document |> LazyHTML.query("#simulator-runtime-path") |> LazyHTML.text() =~
+             "Dashboard and detail refresh"
+
     assert document
            |> LazyHTML.query("#simulator-run-tick[phx-click=\"push_demo_event\"]")
            |> Enum.any?()

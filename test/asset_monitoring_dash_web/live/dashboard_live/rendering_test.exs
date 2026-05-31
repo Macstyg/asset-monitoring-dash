@@ -9,6 +9,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive.RenderingTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#dashboard-shell")
+    assert has_element?(view, "#dashboard-status", "Database-backed demo")
+    assert has_element?(view, "#dashboard-status", "Live simulator")
     assert has_element?(view, "#metric-strip")
     assert has_element?(view, "#collateral-value-card")
     assert has_element?(view, "#collateral-value-card", "$3.5M")

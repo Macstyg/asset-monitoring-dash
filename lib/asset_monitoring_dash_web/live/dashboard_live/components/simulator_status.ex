@@ -72,6 +72,41 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
         </Card.surface>
       </div>
 
+      <div
+        id="simulator-runtime-path"
+        class="mt-4 grid gap-2 rounded-app border border-app-border bg-app-bg/60 p-3 sm:grid-cols-3"
+      >
+        <div class="flex items-start gap-3">
+          <span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-app bg-app-accent/10 text-app-accent ring-1 ring-app-accent/20">
+            <.icon name="hero-cpu-chip" class="size-4" />
+          </span>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">Process</p>
+            <p class="mt-1 text-sm font-medium text-app-fg">Supervised GenServer</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-3">
+          <span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-app bg-app-warn/10 text-app-warn ring-1 ring-app-warn/20">
+            <.icon name="hero-circle-stack" class="size-4" />
+          </span>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">Writes</p>
+            <p class="mt-1 text-sm font-medium text-app-fg">Scenarios, events, audit log</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-3">
+          <span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-app bg-app-success/10 text-app-success ring-1 ring-app-success/20">
+            <.icon name="hero-signal" class="size-4" />
+          </span>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">Broadcasts</p>
+            <p class="mt-1 text-sm font-medium text-app-fg">Dashboard and detail refresh</p>
+          </div>
+        </div>
+      </div>
+
       <div class="mt-5 flex flex-wrap gap-2">
         <Button.render
           id="simulator-run-tick"
