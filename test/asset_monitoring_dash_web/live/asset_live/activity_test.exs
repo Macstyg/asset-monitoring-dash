@@ -5,6 +5,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.ActivityTest do
   import AssetMonitoringDashWeb.AssetLiveTestHelpers
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.ReviewState
+  alias AssetMonitoringDash.Simulator
 
   test "loads persisted activity only for the inspected asset", %{conn: conn} do
     asset = %{
@@ -31,6 +32,52 @@ defmodule AssetMonitoringDashWeb.AssetLive.ActivityTest do
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Scenario")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Critical")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "by Scenario engine")
+    refute has_element?(view, "#asset-event-row-event-shock-asset-002")
+  end
+
+  test "refreshes inspected asset activity from relevant simulator events", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?focus=activity")
+
+    assert has_element?(view, "#asset-event-count", "0 events")
+
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon",
+      ltv_percent: 67.8
+    }
+
+    ActivityLog.record_price_shock(asset, 12)
+
+    send(view.pid, {
+      Simulator,
+      :event_recorded,
+      %{event_history: ActivityLog.visible_events(), next_event_index: 0}
+    })
+
+    assert has_element?(view, "#asset-event-count", "1 events")
+    assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Price shock applied")
+  end
+
+  test "ignores simulator events for unrelated assets", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?focus=activity")
+
+    other_asset = %{
+      id: "asset-002",
+      name: "Citadel Founder Parcel",
+      chain: "Ethereum",
+      ltv_percent: 85.5
+    }
+
+    ActivityLog.record_price_shock(other_asset, 12)
+
+    send(view.pid, {
+      Simulator,
+      :event_recorded,
+      %{event_history: ActivityLog.visible_events(), next_event_index: 0}
+    })
+
+    assert has_element?(view, "#asset-event-count", "0 events")
     refute has_element?(view, "#asset-event-row-event-shock-asset-002")
   end
 

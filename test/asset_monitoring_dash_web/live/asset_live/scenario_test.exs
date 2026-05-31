@@ -4,6 +4,11 @@ defmodule AssetMonitoringDashWeb.AssetLive.ScenarioTest do
   import Phoenix.LiveViewTest
   import AssetMonitoringDashWeb.AssetLiveTestHelpers
 
+  alias AssetMonitoringDash.ActivityLog
+  alias AssetMonitoringDash.Assets
+  alias AssetMonitoringDash.AssetScenarioStore
+  alias AssetMonitoringDash.Simulator
+
   test "applies a price shock to the inspected asset", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
 
@@ -130,5 +135,73 @@ defmodule AssetMonitoringDashWeb.AssetLive.ScenarioTest do
     assert assert_patch(view) == asset_path("asset-001", "focus=activity")
     assert has_element?(view, "#asset-event-row-event-reset-asset-001")
     assert has_element?(view, "#asset-event-row-event-reset-asset-001", "Scenario reset")
+  end
+
+  test "refreshes inspected asset when simulator applies a matching scenario", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
+
+    assert has_element?(view, "#asset-inspection", "$4,860")
+    assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
+    assert has_element?(view, "#reset-asset-scenario[disabled]")
+
+    shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-001")
+    asset = Assets.get_persisted_asset_with_scenarios("asset-001", shocked_asset_ids)
+
+    event_history =
+      ActivityLog.record_price_shock(asset, AssetScenarioStore.price_shock_drop_percent())
+
+    send(view.pid, {
+      Simulator,
+      :scenario_applied,
+      %{
+        asset: asset,
+        event_history: event_history,
+        next_event_index: 0,
+        shocked_asset_ids: shocked_asset_ids
+      }
+    })
+
+    assert has_element?(view, "#asset-inspection", "$4,277")
+    assert has_element?(view, "#asset-ltv-trend-latest", "67.8%")
+    assert has_element?(view, "#apply-price-shock[disabled]", "Shock applied")
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert has_element?(view, "#asset-event-count", "1 events")
+    assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Price shock applied")
+  end
+
+  test "ignores simulator scenarios for other inspected assets", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
+
+    shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-002")
+    asset = Assets.get_persisted_asset_with_scenarios("asset-002", shocked_asset_ids)
+
+    event_history =
+      ActivityLog.record_price_shock(asset, AssetScenarioStore.price_shock_drop_percent())
+
+    send(view.pid, {
+      Simulator,
+      :scenario_applied,
+      %{
+        asset: asset,
+        event_history: event_history,
+        next_event_index: 0,
+        shocked_asset_ids: shocked_asset_ids
+      }
+    })
+
+    assert has_element?(view, "#asset-inspection", "$4,860")
+    assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
+    assert has_element?(view, "#reset-asset-scenario[disabled]")
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert has_element?(view, "#asset-event-count", "0 events")
+    refute has_element?(view, "#asset-event-row-event-shock-asset-002")
   end
 end

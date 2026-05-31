@@ -8,6 +8,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
+  alias AssetMonitoringDash.Simulator
   alias AssetMonitoringDashWeb.AssetDetailURLState
   alias AssetMonitoringDashWeb.AssetLive.AssetEventFilters
   alias AssetMonitoringDashWeb.AssetLive.Components.AssetActivity
@@ -48,6 +49,8 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       |> AssetEventFilters.assign_state(event_filters)
       |> stream(:events, [])
       |> assign_asset_from_id(asset_id)
+
+    subscribe_to_simulator(connected?(socket))
 
     {:ok, socket}
   end
@@ -147,6 +150,16 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       update_asset_detail_state(socket, detail_state, filters)
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({Simulator, :scenario_applied, payload}, socket) do
+    {:noreply,
+     refresh_asset_from_scenario(socket, scenario_payload_relevant?(socket, payload), payload)}
+  end
+
+  def handle_info({Simulator, :event_recorded, feed}, socket) do
+    {:noreply, refresh_asset_events(socket, feed_relevant?(socket, feed))}
   end
 
   defp assign_asset_from_id(socket, asset_id) do
@@ -271,6 +284,38 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> stream(:events, events, reset: true)
   end
 
+  defp refresh_asset_from_scenario(socket, true, payload) do
+    socket
+    |> assign(:review_states, ReviewStore.all_states())
+    |> assign(:shocked_asset_ids, payload.shocked_asset_ids)
+    |> assign_asset_from_id(socket.assigns.asset.id)
+  end
+
+  defp refresh_asset_from_scenario(socket, false, _payload), do: socket
+
+  defp refresh_asset_events(socket, true),
+    do: assign_asset_events(socket, socket.assigns.asset.id)
+
+  defp refresh_asset_events(socket, false), do: socket
+
+  defp scenario_payload_relevant?(socket, %{asset: %{id: asset_id}}) do
+    Assets.same_asset_id?(asset_id, socket.assigns.asset.id)
+  end
+
+  defp scenario_payload_relevant?(_socket, _payload), do: false
+
+  defp feed_relevant?(socket, %{event_history: events}) do
+    Enum.any?(events, &event_relevant?(&1, socket.assigns.asset.id))
+  end
+
+  defp feed_relevant?(_socket, _feed), do: false
+
+  defp event_relevant?(%{asset_id: asset_id}, current_asset_id) when is_binary(asset_id) do
+    Assets.same_asset_id?(asset_id, current_asset_id)
+  end
+
+  defp event_relevant?(_event, _current_asset_id), do: false
+
   defp update_asset_detail_state(socket, %AssetDetailURLState{} = detail_state, filters) do
     current_detail_state = socket.assigns.asset_detail_url_state
 
@@ -334,4 +379,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   end
 
   defp internal_dashboard_path(_uri), do: ~p"/"
+
+  defp subscribe_to_simulator(true), do: Simulator.subscribe()
+  defp subscribe_to_simulator(false), do: :ok
 end
