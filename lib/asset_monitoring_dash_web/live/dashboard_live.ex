@@ -259,6 +259,23 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     {:noreply, apply_demo_feed(socket, feed)}
   end
 
+  def handle_info(
+        {Simulator, :scenario_applied, payload},
+        %{assigns: %{feed_paused: true}} = socket
+      ) do
+    {:noreply, apply_simulator_scenario(socket, payload)}
+  end
+
+  def handle_info({Simulator, :scenario_applied, payload}, socket) do
+    socket =
+      socket
+      |> assign(:event_history, payload.event_history)
+      |> apply_simulator_scenario(payload)
+      |> apply_event_filter()
+
+    {:noreply, socket}
+  end
+
   defp assign_metric_cards(socket) do
     assign(socket, :metric_cards, metric_cards(socket.assigns.snapshot))
   end
@@ -648,6 +665,19 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:next_event_index, feed.next_event_index)
     |> assign(:event_history, feed.event_history)
     |> apply_event_filter()
+  end
+
+  defp apply_simulator_scenario(socket, payload) do
+    shocked_asset_ids = payload.shocked_asset_ids
+
+    socket
+    |> assign(:next_event_index, payload.next_event_index)
+    |> assign(:snapshot, Assets.portfolio_snapshot(shocked_asset_ids))
+    |> assign(:review_states, ReviewStore.all_states())
+    |> assign(:shocked_asset_ids, shocked_asset_ids)
+    |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
+    |> assign_metric_cards()
+    |> apply_asset_filters(socket.assigns.asset_filters)
   end
 
   defp toggle_event_feed(true, socket) do

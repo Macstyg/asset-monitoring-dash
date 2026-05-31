@@ -16,6 +16,8 @@ defmodule AssetMonitoringDash.AssetScenarioStore do
   @price_shock_scenario_id "price_shock"
   @price_shock_drop_percent 12
 
+  def price_shock_drop_percent, do: @price_shock_drop_percent
+
   @spec shocked_asset_ids() :: MapSet.t(String.t())
   def shocked_asset_ids do
     AssetScenario

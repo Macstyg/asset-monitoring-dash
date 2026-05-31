@@ -3,6 +3,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
 
   import Phoenix.LiveViewTest
 
+  alias AssetMonitoringDash.ActivityLog
+  alias AssetMonitoringDash.Assets
+  alias AssetMonitoringDash.AssetScenarioStore
+  alias AssetMonitoringDash.Simulator
+
   test "shows and resets active asset scenarios", %{conn: conn} do
     AssetMonitoringDash.AssetScenarioStore.apply_price_shock("asset-001")
     AssetMonitoringDash.ReviewStore.mark_reviewed("asset-001")
@@ -41,5 +46,31 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
     assert has_element?(view, "#asset-row-asset-001", "$4,860")
     assert has_element?(view, "#asset-row-asset-001", "59.7%")
     assert has_element?(view, "#asset-row-asset-001", "Unreviewed")
+  end
+
+  test "refreshes scenario state from simulator broadcasts", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-001")
+    asset = Assets.get_persisted_asset_with_scenarios("asset-001", shocked_asset_ids)
+
+    event_history =
+      ActivityLog.record_price_shock(asset, AssetScenarioStore.price_shock_drop_percent())
+
+    send(view.pid, {
+      Simulator,
+      :scenario_applied,
+      %{
+        asset: asset,
+        event_history: event_history,
+        next_event_index: 0,
+        shocked_asset_ids: shocked_asset_ids
+      }
+    })
+
+    assert has_element?(view, "#active-scenario-banner")
+    assert has_element?(view, "#active-scenario-count", "1 active scenario")
+    assert has_element?(view, "#asset-scenario-asset-001", "Price shock")
+    assert has_element?(view, "#event-row-event-shock-asset-001", "Price shock applied")
   end
 end

@@ -13,7 +13,9 @@ config :asset_monitoring_dash,
 
 config :asset_monitoring_dash, AssetMonitoringDash.Simulator,
   enabled: true,
-  interval_ms: 4_000
+  interval_ms: 4_000,
+  max_active_scenarios: 5,
+  scenario_every: 4
 
 # Configure the endpoint
 config :asset_monitoring_dash, AssetMonitoringDashWeb.Endpoint,
