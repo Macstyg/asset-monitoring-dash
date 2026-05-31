@@ -1,0 +1,30 @@
+defmodule AssetMonitoringDashWeb.DashboardLive.Components.ScenarioBannerTest do
+  use AssetMonitoringDashWeb.ConnCase, async: true
+
+  import Phoenix.LiveViewTest
+
+  alias AssetMonitoringDashWeb.DashboardLive.Components.ScenarioBanner
+
+  test "renders active scenario state and reset action" do
+    document =
+      render_component(&ScenarioBanner.render/1, scenario_count: 2)
+      |> LazyHTML.from_fragment()
+
+    assert document |> LazyHTML.query("#active-scenario-banner") |> Enum.any?()
+
+    assert document |> LazyHTML.query("#active-scenario-count") |> LazyHTML.text() =~
+             "2 active scenarios"
+
+    assert document
+           |> LazyHTML.query(~s(button#reset-asset-scenarios[phx-click="reset_asset_scenarios"]))
+           |> Enum.any?()
+  end
+
+  test "does not render when no scenario is active" do
+    document =
+      render_component(&ScenarioBanner.render/1, scenario_count: 0)
+      |> LazyHTML.from_fragment()
+
+    refute document |> LazyHTML.query("#active-scenario-banner") |> Enum.any?()
+  end
+end

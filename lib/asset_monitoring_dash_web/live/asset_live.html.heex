@@ -57,10 +57,10 @@
         <AssetContextStrip.render asset={@asset} />
 
         <div
-          id="asset-overview-workspace"
+          id="asset-inspection-workspace"
           class="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.42fr)] xl:items-start"
         >
-          <main id="asset-overview-main" class="grid min-w-0 gap-6">
+          <main id="asset-inspection-main" class="grid min-w-0 gap-6">
             <AssetInspection.render
               asset={@asset}
               health_factor={@asset_health_factor}
@@ -71,49 +71,17 @@
             />
           </main>
 
-          <aside id="asset-overview-aside" class="grid min-w-0 gap-4 xl:sticky xl:top-6">
-            <InvestigationBrief.render
-              asset={@asset}
-              health_factor={@asset_health_factor}
-              risk_recommendation={@asset_risk_recommendation}
-              review_state={@asset_review_state}
-            />
-
-            <Card.surface id="asset-scenario-controls" class="flex flex-wrap gap-2">
-              <div class="w-full">
-                <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
-                  Scenario controls
-                </p>
-                <p class="mt-1 text-sm leading-6 text-app-muted">
-                  Stress this asset without changing the underlying demo fixture.
-                </p>
-              </div>
-
-              <Button.render
-                id="apply-price-shock"
-                phx-click="apply_price_shock"
-                disabled={@asset_shocked?}
-                class="h-9 px-4"
-              >
-                {price_shock_button_label(@asset_shocked?)}
-              </Button.render>
-              <Button.render
-                id="reset-asset-scenario"
-                phx-click="reset_asset_scenario"
-                disabled={not @asset_shocked?}
-                class="h-9 px-4"
-              >
-                Reset scenario
-              </Button.render>
-            </Card.surface>
-
-            <ReviewActionForm.render
-              form={@review_action_form}
-              reason_options={@review_reason_options}
-              reviewed={@asset_reviewed?}
-              escalated={@asset_escalated?}
-            />
-          </aside>
+          <DecisionRail.render
+            asset={@asset}
+            asset_shocked?={@asset_shocked?}
+            escalated={@asset_escalated?}
+            health_factor={@asset_health_factor}
+            reason_options={@review_reason_options}
+            review_action_form={@review_action_form}
+            review_state={@asset_review_state}
+            reviewed={@asset_reviewed?}
+            risk_recommendation={@asset_risk_recommendation}
+          />
         </div>
       </div>
 

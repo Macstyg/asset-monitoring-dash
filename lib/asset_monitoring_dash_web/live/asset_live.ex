@@ -13,14 +13,11 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDashWeb.AssetLive.Components.AssetActivity
   alias AssetMonitoringDashWeb.AssetLive.Components.AssetContextStrip
   alias AssetMonitoringDashWeb.AssetLive.Components.AssetInspection
-  alias AssetMonitoringDashWeb.AssetLive.Components.InvestigationBrief
+  alias AssetMonitoringDashWeb.AssetLive.Components.DecisionRail
   alias AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets
-  alias AssetMonitoringDashWeb.AssetLive.Components.ReviewActionForm
   alias AssetMonitoringDashWeb.AssetLive.Components.ReviewHistory
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Badge
-  alias AssetMonitoringDashWeb.UI.Button
-  alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.Tabs
 
   @related_asset_limit 4
@@ -459,9 +456,6 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> String.trim()
     |> String.slice(0, 180)
   end
-
-  def price_shock_button_label(true), do: "Shock applied"
-  def price_shock_button_label(false), do: "Apply 12% price shock"
 
   defp normalize_return_to(nil), do: ~p"/"
   defp normalize_return_to(""), do: ~p"/"
