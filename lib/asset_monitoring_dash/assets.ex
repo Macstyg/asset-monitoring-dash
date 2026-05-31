@@ -7,7 +7,13 @@ defmodule AssetMonitoringDash.Assets do
   stream processor, or external integration.
   """
 
+  import Ecto.Query
+
+  alias AssetMonitoringDash.Assets.Chain
+  alias AssetMonitoringDash.Assets.GameEcosystem
+  alias AssetMonitoringDash.Assets.MonitoredAsset
   alias AssetMonitoringDash.DemoData
+  alias AssetMonitoringDash.Repo
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
@@ -70,6 +76,59 @@ defmodule AssetMonitoringDash.Assets do
     canonical_assets = canonical_assets()
 
     canonical_assets ++ generated_variant_assets(canonical_assets)
+  end
+
+  def persist_demo_catalog! do
+    canonical_assets()
+    |> Enum.reduce(%{chains: %{}, ecosystems: %{}, assets: []}, &persist_demo_asset!/2)
+    |> Map.fetch!(:assets)
+  end
+
+  def persisted_asset_count do
+    Repo.aggregate(MonitoredAsset, :count)
+  end
+
+  def catalog_seeded? do
+    persisted_asset_count() > 0
+  end
+
+  def list_persisted_assets do
+    MonitoredAsset
+    |> order_by([asset], asc: asset.public_id)
+    |> preload([:chain, :game_ecosystem])
+    |> Repo.all()
+    |> Enum.map(&persisted_asset_to_map/1)
+  end
+
+  def list_persisted_assets_page(opts) do
+    filters = Map.fetch!(opts, :filters)
+    sort = Map.fetch!(opts, :sort)
+    cursor = Map.get(opts, :cursor)
+    limit = Map.get(opts, :limit, 50)
+    review_states = Map.get(opts, :review_states, %{})
+
+    assets =
+      filters
+      |> persisted_asset_query()
+      |> Repo.all()
+      |> Enum.map(&persisted_asset_to_map/1)
+      |> filter_assets_by_actions(filter_values(filters, :actions, :action, "All"))
+      |> filter_assets_by_operator_states(
+        filter_values(filters, :operator_states, :operator_state, "All"),
+        review_states
+      )
+      |> sort_assets(sort, review_states)
+
+    offset = cursor_to_offset(cursor)
+    entries = Enum.slice(assets, offset, limit)
+    next_offset = offset + length(entries)
+
+    %{
+      entries: entries,
+      next_cursor: next_cursor(next_offset, length(assets)),
+      total_count: length(assets),
+      summary: summarize_assets(assets)
+    }
   end
 
   def list_assets_with_scenarios(shocked_asset_ids) do
@@ -362,6 +421,160 @@ defmodule AssetMonitoringDash.Assets do
 
   defp canonical_assets do
     Enum.map(DemoData.monitored_assets(), &normalize_risk_fields/1)
+  end
+
+  defp persist_demo_asset!(asset, state) do
+    chain = Map.get_lazy(state.chains, asset.chain, fn -> upsert_chain!(asset.chain) end)
+
+    ecosystem =
+      Map.get_lazy(state.ecosystems, asset.ecosystem, fn ->
+        upsert_game_ecosystem!(asset.ecosystem)
+      end)
+
+    persisted_asset =
+      asset
+      |> monitored_asset_attrs(chain, ecosystem)
+      |> upsert_monitored_asset!()
+
+    %{
+      state
+      | chains: Map.put(state.chains, asset.chain, chain),
+        ecosystems: Map.put(state.ecosystems, asset.ecosystem, ecosystem),
+        assets: [persisted_asset | state.assets]
+    }
+  end
+
+  defp upsert_chain!(name) do
+    attrs = %{name: name, native_token: native_token_for(name), slug: slugify(name)}
+    chain = Repo.get_by(Chain, slug: attrs.slug) || %Chain{}
+
+    chain
+    |> Chain.changeset(attrs)
+    |> Repo.insert_or_update!()
+  end
+
+  defp upsert_game_ecosystem!(name) do
+    attrs = %{name: name, genre: genre_for(name), slug: slugify(name)}
+    game_ecosystem = Repo.get_by(GameEcosystem, slug: attrs.slug) || %GameEcosystem{}
+
+    game_ecosystem
+    |> GameEcosystem.changeset(attrs)
+    |> Repo.insert_or_update!()
+  end
+
+  defp upsert_monitored_asset!(attrs) do
+    monitored_asset = Repo.get_by(MonitoredAsset, public_id: attrs.public_id) || %MonitoredAsset{}
+
+    monitored_asset
+    |> MonitoredAsset.changeset(attrs)
+    |> Repo.insert_or_update!()
+  end
+
+  defp monitored_asset_attrs(asset, chain, ecosystem) do
+    %{
+      asset_type: asset.asset_type,
+      chain_id: chain.id,
+      current_value_usd: asset.current_value_usd,
+      floor_price_usd: asset.floor_price_usd,
+      game_ecosystem_id: ecosystem.id,
+      icon: asset.icon,
+      loan_value_usd: asset.loan_value_usd,
+      ltv_percent: asset.ltv_percent,
+      market_depth_usd: asset.market_depth_usd,
+      name: asset.name,
+      oracle_freshness_seconds: asset.oracle_freshness_seconds,
+      public_id: asset.id,
+      rarity: asset.rarity,
+      risk_band: asset.risk_band,
+      risk_score: asset.risk_score
+    }
+  end
+
+  defp persisted_asset_to_map(asset) do
+    %{
+      id: asset.public_id,
+      name: asset.name,
+      icon: asset.icon,
+      asset_type: asset.asset_type,
+      chain: asset.chain.name,
+      ecosystem: asset.game_ecosystem.name,
+      rarity: asset.rarity,
+      floor_price_usd: asset.floor_price_usd,
+      current_value_usd: asset.current_value_usd,
+      loan_value_usd: asset.loan_value_usd,
+      ltv_percent: asset.ltv_percent,
+      risk_score: asset.risk_score,
+      risk_band: asset.risk_band,
+      oracle_freshness_seconds: asset.oracle_freshness_seconds,
+      market_depth_usd: asset.market_depth_usd
+    }
+    |> normalize_risk_fields()
+  end
+
+  defp persisted_asset_query(filters) do
+    MonitoredAsset
+    |> join(:inner, [asset], chain in assoc(asset, :chain), as: :chain)
+    |> join(:inner, [asset], game_ecosystem in assoc(asset, :game_ecosystem), as: :game_ecosystem)
+    |> preload([chain: chain, game_ecosystem: game_ecosystem],
+      chain: chain,
+      game_ecosystem: game_ecosystem
+    )
+    |> filter_persisted_assets_by_query(filter_value(filters, :query, ""))
+    |> filter_persisted_assets_by_risks(filter_values(filters, :risks, :risk, "All"))
+    |> filter_persisted_assets_by_chains(filter_values(filters, :chains, :chain, "All chains"))
+    |> order_by([asset], asc: asset.public_id)
+  end
+
+  defp filter_persisted_assets_by_query(query, ""), do: query
+
+  defp filter_persisted_assets_by_query(query, search_query) do
+    search_pattern = "%#{search_query}%"
+
+    where(
+      query,
+      [asset, chain: chain, game_ecosystem: game_ecosystem],
+      ilike(asset.name, ^search_pattern) or
+        ilike(asset.asset_type, ^search_pattern) or
+        ilike(asset.rarity, ^search_pattern) or
+        ilike(asset.risk_band, ^search_pattern) or
+        ilike(chain.name, ^search_pattern) or
+        ilike(game_ecosystem.name, ^search_pattern)
+    )
+  end
+
+  defp filter_persisted_assets_by_risks(query, []), do: query
+
+  defp filter_persisted_assets_by_risks(query, risk_filters) do
+    where(query, [asset], asset.risk_band in ^risk_filters)
+  end
+
+  defp filter_persisted_assets_by_chains(query, []), do: query
+
+  defp filter_persisted_assets_by_chains(query, chain_filters) do
+    where(query, [chain: chain], chain.name in ^chain_filters)
+  end
+
+  defp native_token_for("Arbitrum"), do: "ETH"
+  defp native_token_for("Base"), do: "ETH"
+  defp native_token_for("Ethereum"), do: "ETH"
+  defp native_token_for("Immutable"), do: "IMX"
+  defp native_token_for("Polygon"), do: "POL"
+  defp native_token_for("Ronin"), do: "RON"
+  defp native_token_for(_chain), do: "ETH"
+
+  defp genre_for("Embervale"), do: "MMO strategy"
+  defp genre_for("Mecha Rift"), do: "Tactical battler"
+  defp genre_for("Moonwell Tactics"), do: "Guild strategy"
+  defp genre_for("Neon Dominion"), do: "Sci-fi economy"
+  defp genre_for("Rift Racers"), do: "Racing"
+  defp genre_for("Skyforge Arena"), do: "Arena RPG"
+  defp genre_for(_ecosystem), do: "Game economy"
+
+  defp slugify(value) do
+    value
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "-")
+    |> String.trim("-")
   end
 
   defp generated_variant_assets(canonical_assets) do
