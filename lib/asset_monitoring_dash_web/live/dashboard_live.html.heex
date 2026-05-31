@@ -48,6 +48,11 @@
         />
       </section>
 
+      <SimulatorStatus.render
+        scenario_count={@scenario_count}
+        status={@simulator_status}
+      />
+
       <section class="grid min-w-0 gap-4">
         <AssetMonitor.render
           action_filter_options={@action_filter_options}

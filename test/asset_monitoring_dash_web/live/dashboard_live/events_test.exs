@@ -5,6 +5,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
   import AssetMonitoringDashWeb.DashboardLiveTestHelpers
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.ReviewState
+  alias AssetMonitoringDash.Simulator
 
   test "pushes and pauses demo events", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
@@ -23,6 +24,49 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
 
     assert has_element?(view, "#event-feed-state", "paused")
     assert has_element?(view, "#toggle-event-feed", "Resume feed")
+  end
+
+  test "shows simulator status and controls the supervised process", %{conn: conn} do
+    start_supervised!(
+      {Simulator,
+       enabled: true,
+       interval_ms: :manual,
+       max_active_scenarios: 5,
+       name: Simulator,
+       next_event_index: 0,
+       scenario_every: 4,
+       tick_index: 0}
+    )
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#simulator-state", "Streaming")
+    assert has_element?(view, "#simulator-tick-index", "0")
+    assert has_element?(view, "#simulator-next-event-index", "0")
+    assert has_element?(view, "#simulator-scenario-cadence", "every 4 ticks")
+    assert has_element?(view, "#simulator-active-scenarios", "0 / 5")
+
+    view
+    |> element("#simulator-run-tick")
+    |> render_click()
+
+    assert has_element?(view, "#event-row-event-live-1")
+    assert has_element?(view, "#simulator-tick-index", "1")
+    assert has_element?(view, "#simulator-next-event-index", "1")
+
+    view
+    |> element("#simulator-toggle")
+    |> render_click()
+
+    assert has_element?(view, "#simulator-state", "Paused")
+    assert has_element?(view, "#event-feed-state", "paused")
+
+    view
+    |> element("#simulator-toggle")
+    |> render_click()
+
+    assert has_element?(view, "#simulator-state", "Streaming")
+    assert has_element?(view, "#event-feed-state", "streaming")
   end
 
   test "filters event feed by source kind", %{conn: conn} do

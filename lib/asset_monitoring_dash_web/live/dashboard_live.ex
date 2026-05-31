@@ -15,6 +15,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.Simulator
   alias AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor
   alias AssetMonitoringDashWeb.DashboardLive.Components.EventFeed, as: DashboardEventFeed
+  alias AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus
   alias AssetMonitoringDashWeb.DashboardURLState
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Card
@@ -26,6 +27,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     events = ActivityLog.visible_events()
     review_states = ReviewStore.all_states()
     asset_state = DashboardURLState.from_params(params)
+    simulator_status = simulator_status()
 
     asset_page =
       load_asset_page(
@@ -48,7 +50,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
       |> assign(:review_states, review_states)
       |> assign_asset_page(asset_page, :reset)
-      |> assign(:feed_paused, simulator_paused?())
+      |> assign(:feed_paused, simulator_status.paused?)
+      |> assign(:simulator_status, simulator_status)
       |> assign(:next_event_index, 0)
       |> assign(:event_filters, default_event_filters())
       |> assign(:event_history, events)
@@ -252,7 +255,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @impl true
   def handle_info({Simulator, :event_recorded, feed}, %{assigns: %{feed_paused: true}} = socket) do
-    {:noreply, assign(socket, :next_event_index, feed.next_event_index)}
+    {:noreply,
+     socket
+     |> assign(:next_event_index, feed.next_event_index)
+     |> assign_simulator_status()}
   end
 
   def handle_info({Simulator, :event_recorded, feed}, socket) do
@@ -664,6 +670,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     socket
     |> assign(:next_event_index, feed.next_event_index)
     |> assign(:event_history, feed.event_history)
+    |> assign_simulator_status()
     |> apply_event_filter()
   end
 
@@ -677,6 +684,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:shocked_asset_ids, shocked_asset_ids)
     |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
     |> assign_metric_cards()
+    |> assign_simulator_status()
     |> apply_asset_filters(socket.assigns.asset_filters)
   end
 
@@ -686,13 +694,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     socket
     |> assign(:feed_paused, false)
     |> assign(:event_history, ActivityLog.visible_events())
+    |> assign_simulator_status()
     |> apply_event_filter()
   end
 
   defp toggle_event_feed(false, socket) do
     Simulator.pause()
 
-    assign(socket, :feed_paused, true)
+    socket
+    |> assign(:feed_paused, true)
+    |> assign_simulator_status()
   end
 
   defp record_demo_event(next_event_index) do
@@ -702,12 +713,25 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     end
   end
 
-  defp simulator_paused? do
+  defp simulator_status do
     case Simulator.status() do
-      %{paused?: paused?} -> paused?
-      {:error, :not_started} -> false
+      %{paused?: _paused?} = status ->
+        Map.put(status, :running?, true)
+
+      {:error, :not_started} ->
+        %{
+          interval_ms: nil,
+          max_active_scenarios: 0,
+          next_event_index: 0,
+          paused?: false,
+          running?: false,
+          scenario_every: nil,
+          tick_index: 0
+        }
     end
   end
+
+  defp assign_simulator_status(socket), do: assign(socket, :simulator_status, simulator_status())
 
   defp subscribe_to_simulator(true), do: Simulator.subscribe()
   defp subscribe_to_simulator(false), do: :ok
