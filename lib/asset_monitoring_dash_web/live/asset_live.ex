@@ -10,13 +10,13 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDashWeb.AssetDetailURLState
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetActivity
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetContextStrip
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
-  alias AssetMonitoringDashWeb.DashboardComponents.InvestigationBrief
-  alias AssetMonitoringDashWeb.DashboardComponents.RelatedAssets
-  alias AssetMonitoringDashWeb.DashboardComponents.ReviewActionForm
-  alias AssetMonitoringDashWeb.DashboardComponents.ReviewHistory
+  alias AssetMonitoringDashWeb.AssetLive.Components.AssetActivity
+  alias AssetMonitoringDashWeb.AssetLive.Components.AssetContextStrip
+  alias AssetMonitoringDashWeb.AssetLive.Components.AssetInspection
+  alias AssetMonitoringDashWeb.AssetLive.Components.InvestigationBrief
+  alias AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets
+  alias AssetMonitoringDashWeb.AssetLive.Components.ReviewActionForm
+  alias AssetMonitoringDashWeb.AssetLive.Components.ReviewHistory
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.Button

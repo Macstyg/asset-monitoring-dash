@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.AssetTable do
+defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetTable do
   @moduledoc """
   Product table for monitored collateral assets.
   """
@@ -7,9 +7,9 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetTable do
 
   import AssetMonitoringDashWeb.CoreComponents, only: [icon: 1]
 
-  alias AssetMonitoringDashWeb.DashboardComponents.ChainIdentity
-  alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
+  alias AssetMonitoringDashWeb.DashboardLive.Components.ChainIdentity
   alias AssetMonitoringDashWeb.Formatters
+  alias AssetMonitoringDashWeb.SharedComponents.RiskBadge
   alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.EntityIdentity
   alias AssetMonitoringDashWeb.UI.Table

@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.AssetContextStrip do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetContextStrip do
   @moduledoc """
   Compact identity and signal summary for an inspected asset.
   """

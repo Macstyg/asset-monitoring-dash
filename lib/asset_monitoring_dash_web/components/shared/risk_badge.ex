@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.RiskBadge do
+defmodule AssetMonitoringDashWeb.SharedComponents.RiskBadge do
   @moduledoc """
   Product mapping from asset risk bands to badge tones.
   """

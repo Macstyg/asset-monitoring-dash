@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.AssetMonitor do
+defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor do
   @moduledoc """
   Full asset monitor section: filters, summary, scenario state, and asset table.
   """
@@ -8,9 +8,9 @@ defmodule AssetMonitoringDashWeb.DashboardComponents.AssetMonitor do
   import AssetMonitoringDashWeb.CoreComponents, only: [icon: 1]
 
   alias AssetMonitoringDash.Assets
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetSummary
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetTable
-  alias AssetMonitoringDashWeb.DashboardComponents.ScenarioBanner
+  alias AssetMonitoringDashWeb.DashboardLive.Components.AssetSummary
+  alias AssetMonitoringDashWeb.DashboardLive.Components.AssetTable
+  alias AssetMonitoringDashWeb.DashboardLive.Components.ScenarioBanner
   alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.FilterBar
   alias AssetMonitoringDashWeb.UI.LoadStatus

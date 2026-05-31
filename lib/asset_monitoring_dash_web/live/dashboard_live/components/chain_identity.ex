@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.ChainIdentity do
+defmodule AssetMonitoringDashWeb.DashboardLive.Components.ChainIdentity do
   @moduledoc """
   Compact chain identity mark for asset table rows.
   """

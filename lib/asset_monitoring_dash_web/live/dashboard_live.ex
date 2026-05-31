@@ -14,8 +14,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetMonitor
-  alias AssetMonitoringDashWeb.DashboardComponents.EventFeed, as: DashboardEventFeed
+  alias AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor
+  alias AssetMonitoringDashWeb.DashboardLive.Components.EventFeed, as: DashboardEventFeed
   alias AssetMonitoringDashWeb.DashboardURLState
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Card

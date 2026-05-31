@@ -1,14 +1,14 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.AssetInspection do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetInspection do
   @moduledoc """
   Inspection panel for the currently selected collateral asset.
   """
 
   use Phoenix.Component
 
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetTrend
-  alias AssetMonitoringDashWeb.DashboardComponents.ReviewWorkflowPanel
-  alias AssetMonitoringDashWeb.DashboardComponents.RiskBadge
+  alias AssetMonitoringDashWeb.AssetLive.Components.AssetTrend
+  alias AssetMonitoringDashWeb.AssetLive.Components.ReviewWorkflowPanel
   alias AssetMonitoringDashWeb.Formatters
+  alias AssetMonitoringDashWeb.SharedComponents.RiskBadge
   alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.EntityIdentity
 

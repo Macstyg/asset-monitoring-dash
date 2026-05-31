@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.AssetSummary do
+defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetSummary do
   @moduledoc """
   Filter-aware asset portfolio summary for the dashboard.
   """

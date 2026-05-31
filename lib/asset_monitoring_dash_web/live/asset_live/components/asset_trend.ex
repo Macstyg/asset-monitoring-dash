@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.AssetTrend do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetTrend do
   @moduledoc """
   Compact LTV trend for the selected asset inspection panel.
   """

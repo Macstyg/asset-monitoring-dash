@@ -1,9 +1,9 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.ReviewActionFormTest do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.ReviewActionFormTest do
   use AssetMonitoringDashWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
 
-  alias AssetMonitoringDashWeb.DashboardComponents.ReviewActionForm
+  alias AssetMonitoringDashWeb.AssetLive.Components.ReviewActionForm
 
   test "renders the operator decision form" do
     document =

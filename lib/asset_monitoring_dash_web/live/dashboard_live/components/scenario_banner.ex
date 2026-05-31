@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.ScenarioBanner do
+defmodule AssetMonitoringDashWeb.DashboardLive.Components.ScenarioBanner do
   @moduledoc """
   Active demo scenario notice and reset action.
   """

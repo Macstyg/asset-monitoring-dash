@@ -1,9 +1,9 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.AssetActivityTest do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetActivityTest do
   use AssetMonitoringDashWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
 
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetActivity
+  alias AssetMonitoringDashWeb.AssetLive.Components.AssetActivity
 
   test "renders event filters, rows, chips, and focused state" do
     filters = %{sources: ["scenario"], source_option_query: ""}

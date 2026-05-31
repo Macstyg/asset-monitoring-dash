@@ -1,11 +1,11 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.AssetActivity do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetActivity do
   @moduledoc """
   Asset-scoped activity timeline with source filtering.
   """
 
   use Phoenix.Component
 
-  alias AssetMonitoringDashWeb.DashboardComponents.EventItem
+  alias AssetMonitoringDashWeb.SharedComponents.EventItem
   alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.FilterBar
 

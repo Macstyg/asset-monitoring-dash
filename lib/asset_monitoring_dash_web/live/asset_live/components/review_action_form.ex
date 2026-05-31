@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.ReviewActionForm do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.ReviewActionForm do
   @moduledoc """
   Operator action form for recording asset review decisions.
   """

@@ -1,9 +1,9 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.AssetContextStripTest do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetContextStripTest do
   use AssetMonitoringDashWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
 
-  alias AssetMonitoringDashWeb.DashboardComponents.AssetContextStrip
+  alias AssetMonitoringDashWeb.AssetLive.Components.AssetContextStrip
 
   test "renders compact asset identity and signal context" do
     document =

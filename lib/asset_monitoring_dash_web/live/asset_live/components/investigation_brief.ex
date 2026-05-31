@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.InvestigationBrief do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.InvestigationBrief do
   @moduledoc """
   Triage summary for the asset detail page.
   """

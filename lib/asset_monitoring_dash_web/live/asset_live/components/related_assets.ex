@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.RelatedAssets do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets do
   @moduledoc """
   Related asset navigation for the inspection workflow.
   """

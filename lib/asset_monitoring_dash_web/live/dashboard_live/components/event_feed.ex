@@ -1,11 +1,11 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.EventFeed do
+defmodule AssetMonitoringDashWeb.DashboardLive.Components.EventFeed do
   @moduledoc """
   Product section for live operational event history.
   """
 
   use Phoenix.Component
 
-  alias AssetMonitoringDashWeb.DashboardComponents.EventItem
+  alias AssetMonitoringDashWeb.SharedComponents.EventItem
   alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.FilterBar
   alias AssetMonitoringDashWeb.UI.Panel

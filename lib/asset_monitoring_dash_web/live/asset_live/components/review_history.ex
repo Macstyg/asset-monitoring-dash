@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.ReviewHistory do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.ReviewHistory do
   @moduledoc """
   Asset-scoped audit trail for operator workflow decisions.
   """

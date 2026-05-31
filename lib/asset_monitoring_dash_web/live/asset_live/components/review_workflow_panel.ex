@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.ReviewWorkflowPanel do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.ReviewWorkflowPanel do
   @moduledoc """
   Product component that separates system recommendation from operator state.
   """

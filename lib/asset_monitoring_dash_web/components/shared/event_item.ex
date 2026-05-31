@@ -1,4 +1,4 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.EventItem do
+defmodule AssetMonitoringDashWeb.SharedComponents.EventItem do
   @moduledoc """
   Compact event row for the operational activity feed.
   """

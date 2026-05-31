@@ -1,9 +1,9 @@
-defmodule AssetMonitoringDashWeb.DashboardComponents.RelatedAssetsTest do
+defmodule AssetMonitoringDashWeb.AssetLive.Components.RelatedAssetsTest do
   use AssetMonitoringDashWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
 
-  alias AssetMonitoringDashWeb.DashboardComponents.RelatedAssets
+  alias AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets
 
   test "renders related asset links with detail URL state" do
     document =
