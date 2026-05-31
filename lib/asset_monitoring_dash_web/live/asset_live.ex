@@ -14,6 +14,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
   alias AssetMonitoringDashWeb.DashboardComponents.InvestigationBrief
   alias AssetMonitoringDashWeb.DashboardComponents.RelatedAssets
+  alias AssetMonitoringDashWeb.DashboardComponents.ReviewActionForm
   alias AssetMonitoringDashWeb.DashboardComponents.ReviewHistory
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Badge

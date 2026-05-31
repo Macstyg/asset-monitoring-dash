@@ -57,151 +57,150 @@
         <section
           id="asset-context-strip"
           aria-label="Asset context"
-          class="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4"
+          class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4"
         >
-          <Card.surface padding="p-4">
-            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
-              Chain / game
-            </p>
-            <p id="asset-context-chain" class="mt-3 text-sm font-semibold text-app-fg">
-              {@asset.chain}
-            </p>
-            <p id="asset-context-game" class="mt-1 truncate font-mono text-xs text-app-muted">
-              {@asset.ecosystem}
-            </p>
-          </Card.surface>
-
-          <Card.surface padding="p-4">
-            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
-              Collateral class
-            </p>
-            <p id="asset-context-rarity" class="mt-3 text-sm font-semibold text-app-fg">
-              {@asset.rarity}
-            </p>
-            <p id="asset-context-type" class="mt-1 truncate font-mono text-xs text-app-muted">
-              {@asset.asset_type}
-            </p>
-          </Card.surface>
-
-          <Card.surface padding="p-4">
-            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
-              Position size
-            </p>
-            <p
-              id="asset-context-value"
-              class="mt-3 font-mono text-sm font-semibold tabular-nums text-app-fg"
-            >
-              {Formatters.usd(@asset.current_value_usd)} collateral
-            </p>
-            <p id="asset-context-loan" class="mt-1 font-mono text-xs text-app-muted">
-              {Formatters.usd(@asset.loan_value_usd)} borrowed
-            </p>
-          </Card.surface>
-
-          <Card.surface padding="p-4">
-            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
-              Signal quality
-            </p>
-            <div class="mt-3 flex flex-wrap gap-2">
-              <Badge.render
-                id="asset-context-oracle"
-                label={@asset.oracle_status}
-                tone={signal_tone(@asset.oracle_status)}
-              />
-              <Badge.render
-                id="asset-context-liquidity"
-                label={@asset.liquidity_status}
-                tone={signal_tone(@asset.liquidity_status)}
-              />
+          <Card.surface padding="px-4 py-3" variant={:subtle}>
+            <div class="flex min-w-0 items-center justify-between gap-3 xl:block">
+              <div class="min-w-0">
+                <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+                  Chain / game
+                </p>
+                <p
+                  id="asset-context-chain"
+                  class="mt-2 truncate text-sm font-semibold text-app-fg"
+                >
+                  {@asset.chain}
+                </p>
+              </div>
+              <p id="asset-context-game" class="mt-1 truncate font-mono text-xs text-app-muted">
+                {@asset.ecosystem}
+              </p>
             </div>
-            <p id="asset-context-depth" class="mt-2 font-mono text-xs text-app-muted">
-              {Formatters.usd(@asset.market_depth_usd)} market depth
-            </p>
+          </Card.surface>
+
+          <Card.surface padding="px-4 py-3" variant={:subtle}>
+            <div class="flex min-w-0 items-center justify-between gap-3 xl:block">
+              <div class="min-w-0">
+                <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+                  Collateral class
+                </p>
+                <p
+                  id="asset-context-rarity"
+                  class="mt-2 truncate text-sm font-semibold text-app-fg"
+                >
+                  {@asset.rarity}
+                </p>
+              </div>
+              <p id="asset-context-type" class="mt-1 truncate font-mono text-xs text-app-muted">
+                {@asset.asset_type}
+              </p>
+            </div>
+          </Card.surface>
+
+          <Card.surface padding="px-4 py-3" variant={:subtle}>
+            <div class="flex min-w-0 items-center justify-between gap-3 xl:block">
+              <div class="min-w-0">
+                <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+                  Position size
+                </p>
+                <p
+                  id="asset-context-value"
+                  class="mt-2 font-mono text-sm font-semibold tabular-nums text-app-fg"
+                >
+                  {Formatters.usd(@asset.current_value_usd)} collateral
+                </p>
+              </div>
+              <p id="asset-context-loan" class="mt-1 font-mono text-xs text-app-muted">
+                {Formatters.usd(@asset.loan_value_usd)} borrowed
+              </p>
+            </div>
+          </Card.surface>
+
+          <Card.surface padding="px-4 py-3" variant={:subtle}>
+            <div class="flex min-w-0 items-center justify-between gap-3 xl:block">
+              <div class="min-w-0">
+                <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+                  Signal quality
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <Badge.render
+                    id="asset-context-oracle"
+                    label={@asset.oracle_status}
+                    tone={signal_tone(@asset.oracle_status)}
+                  />
+                  <Badge.render
+                    id="asset-context-liquidity"
+                    label={@asset.liquidity_status}
+                    tone={signal_tone(@asset.liquidity_status)}
+                  />
+                </div>
+              </div>
+              <p id="asset-context-depth" class="mt-2 font-mono text-xs text-app-muted">
+                {Formatters.usd(@asset.market_depth_usd)} market depth
+              </p>
+            </div>
           </Card.surface>
         </section>
 
-        <InvestigationBrief.render
-          asset={@asset}
-          health_factor={@asset_health_factor}
-          risk_recommendation={@asset_risk_recommendation}
-          review_state={@asset_review_state}
-        />
-
-        <AssetInspection.render
-          asset={@asset}
-          health_factor={@asset_health_factor}
-          ltv_trend={@asset_ltv_trend}
-          risk_recommendation={@asset_risk_recommendation}
-          risk_explanation={@asset_risk_explanation}
-          review_state={@asset_review_state}
+        <div
+          id="asset-overview-workspace"
+          class="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.42fr)] xl:items-start"
         >
-          <:actions>
-            <Button.render
-              id="apply-price-shock"
-              phx-click="apply_price_shock"
-              disabled={@asset_shocked?}
-            >
-              {price_shock_button_label(@asset_shocked?)}
-            </Button.render>
-            <Button.render
-              id="reset-asset-scenario"
-              phx-click="reset_asset_scenario"
-              disabled={not @asset_shocked?}
-            >
-              Reset scenario
-            </Button.render>
+          <main id="asset-overview-main" class="grid min-w-0 gap-6">
+            <AssetInspection.render
+              asset={@asset}
+              health_factor={@asset_health_factor}
+              ltv_trend={@asset_ltv_trend}
+              risk_recommendation={@asset_risk_recommendation}
+              risk_explanation={@asset_risk_explanation}
+              review_state={@asset_review_state}
+            />
+          </main>
 
-            <.form
-              for={@review_action_form}
-              id="review-action-form"
-              phx-change="validate_review_action"
-              phx-submit="submit_review_action"
-              class="review-action-form mt-2 grid w-full gap-3 rounded-app border border-app-border bg-app-bg/45 p-3 shadow-[inset_0_1px_0_color-mix(in_oklch,var(--amd-fg),transparent_95%)]"
-            >
-              <div class="grid items-start gap-3 sm:grid-cols-[minmax(180px,0.75fr)_minmax(0,1.25fr)]">
-                <.input
-                  field={@review_action_form[:reason]}
-                  type="select"
-                  label="Review reason"
-                  options={@review_reason_options}
-                  class="h-10 w-full rounded-app border border-app-border bg-app-surface px-3 text-sm font-semibold text-app-fg outline-none transition hover:border-app-accent/35 focus:border-app-accent/50 focus:ring-2 focus:ring-app-accent/15"
-                />
-                <.input
-                  field={@review_action_form[:note]}
-                  type="textarea"
-                  label="Operator note"
-                  placeholder="Optional audit note"
-                  rows="2"
-                  maxlength="180"
-                  class="h-20 w-full resize-none rounded-app border border-app-border bg-app-surface px-3 py-2 text-sm leading-5 text-app-fg outline-none transition placeholder:text-app-muted hover:border-app-accent/35 focus:border-app-accent/50 focus:ring-2 focus:ring-app-accent/15"
-                />
+          <aside id="asset-overview-aside" class="grid min-w-0 gap-4 xl:sticky xl:top-6">
+            <InvestigationBrief.render
+              asset={@asset}
+              health_factor={@asset_health_factor}
+              risk_recommendation={@asset_risk_recommendation}
+              review_state={@asset_review_state}
+            />
+
+            <Card.surface id="asset-scenario-controls" class="flex flex-wrap gap-2">
+              <div class="w-full">
+                <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+                  Scenario controls
+                </p>
+                <p class="mt-1 text-sm leading-6 text-app-muted">
+                  Stress this asset without changing the underlying demo fixture.
+                </p>
               </div>
 
-              <div class="flex flex-wrap gap-2 border-t border-app-border pt-3">
-                <Button.render
-                  id="mark-asset-reviewed"
-                  type="submit"
-                  name="review_action[action]"
-                  value="reviewed"
-                  disabled={@asset_reviewed?}
-                  class="h-8 px-3"
-                >
-                  Mark reviewed
-                </Button.render>
-                <Button.render
-                  id="escalate-asset-review"
-                  type="submit"
-                  name="review_action[action]"
-                  value="escalated"
-                  disabled={@asset_escalated?}
-                  class="h-8 px-3"
-                >
-                  Escalate
-                </Button.render>
-              </div>
-            </.form>
-          </:actions>
-        </AssetInspection.render>
+              <Button.render
+                id="apply-price-shock"
+                phx-click="apply_price_shock"
+                disabled={@asset_shocked?}
+                class="h-9 px-4"
+              >
+                {price_shock_button_label(@asset_shocked?)}
+              </Button.render>
+              <Button.render
+                id="reset-asset-scenario"
+                phx-click="reset_asset_scenario"
+                disabled={not @asset_shocked?}
+                class="h-9 px-4"
+              >
+                Reset scenario
+              </Button.render>
+            </Card.surface>
+
+            <ReviewActionForm.render
+              form={@review_action_form}
+              reason_options={@review_reason_options}
+              reviewed={@asset_reviewed?}
+              escalated={@asset_escalated?}
+            />
+          </aside>
+        </div>
       </div>
 
       <section
