@@ -3,6 +3,8 @@ defmodule AssetMonitoringDash.SimulatorTest do
 
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.AssetScenarioStore
+  alias AssetMonitoringDash.ReviewState
+  alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Simulator
 
   test "can be disabled by configuration options" do
@@ -52,6 +54,9 @@ defmodule AssetMonitoringDash.SimulatorTest do
 
   test "scheduled ticks can apply a persisted scenario and broadcast dashboard refresh state" do
     name = :"simulator-#{System.unique_integer([:positive])}"
+    reviewed_asset = AssetMonitoringDash.Assets.get_persisted_asset("asset-001")
+
+    ReviewStore.mark_reviewed(reviewed_asset.id)
 
     pid =
       start_supervised!(
@@ -70,13 +75,20 @@ defmodule AssetMonitoringDash.SimulatorTest do
     assert_receive {Simulator, :scenario_applied,
                     %{
                       asset: %{id: asset_id},
-                      event_history: [%{id: "event-shock-" <> _asset_key} | _events],
+                      event_history: [
+                        %{id: "event-review-unreviewed-" <> _review_asset_key, kind: :operator},
+                        %{id: "event-shock-" <> _shock_asset_key, kind: :scenario}
+                        | _events
+                      ],
                       next_event_index: 0,
+                      review_states: review_states,
                       shocked_asset_ids: shocked_asset_ids
                     }}
 
     assert AssetMonitoringDash.Assets.asset_id_in_set?(asset_id, shocked_asset_ids)
     assert AssetScenarioStore.shocked_asset_ids() == shocked_asset_ids
+    assert ReviewState.state_for(asset_id, review_states).id == :unreviewed
+    assert ReviewStore.current_state(asset_id).id == :unreviewed
   end
 
   test "scheduled ticks fall back to activity events after scenario cap is reached" do

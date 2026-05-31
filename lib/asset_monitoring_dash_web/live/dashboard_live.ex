@@ -680,13 +680,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     socket
     |> assign(:next_event_index, payload.next_event_index)
     |> assign(:snapshot, Assets.portfolio_snapshot(shocked_asset_ids))
-    |> assign(:review_states, ReviewStore.all_states())
+    |> assign(:review_states, simulator_review_states(payload))
     |> assign(:shocked_asset_ids, shocked_asset_ids)
     |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
     |> assign_metric_cards()
     |> assign_simulator_status()
     |> apply_asset_filters(socket.assigns.asset_filters)
   end
+
+  defp simulator_review_states(%{review_states: review_states}), do: review_states
+  defp simulator_review_states(_payload), do: ReviewStore.all_states()
 
   defp toggle_event_feed(true, socket) do
     Simulator.resume()

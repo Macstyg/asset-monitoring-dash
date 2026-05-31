@@ -28,4 +28,25 @@ defmodule AssetMonitoringDash.DemoOperationsTest do
     assert ActivityLog.visible_events_for_asset(asset.id) == []
     assert Assets.persisted_asset_count() == catalog_count
   end
+
+  test "applies a price shock and resets stale operator review state" do
+    asset = Assets.get_persisted_asset("asset-001")
+
+    ReviewStore.mark_reviewed(asset.id)
+
+    assert ReviewStore.current_state(asset.id).id == :reviewed
+
+    result = DemoOperations.apply_price_shock(asset.id)
+
+    assert result.asset.id == asset.id
+    assert Assets.asset_id_in_set?(asset.id, result.shocked_asset_ids)
+    assert result.review_reset.decision.state_id == :unreviewed
+    assert ReviewStore.current_state(asset.id).id == :unreviewed
+
+    assert [
+             %{id: "event-review-unreviewed-" <> _review_asset_id, kind: :operator},
+             %{id: "event-shock-" <> _shock_asset_id, kind: :scenario}
+             | _events
+           ] = ActivityLog.visible_events_for_asset(asset.id)
+  end
 end

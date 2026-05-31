@@ -7,6 +7,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.ScenarioTest do
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenarioStore
+  alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Simulator
 
   test "applies a price shock to the inspected asset", %{conn: conn} do
@@ -140,6 +141,8 @@ defmodule AssetMonitoringDashWeb.AssetLive.ScenarioTest do
   test "refreshes inspected asset when simulator applies a matching scenario", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
 
+    ReviewStore.mark_reviewed("asset-001")
+
     assert has_element?(view, "#asset-inspection", "$4,860")
     assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
     assert has_element?(view, "#reset-asset-scenario[disabled]")
@@ -150,6 +153,9 @@ defmodule AssetMonitoringDashWeb.AssetLive.ScenarioTest do
     event_history =
       ActivityLog.record_price_shock(asset, AssetScenarioStore.price_shock_drop_percent())
 
+    review_reset = ReviewStore.reset_after_scenario(asset.id)
+    ActivityLog.record_review_decision(asset, review_reset.decision)
+
     send(view.pid, {
       Simulator,
       :scenario_applied,
@@ -157,6 +163,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.ScenarioTest do
         asset: asset,
         event_history: event_history,
         next_event_index: 0,
+        review_states: review_reset.states,
         shocked_asset_ids: shocked_asset_ids
       }
     })
@@ -164,12 +171,14 @@ defmodule AssetMonitoringDashWeb.AssetLive.ScenarioTest do
     assert has_element?(view, "#asset-inspection", "$4,277")
     assert has_element?(view, "#asset-ltv-trend-latest", "67.8%")
     assert has_element?(view, "#apply-price-shock[disabled]", "Shock applied")
+    assert has_element?(view, "#operator-review-state-label", "Unreviewed")
 
     view
     |> element("#asset-focus-activity")
     |> render_click()
 
-    assert has_element?(view, "#asset-event-count", "1 events")
+    assert has_element?(view, "#asset-event-count", "2 events")
+    assert has_element?(view, "#asset-event-row-event-review-unreviewed-asset-001")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001", "Price shock applied")
   end
 

@@ -6,6 +6,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenarioStore
+  alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Simulator
 
   test "shows and resets active asset scenarios", %{conn: conn} do
@@ -51,19 +52,24 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
   test "refreshes scenario state from simulator broadcasts", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
+    ReviewStore.mark_reviewed("asset-001")
+
     shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-001")
     asset = Assets.get_persisted_asset_with_scenarios("asset-001", shocked_asset_ids)
 
-    event_history =
-      ActivityLog.record_price_shock(asset, AssetScenarioStore.price_shock_drop_percent())
+    ActivityLog.record_price_shock(asset, AssetScenarioStore.price_shock_drop_percent())
+
+    review_reset = ReviewStore.reset_after_scenario(asset.id)
+    ActivityLog.record_review_decision(asset, review_reset.decision)
 
     send(view.pid, {
       Simulator,
       :scenario_applied,
       %{
         asset: asset,
-        event_history: event_history,
+        event_history: ActivityLog.visible_events(),
         next_event_index: 0,
+        review_states: review_reset.states,
         shocked_asset_ids: shocked_asset_ids
       }
     })
@@ -71,6 +77,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
     assert has_element?(view, "#active-scenario-banner")
     assert has_element?(view, "#active-scenario-count", "1 active scenario")
     assert has_element?(view, "#asset-scenario-asset-001", "Price shock")
+    assert has_element?(view, "#asset-row-asset-001", "Unreviewed")
+    assert has_element?(view, "#event-row-event-review-unreviewed-asset-001")
     assert has_element?(view, "#event-row-event-shock-asset-001", "Price shock applied")
   end
 end

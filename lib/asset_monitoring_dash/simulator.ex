@@ -12,6 +12,7 @@ defmodule AssetMonitoringDash.Simulator do
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenarioStore
+  alias AssetMonitoringDash.DemoOperations
 
   @default_interval_ms 4_000
   @default_max_active_scenarios 5
@@ -151,17 +152,14 @@ defmodule AssetMonitoringDash.Simulator do
         record_activity_tick(state)
 
       asset ->
-        shocked_asset_ids = AssetScenarioStore.apply_price_shock(asset.id)
-        asset = Assets.get_persisted_asset_with_scenarios(asset.id, shocked_asset_ids)
-
-        event_history =
-          ActivityLog.record_price_shock(asset, AssetScenarioStore.price_shock_drop_percent())
+        scenario = DemoOperations.apply_price_shock(asset.id)
 
         payload = %{
-          asset: asset,
-          event_history: event_history,
+          asset: scenario.asset,
+          event_history: scenario.event_history,
           next_event_index: state.next_event_index,
-          shocked_asset_ids: shocked_asset_ids
+          review_states: scenario.review_states,
+          shocked_asset_ids: scenario.shocked_asset_ids
         }
 
         Phoenix.PubSub.broadcast(

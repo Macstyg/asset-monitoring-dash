@@ -4,6 +4,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenarioStore
+  alias AssetMonitoringDash.DemoOperations
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Risk
@@ -210,16 +211,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   defp apply_price_shock(socket, false) do
     asset_id = socket.assigns.asset.id
-    shocked_asset_ids = AssetScenarioStore.apply_price_shock(asset_id)
-    asset = Assets.get_persisted_asset_with_scenarios(asset_id, shocked_asset_ids)
-    ActivityLog.record_price_shock(asset, 12)
-    review_reset = ReviewStore.reset_after_scenario(asset_id)
-    record_review_decision(asset, review_reset.decision)
+    scenario = DemoOperations.apply_price_shock(asset_id)
 
     socket
-    |> assign(:review_states, review_reset.states)
-    |> assign(:shocked_asset_ids, shocked_asset_ids)
-    |> assign_asset(asset)
+    |> assign(:review_states, scenario.review_states)
+    |> assign(:shocked_asset_ids, scenario.shocked_asset_ids)
+    |> assign_asset(scenario.asset)
   end
 
   defp reset_asset_scenario(socket, false), do: socket
@@ -286,12 +283,15 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   defp refresh_asset_from_scenario(socket, true, payload) do
     socket
-    |> assign(:review_states, ReviewStore.all_states())
+    |> assign(:review_states, simulator_review_states(payload))
     |> assign(:shocked_asset_ids, payload.shocked_asset_ids)
     |> assign_asset_from_id(socket.assigns.asset.id)
   end
 
   defp refresh_asset_from_scenario(socket, false, _payload), do: socket
+
+  defp simulator_review_states(%{review_states: review_states}), do: review_states
+  defp simulator_review_states(_payload), do: ReviewStore.all_states()
 
   defp refresh_asset_events(socket, true),
     do: assign_asset_events(socket, socket.assigns.asset.id)
