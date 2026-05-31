@@ -96,7 +96,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatusTest do
            |> Enum.any?()
 
     assert document
-           |> LazyHTML.query("#simulator-toggle[phx-click=\"toggle_event_feed\"]")
+           |> LazyHTML.query("#simulator-toggle[phx-click=\"toggle_simulator_process\"]")
            |> Enum.any?()
 
     assert document

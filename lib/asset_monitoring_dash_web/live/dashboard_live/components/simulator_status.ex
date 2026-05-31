@@ -202,7 +202,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
 
         <Button.render
           id="simulator-toggle"
-          phx-click="toggle_event_feed"
+          phx-click="toggle_simulator_process"
           disabled={!@status.running?}
           class="h-9 gap-2 rounded-app px-3"
         >

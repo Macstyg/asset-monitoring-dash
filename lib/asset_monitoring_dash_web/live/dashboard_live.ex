@@ -273,11 +273,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   @impl true
-  def handle_event("push_demo_event", _params, socket) do
-    {:noreply, push_demo_event(socket)}
-  end
-
-  @impl true
   def handle_event("run_event_tick", _params, socket) do
     {:noreply, run_event_tick(socket)}
   end
@@ -288,8 +283,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   @impl true
-  def handle_event("toggle_event_feed", _params, socket) do
-    {:noreply, toggle_event_feed(socket.assigns.feed_paused, socket)}
+  def handle_event("toggle_simulator_process", _params, socket) do
+    {:noreply, toggle_simulator_process(socket.assigns.feed_paused, socket)}
   end
 
   @impl true
@@ -700,12 +695,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     end
   end
 
-  defp push_demo_event(socket) do
-    feed = record_demo_event(socket.assigns.next_event_index)
-
-    apply_demo_feed(socket, feed)
-  end
-
   defp run_event_tick(socket) do
     feed = record_demo_event(socket.assigns.next_event_index)
 
@@ -818,7 +807,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     assign(socket, :scenario_summary, AssetScenarioStore.active_summary())
   end
 
-  defp toggle_event_feed(true, socket) do
+  defp toggle_simulator_process(true, socket) do
     Simulator.resume()
 
     socket
@@ -828,7 +817,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> apply_event_filter()
   end
 
-  defp toggle_event_feed(false, socket) do
+  defp toggle_simulator_process(false, socket) do
     Simulator.pause()
 
     socket

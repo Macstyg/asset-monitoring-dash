@@ -6,7 +6,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.EventFeed do
   use Phoenix.Component
 
   alias AssetMonitoringDashWeb.SharedComponents.EventItem
-  alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.FilterBar
   alias AssetMonitoringDashWeb.UI.Panel
   alias AssetMonitoringDashWeb.UI.SectionHeader
@@ -48,20 +47,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.EventFeed do
         </:actions>
       </SectionHeader.render>
 
-      <div class="mt-4 flex flex-wrap gap-2">
-        <Button.render id="push-demo-event" phx-click="push_demo_event">
-          Push event
-        </Button.render>
-        <Button.render id="toggle-event-feed" phx-click="toggle_event_feed">
-          {if(@feed_paused, do: "Resume feed", else: "Pause feed")}
-        </Button.render>
-      </div>
-
       <FilterBar.render
         form={@event_filter_form}
         id="event-filters"
         phx-change="filter_events"
-        class="mt-4"
+        class="mt-5"
       >
         <div class="flex flex-wrap items-center gap-2">
           <FilterBar.multi_select

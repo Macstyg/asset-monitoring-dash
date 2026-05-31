@@ -3,7 +3,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.EventFeedTest do
 
   alias AssetMonitoringDashWeb.DashboardLive.Components.EventFeed
 
-  test "renders feed controls, filters, and streamed event rows" do
+  test "renders feed status, filters, and streamed event rows" do
     document =
       render_component(&EventFeed.render/1,
         active_event_filter_chips: [source_chip()],
@@ -22,14 +22,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.EventFeedTest do
     assert document |> LazyHTML.query("#event-feed") |> Enum.any?()
     assert document |> LazyHTML.query("#event-count") |> LazyHTML.text() =~ "1 events"
     assert document |> LazyHTML.query("#event-feed-state") |> LazyHTML.text() =~ "streaming"
-
-    assert document
-           |> LazyHTML.query("#push-demo-event[phx-click=\"push_demo_event\"]")
-           |> Enum.any?()
-
-    assert document
-           |> LazyHTML.query("#toggle-event-feed[phx-click=\"toggle_event_feed\"]")
-           |> Enum.any?()
 
     assert document |> LazyHTML.query("#event-filters") |> Enum.any?()
     assert document |> LazyHTML.query("#active-filter-event-sources-scenario") |> Enum.any?()

@@ -7,25 +7,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.Simulator
 
-  test "pushes and pauses demo events", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
-
-    view
-    |> element("#push-demo-event")
-    |> render_click()
-
-    assert has_element?(view, "#event-count", "6 events")
-    assert has_element?(view, "#event-row-event-live-1")
-    assert has_element?(view, "#event-list", "Oracle heartbeat")
-
-    view
-    |> element("#toggle-event-feed")
-    |> render_click()
-
-    assert has_element?(view, "#event-feed-state", "paused")
-    assert has_element?(view, "#toggle-event-feed", "Resume feed")
-  end
-
   test "shows simulator status and controls the supervised process", %{conn: conn} do
     start_supervised!(
       {Simulator,
@@ -185,6 +166,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
   end
 
   test "active event source filters are not displaced by hidden system ticks", %{conn: conn} do
+    start_manual_simulator!()
+
     asset = asset_fixture("asset-001")
 
     ActivityLog.record_price_shock(%{asset | ltv_percent: 67.8}, 12)
@@ -202,7 +185,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
 
     for _index <- 1..3 do
       view
-      |> element("#push-demo-event")
+      |> element("#simulator-run-event-tick")
       |> render_click()
     end
 
@@ -212,11 +195,13 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
   end
 
   test "keeps the visible event feed bounded", %{conn: conn} do
+    start_manual_simulator!()
+
     {:ok, view, _html} = live(conn, ~p"/")
 
     for _index <- 1..3 do
       view
-      |> element("#push-demo-event")
+      |> element("#simulator-run-event-tick")
       |> render_click()
     end
 
@@ -226,5 +211,18 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
     assert has_element?(view, "#event-row-event-live-2", "4s ago")
     assert has_element?(view, "#event-row-event-live-1", "8s ago")
     refute has_element?(view, "#event-row-event-005")
+  end
+
+  defp start_manual_simulator! do
+    start_supervised!(
+      {Simulator,
+       enabled: true,
+       interval_ms: :manual,
+       max_active_scenarios: 5,
+       name: Simulator,
+       next_event_index: 0,
+       scenario_every: 4,
+       tick_index: 0}
+    )
   end
 end
