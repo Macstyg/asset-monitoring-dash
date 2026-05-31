@@ -7,6 +7,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.DecisionRailTest do
     document =
       render_component(&DecisionRail.render/1,
         asset: asset(),
+        active_scenario: nil,
         asset_shocked?: false,
         escalated: false,
         health_factor: "1.7",
@@ -14,6 +15,14 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.DecisionRailTest do
         review_action_form: review_action_form(),
         review_state: %{label: "Unreviewed", tone: :neutral},
         reviewed: false,
+        scenario_options: [
+          %{
+            id: "price_shock",
+            label: "Price shock",
+            description: "Reprices collateral lower and raises LTV pressure.",
+            tone: :warning
+          }
+        ],
         risk_recommendation: %{
           id: :manual_review,
           label: "Manual review",

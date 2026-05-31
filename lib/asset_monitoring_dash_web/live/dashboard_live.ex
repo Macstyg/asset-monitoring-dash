@@ -49,6 +49,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:snapshot, snapshot)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
+      |> assign_scenario_summary()
       |> assign(:review_states, review_states)
       |> assign_asset_page(asset_page, :reset)
       |> assign(:feed_paused, simulator_status.paused?)
@@ -121,6 +122,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:review_states, review_states)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
+      |> assign_scenario_summary()
       |> assign(:event_history, events)
       |> assign_metric_cards()
       |> apply_asset_filters(socket.assigns.asset_filters)
@@ -143,6 +145,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:review_states, review_states)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
+      |> assign_scenario_summary()
       |> assign(:event_history, events)
       |> assign_metric_cards()
       |> assign_simulator_status()
@@ -679,7 +682,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp scenario_for_asset(asset, shocked_asset_ids) do
     case Assets.asset_id_in_set?(asset.id, shocked_asset_ids) do
-      true -> %{label: "Price shock", tone: :warning}
+      true -> AssetScenarioStore.scenario_option_for_asset(asset.id)
       false -> nil
     end
   end
@@ -707,6 +710,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:review_states, simulator_review_states(payload))
     |> assign(:shocked_asset_ids, shocked_asset_ids)
     |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
+    |> assign_scenario_summary()
     |> assign_metric_cards()
     |> assign_simulator_status()
     |> apply_asset_filters(socket.assigns.asset_filters)
@@ -714,6 +718,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp simulator_review_states(%{review_states: review_states}), do: review_states
   defp simulator_review_states(_payload), do: ReviewStore.all_states()
+
+  defp assign_scenario_summary(socket) do
+    assign(socket, :scenario_summary, AssetScenarioStore.active_summary())
+  end
 
   defp toggle_event_feed(true, socket) do
     Simulator.resume()

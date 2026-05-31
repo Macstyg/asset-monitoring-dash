@@ -128,8 +128,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetTable do
               <Badge.render
                 :if={asset.scenario}
                 id={"asset-scenario-#{Map.get(asset, :dom_id, asset.id)}"}
-                label={asset.scenario.label}
+                label={"Scenario: #{asset.scenario.short_label}"}
                 tone={asset.scenario.tone}
+                title={asset.scenario.description}
+                aria-label={"Active scenario: #{asset.scenario.label}. #{asset.scenario.description}"}
+                class="border border-current/10"
               />
               <span class="max-w-36 truncate font-mono text-xs text-app-muted">
                 {asset.recommendation_reason.label}

@@ -16,6 +16,15 @@ defmodule AssetMonitoringDash.ActivityLogTest do
              ActivityLog.visible_events_for_asset("asset-001")
   end
 
+  test "records typed scenario events through the activity boundary" do
+    asset = asset_fixture()
+
+    ActivityLog.record_scenario(Map.put(asset, :oracle_freshness_seconds, 720), "oracle_stale")
+
+    assert [%{id: "event-oracle_stale-asset-001", title: "Oracle stale"}] =
+             ActivityLog.visible_events_for_asset("asset-001")
+  end
+
   test "records review events with normalized audit context" do
     asset = asset_fixture()
 
@@ -44,6 +53,8 @@ defmodule AssetMonitoringDash.ActivityLogTest do
       dom_id: "asset-001",
       name: "Aegis Dragon Helm",
       chain: "Polygon",
+      current_value_usd: Decimal.new("4860.00"),
+      loan_value_usd: Decimal.new("2900.00"),
       ltv_percent: 59.7
     }
     |> Map.put(:id, Assets.resolve_persisted_asset_id("asset-001"))

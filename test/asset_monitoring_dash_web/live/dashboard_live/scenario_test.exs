@@ -34,7 +34,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
     assert has_element?(view, "#asset-count", "50 monitored")
     assert has_element?(view, "#asset-row-asset-001", "$4,277")
     assert has_element?(view, "#asset-row-asset-001", "67.8%")
-    assert has_element?(view, "#asset-scenario-asset-001", "Price shock")
+    assert has_element?(view, "#asset-scenario-asset-001", "Scenario: Price")
     assert has_element?(view, "#asset-row-asset-001", "Reviewed")
 
     view
@@ -76,7 +76,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
 
     assert has_element?(view, "#active-scenario-banner")
     assert has_element?(view, "#active-scenario-count", "1 active scenario")
-    assert has_element?(view, "#asset-scenario-asset-001", "Price shock")
+    assert has_element?(view, "#asset-scenario-asset-001", "Scenario: Price")
     assert has_element?(view, "#asset-row-asset-001", "Unreviewed")
     assert has_element?(view, "#event-row-event-review-unreviewed-asset-001")
     assert has_element?(view, "#event-row-event-shock-asset-001", "Price shock applied")

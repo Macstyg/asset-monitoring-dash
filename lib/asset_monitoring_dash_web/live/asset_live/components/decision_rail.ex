@@ -11,6 +11,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.DecisionRail do
 
   attr :asset, :map, required: true
   attr :asset_shocked?, :boolean, required: true
+  attr :active_scenario, :map, default: nil
   attr :escalated, :boolean, required: true
   attr :health_factor, :string, required: true
   attr :reason_options, :list, required: true
@@ -18,6 +19,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.DecisionRail do
   attr :review_state, :map, required: true
   attr :reviewed, :boolean, required: true
   attr :risk_recommendation, :map, required: true
+  attr :scenario_options, :list, required: true
 
   def render(assigns) do
     ~H"""
@@ -29,7 +31,11 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.DecisionRail do
         review_state={@review_state}
       />
 
-      <ScenarioControls.render asset_shocked?={@asset_shocked?} />
+      <ScenarioControls.render
+        active_scenario={@active_scenario}
+        asset_shocked?={@asset_shocked?}
+        scenario_options={@scenario_options}
+      />
 
       <ReviewActionForm.render
         form={@review_action_form}

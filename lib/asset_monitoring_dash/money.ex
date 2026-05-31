@@ -30,6 +30,10 @@ defmodule AssetMonitoringDash.Money do
     |> usd()
   end
 
+  def format_usd(value) do
+    "$#{format_number(value)}"
+  end
+
   def max(value, minimum) do
     case Decimal.compare(decimal(value), decimal(minimum)) do
       :lt -> usd(minimum)
@@ -47,4 +51,13 @@ defmodule AssetMonitoringDash.Money do
   end
 
   def decimal(value) when is_binary(value), do: Decimal.new(value)
+
+  defp format_number(value) do
+    value
+    |> decimal()
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+    |> Integer.to_string()
+    |> String.replace(~r/\B(?=(\d{3})+(?!\d))/, ",")
+  end
 end

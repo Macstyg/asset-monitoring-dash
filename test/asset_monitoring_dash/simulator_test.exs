@@ -82,6 +82,7 @@ defmodule AssetMonitoringDash.SimulatorTest do
                       ],
                       next_event_index: 0,
                       review_states: review_states,
+                      scenario_id: "price_shock",
                       shocked_asset_ids: shocked_asset_ids
                     }}
 
@@ -89,6 +90,34 @@ defmodule AssetMonitoringDash.SimulatorTest do
     assert AssetScenarioStore.shocked_asset_ids() == shocked_asset_ids
     assert ReviewState.state_for(asset_id, review_states).id == :unreviewed
     assert ReviewStore.current_state(asset_id).id == :unreviewed
+  end
+
+  test "scheduled scenario ticks rotate through scenario types" do
+    name = :"simulator-#{System.unique_integer([:positive])}"
+
+    pid =
+      start_supervised!(
+        {Simulator,
+         enabled: true,
+         interval_ms: :manual,
+         max_active_scenarios: 5,
+         name: name,
+         scenario_every: 1,
+         tick_index: 1}
+      )
+
+    Simulator.subscribe()
+    send(pid, :tick)
+
+    assert_receive {Simulator, :scenario_applied,
+                    %{
+                      asset: %{oracle_status: "Stale"},
+                      event_history: [
+                        %{id: "event-oracle_stale-" <> _asset_key, title: "Oracle stale"}
+                        | _events
+                      ],
+                      scenario_id: "oracle_stale"
+                    }}
   end
 
   test "scheduled ticks fall back to activity events after scenario cap is reached" do

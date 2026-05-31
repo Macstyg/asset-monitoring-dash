@@ -20,6 +20,10 @@ defmodule AssetMonitoringDash.ActivityLog do
     EventStore.push_price_shock_event(asset, drop_percent)
   end
 
+  def record_scenario(asset, scenario_id) do
+    EventStore.push_scenario_event(asset, scenario_id)
+  end
+
   def record_scenario_reset(asset) do
     EventStore.push_scenario_reset_event(asset)
   end

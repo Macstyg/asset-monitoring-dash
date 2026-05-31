@@ -152,13 +152,15 @@ defmodule AssetMonitoringDash.Simulator do
         record_activity_tick(state)
 
       asset ->
-        scenario = DemoOperations.apply_price_shock(asset.id)
+        scenario_id = scenario_id_for_tick(state.tick_index)
+        scenario = DemoOperations.apply_scenario(asset.id, scenario_id)
 
         payload = %{
           asset: scenario.asset,
           event_history: scenario.event_history,
           next_event_index: state.next_event_index,
           review_states: scenario.review_states,
+          scenario_id: scenario.scenario_id,
           shocked_asset_ids: scenario.shocked_asset_ids
         }
 
@@ -215,6 +217,12 @@ defmodule AssetMonitoringDash.Simulator do
 
   defp select_scenario_candidate(candidates, tick_index) do
     Enum.at(candidates, rem(tick_index, length(candidates)))
+  end
+
+  defp scenario_id_for_tick(tick_index) do
+    scenario_ids = AssetScenarioStore.scenario_ids()
+
+    Enum.at(scenario_ids, rem(tick_index, length(scenario_ids)))
   end
 
   defp schedule_tick(%{paused?: true} = state), do: state

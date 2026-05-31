@@ -7,6 +7,20 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatusTest do
     document =
       render_component(&SimulatorStatus.render/1,
         scenario_count: 2,
+        scenario_summary: [
+          %{
+            id: "price_shock",
+            label: "Price shock",
+            description: "Reprices collateral lower and raises LTV pressure.",
+            count: 1
+          },
+          %{
+            id: "oracle_stale",
+            label: "Oracle stale",
+            description: "Forces price-feed freshness outside the trusted window.",
+            count: 1
+          }
+        ],
         status: %{
           interval_ms: 4_000,
           max_active_scenarios: 5,
@@ -28,6 +42,18 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatusTest do
              "every 4 ticks"
 
     assert document |> LazyHTML.query("#simulator-active-scenarios") |> LazyHTML.text() =~ "2 / 5"
+
+    assert document |> LazyHTML.query("#simulator-scenario-summary") |> LazyHTML.text() =~
+             "Active scenario mix"
+
+    assert document |> LazyHTML.query("#simulator-scenario-count-price_shock") |> LazyHTML.text() =~
+             "1"
+
+    assert document |> LazyHTML.query("#simulator-scenario-count-price_shock") |> LazyHTML.text() =~
+             "Price shock"
+
+    assert document |> LazyHTML.query("#simulator-scenario-count-oracle_stale") |> LazyHTML.text() =~
+             "Oracle stale"
 
     assert document |> LazyHTML.query("#simulator-runtime-path") |> LazyHTML.text() =~
              "Supervised GenServer"

@@ -138,6 +138,26 @@ defmodule AssetMonitoringDashWeb.AssetLive.ScenarioTest do
     assert has_element?(view, "#asset-event-row-event-reset-asset-001", "Scenario reset")
   end
 
+  test "applies a signal-quality scenario to the inspected asset", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
+
+    assert has_element?(view, "#asset-context-oracle", "Fresh")
+
+    view
+    |> element("#apply-asset-scenario-oracle_stale")
+    |> render_click()
+
+    assert has_element?(view, "#asset-context-oracle", "Stale")
+    assert has_element?(view, "#active-asset-scenario", "Oracle stale")
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert has_element?(view, "#asset-event-row-event-oracle_stale-asset-001")
+    assert has_element?(view, "#asset-event-row-event-oracle_stale-asset-001", "Oracle stale")
+  end
+
   test "refreshes inspected asset when simulator applies a matching scenario", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
 

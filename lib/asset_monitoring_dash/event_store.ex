@@ -64,6 +64,18 @@ defmodule AssetMonitoringDash.EventStore do
     visible_events()
   end
 
+  def push_scenario_event(asset, scenario_id) do
+    event =
+      []
+      |> EventFeed.push_scenario_event(asset, scenario_id)
+      |> Map.fetch!(:visible_events)
+      |> List.first()
+
+    persist_event!(event)
+
+    visible_events()
+  end
+
   def push_scenario_reset_event(asset) do
     event =
       []

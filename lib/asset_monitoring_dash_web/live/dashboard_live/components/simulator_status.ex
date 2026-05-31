@@ -13,6 +13,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
   alias AssetMonitoringDashWeb.UI.SectionHeader
 
   attr :scenario_count, :integer, required: true
+  attr :scenario_summary, :list, default: []
   attr :status, :map, required: true
 
   def render(assigns) do
@@ -70,6 +71,29 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
             {@scenario_count} / {@status.max_active_scenarios}
           </p>
         </Card.surface>
+      </div>
+
+      <div
+        id="simulator-scenario-summary"
+        class={[
+          "mt-4 rounded-app border border-app-border bg-app-bg/60 p-3",
+          @scenario_summary == [] && "hidden"
+        ]}
+      >
+        <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+          Active scenario mix
+        </p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <span
+            :for={scenario <- @scenario_summary}
+            id={"simulator-scenario-count-#{scenario.id}"}
+            class="inline-flex items-center gap-2 rounded-full bg-app-surface-2 px-3 py-1 text-xs font-semibold text-app-fg ring-1 ring-app-border"
+            title={scenario.description}
+          >
+            <span class="font-mono text-app-muted">{scenario.count}</span>
+            {scenario.label}
+          </span>
+        </div>
       </div>
 
       <div

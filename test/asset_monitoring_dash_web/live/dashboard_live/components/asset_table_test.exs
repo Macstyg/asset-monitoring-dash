@@ -81,7 +81,12 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetTableTest do
       review_state: %{label: "Unreviewed", tone: :neutral},
       risk_recommendation: %{label: "Manual review", tone: :warning},
       recommendation_reason: %{label: "Elevated risk"},
-      scenario: %{label: "Scenario", tone: :warning}
+      scenario: %{
+        label: "Price shock",
+        short_label: "Price",
+        description: "Reprices collateral lower and raises LTV pressure.",
+        tone: :warning
+      }
     }
   end
 end

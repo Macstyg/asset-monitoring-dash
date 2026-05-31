@@ -78,5 +78,31 @@ defmodule AssetMonitoringDash.EventStoreTest do
              EventStore.visible_events_for_asset("asset-001")
   end
 
+  test "publishes typed scenario events" do
+    expected_asset_id = asset_id("asset-001")
+
+    asset = %{
+      id: expected_asset_id,
+      dom_id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon",
+      current_value_usd: Decimal.new("5637.60"),
+      loan_value_usd: Decimal.new("2900.00"),
+      ltv_percent: Decimal.new("51.4"),
+      market_depth_usd: Decimal.new("7560.00"),
+      oracle_freshness_seconds: 720
+    }
+
+    assert [
+             %{
+               id: "event-oracle_stale-asset-001",
+               asset_id: ^expected_asset_id,
+               kind: :scenario,
+               title: "Oracle stale"
+             }
+             | _events
+           ] = EventStore.push_scenario_event(asset, "oracle_stale")
+  end
+
   defp asset_id(code), do: AssetMonitoringDash.Assets.resolve_persisted_asset_id(code)
 end

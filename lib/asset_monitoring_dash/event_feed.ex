@@ -67,6 +67,29 @@ defmodule AssetMonitoringDash.EventFeed do
     push_event(visible_events, event)
   end
 
+  def push_scenario_event(visible_events, asset, "price_shock") do
+    push_price_shock_event(visible_events, asset, 12)
+  end
+
+  def push_scenario_event(visible_events, asset, scenario_id) do
+    event_asset_key = event_asset_key(asset)
+    scenario = scenario_event(asset, scenario_id)
+
+    event = %{
+      id: "event-#{scenario_id}-#{event_asset_key}",
+      asset_id: asset.id,
+      time_label: "now",
+      title: scenario.title,
+      detail: scenario.detail,
+      chain: asset.chain,
+      kind: :scenario,
+      status: scenario.status,
+      tone: scenario.tone
+    }
+
+    push_event(visible_events, event)
+  end
+
   def push_scenario_reset_event(visible_events, asset) do
     event_asset_key = event_asset_key(asset)
 
@@ -151,6 +174,14 @@ defmodule AssetMonitoringDash.EventFeed do
     %{event | time_label: "#{index * @event_tick_interval_seconds}s ago"}
   end
 
+  defp refresh_live_event_label(%{kind: :scenario} = event, 0) do
+    %{event | time_label: "now"}
+  end
+
+  defp refresh_live_event_label(%{kind: :scenario} = event, index) do
+    %{event | time_label: "#{index * @event_tick_interval_seconds}s ago"}
+  end
+
   defp refresh_live_event_label(%{id: "event-reset-" <> _id} = event, 0) do
     %{event | time_label: "now"}
   end
@@ -172,6 +203,18 @@ defmodule AssetMonitoringDash.EventFeed do
   defp put_missing_event_kind(%{kind: _kind} = event), do: event
 
   defp put_missing_event_kind(%{id: "event-shock-" <> _id} = event),
+    do: Map.put(event, :kind, :scenario)
+
+  defp put_missing_event_kind(%{id: "event-oracle_stale-" <> _id} = event),
+    do: Map.put(event, :kind, :scenario)
+
+  defp put_missing_event_kind(%{id: "event-liquidity_thinning-" <> _id} = event),
+    do: Map.put(event, :kind, :scenario)
+
+  defp put_missing_event_kind(%{id: "event-borrower_top_up-" <> _id} = event),
+    do: Map.put(event, :kind, :scenario)
+
+  defp put_missing_event_kind(%{id: "event-repayment-" <> _id} = event),
     do: Map.put(event, :kind, :scenario)
 
   defp put_missing_event_kind(%{id: "event-reset-" <> _id} = event),
@@ -260,6 +303,55 @@ defmodule AssetMonitoringDash.EventFeed do
   end
 
   defp asset_event?(_event, _asset_id), do: false
+
+  defp scenario_event(asset, "oracle_stale") do
+    %{
+      title: "Oracle stale",
+      detail:
+        "#{asset.name} oracle is #{asset.oracle_freshness_seconds}s old; automation confidence reduced.",
+      status: "risk",
+      tone: :danger
+    }
+  end
+
+  defp scenario_event(asset, "liquidity_thinning") do
+    %{
+      title: "Liquidity thinning",
+      detail:
+        "#{asset.name} market depth fell to #{Money.format_usd(asset.market_depth_usd)}; exits may be harder.",
+      status: "watch",
+      tone: :warning
+    }
+  end
+
+  defp scenario_event(asset, "borrower_top_up") do
+    %{
+      title: "Borrower top-up",
+      detail:
+        "#{asset.name} collateral increased to #{Money.format_usd(asset.current_value_usd)}; health improved.",
+      status: "synced",
+      tone: :success
+    }
+  end
+
+  defp scenario_event(asset, "repayment") do
+    %{
+      title: "Repayment recorded",
+      detail:
+        "#{asset.name} debt reduced to #{Money.format_usd(asset.loan_value_usd)}; LTV is now #{format_ltv(asset)}.",
+      status: "settled",
+      tone: :success
+    }
+  end
+
+  defp scenario_event(asset, _scenario_id) do
+    %{
+      title: "Scenario applied",
+      detail: "#{asset.name} scenario inputs changed; review state refreshed.",
+      status: "watch",
+      tone: :warning
+    }
+  end
 
   defp review_event(asset, %{id: :reviewed}, audit_context) do
     event_asset_key = event_asset_key(asset)

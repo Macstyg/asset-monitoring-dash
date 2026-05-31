@@ -45,6 +45,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       |> assign(:asset_detail_focus, detail_state.focus)
       |> assign(:asset_detail_focus_options, asset_detail_focus_options())
       |> assign(:asset_event_source_filter_options, AssetEventFilters.options())
+      |> assign(:scenario_options, AssetScenarioStore.scenario_options())
       |> assign(:review_reason_options, ReviewAction.options())
       |> assign(:review_action_form, ReviewAction.form())
       |> AssetEventFilters.assign_state(event_filters)
@@ -73,7 +74,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   @impl true
   def handle_event("apply_price_shock", _params, socket) do
-    {:noreply, apply_price_shock(socket, socket.assigns.asset_shocked?)}
+    {:noreply, apply_asset_scenario(socket, "price_shock", socket.assigns.asset_shocked?)}
+  end
+
+  @impl true
+  def handle_event("apply_asset_scenario", %{"scenario" => scenario_id}, socket) do
+    {:noreply, apply_asset_scenario(socket, scenario_id, socket.assigns.asset_shocked?)}
   end
 
   @impl true
@@ -192,6 +198,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       :asset_shocked?,
       Assets.asset_id_in_set?(asset.id, socket.assigns.shocked_asset_ids)
     )
+    |> assign(:active_scenario, AssetScenarioStore.scenario_option_for_asset(asset.id))
     |> assign(:asset_reviewed?, review_state.id == :reviewed)
     |> assign(:asset_escalated?, review_state.id == :escalated)
     |> assign(:asset_health_factor, asset |> Risk.health_factor() |> Formatters.decimal())
@@ -207,11 +214,11 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> assign_asset_events(asset.id)
   end
 
-  defp apply_price_shock(socket, true), do: socket
+  defp apply_asset_scenario(socket, _scenario_id, true), do: socket
 
-  defp apply_price_shock(socket, false) do
+  defp apply_asset_scenario(socket, scenario_id, false) do
     asset_id = socket.assigns.asset.id
-    scenario = DemoOperations.apply_price_shock(asset_id)
+    scenario = DemoOperations.apply_scenario(asset_id, scenario_id)
 
     socket
     |> assign(:review_states, scenario.review_states)

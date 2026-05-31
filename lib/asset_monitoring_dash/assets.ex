@@ -53,7 +53,6 @@ defmodule AssetMonitoringDash.Assets do
     %{label: "Reviewed", value: "reviewed", icon_text: "R", tone: :success},
     %{label: "Escalated", value: "escalated", icon_text: "E", tone: :warning}
   ]
-  @price_shock_scenario_id "price_shock"
   @at_risk_bands ["Elevated", "Critical"]
   @fresh_oracle_max_seconds 60
   @delayed_oracle_max_seconds 300
@@ -651,7 +650,6 @@ defmodule AssetMonitoringDash.Assets do
       as: :scenario,
       on:
         scenario.asset_id == asset.id and
-          scenario.scenario_id == ^@price_shock_scenario_id and
           scenario.asset_id in ^scenario_asset_ids
     )
   end
@@ -951,12 +949,15 @@ defmodule AssetMonitoringDash.Assets do
         asset
         |> Map.merge(%{
           current_value_usd: scenario.current_value_usd,
+          loan_value_usd: scenario.loan_value_usd,
           ltv_percent: scenario.ltv_percent,
+          market_depth_usd: scenario.market_depth_usd,
+          oracle_freshness_seconds: scenario.oracle_freshness_seconds,
           risk_score: scenario.risk_score,
           risk_band: scenario.risk_band
         })
-        |> Map.put(:oracle_status, oracle_status(asset.oracle_freshness_seconds))
-        |> Map.put(:liquidity_status, liquidity_status(asset.market_depth_usd))
+        |> Map.put(:oracle_status, oracle_status(scenario.oracle_freshness_seconds))
+        |> Map.put(:liquidity_status, liquidity_status(scenario.market_depth_usd))
     end
   end
 
