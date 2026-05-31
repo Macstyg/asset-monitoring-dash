@@ -54,6 +54,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign_asset_page(asset_page, :reset)
       |> assign(:feed_paused, simulator_status.paused?)
       |> assign(:simulator_status, simulator_status)
+      |> assign(:last_simulator_action, nil)
       |> assign(:next_event_index, 0)
       |> assign(:event_filters, default_event_filters())
       |> assign(:event_history, events)
@@ -124,6 +125,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
       |> assign_scenario_summary()
       |> assign(:event_history, events)
+      |> assign(:last_simulator_action, nil)
       |> assign_metric_cards()
       |> apply_asset_filters(socket.assigns.asset_filters)
       |> apply_event_filter()
@@ -276,6 +278,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   @impl true
+  def handle_event("run_event_tick", _params, socket) do
+    {:noreply, run_event_tick(socket)}
+  end
+
+  @impl true
+  def handle_event("run_scenario_tick", _params, socket) do
+    {:noreply, run_scenario_tick(socket)}
+  end
+
+  @impl true
   def handle_event("toggle_event_feed", _params, socket) do
     {:noreply, toggle_event_feed(socket.assigns.feed_paused, socket)}
   end
@@ -285,6 +297,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     {:noreply,
      socket
      |> assign(:next_event_index, feed.next_event_index)
+     |> assign_last_event_tick(feed)
      |> assign_simulator_status()}
   end
 
@@ -693,10 +706,37 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     apply_demo_feed(socket, feed)
   end
 
+  defp run_event_tick(socket) do
+    feed = record_demo_event(socket.assigns.next_event_index)
+
+    apply_demo_feed(socket, feed)
+  end
+
+  defp run_scenario_tick(socket) do
+    case Simulator.scenario_tick() do
+      {:error, :not_started} ->
+        assign_simulator_status(socket)
+
+      %{asset: _asset} = payload ->
+        apply_scenario_tick(socket, payload)
+
+      %{event_history: _event_history} = feed ->
+        apply_demo_feed(socket, feed)
+    end
+  end
+
+  defp apply_scenario_tick(socket, payload) do
+    socket
+    |> assign(:event_history, payload.event_history)
+    |> apply_simulator_scenario(payload)
+    |> apply_event_filter()
+  end
+
   defp apply_demo_feed(socket, feed) do
     socket
     |> assign(:next_event_index, feed.next_event_index)
     |> assign(:event_history, feed.event_history)
+    |> assign_last_event_tick(feed)
     |> assign_simulator_status()
     |> apply_event_filter()
   end
@@ -706,6 +746,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
     socket
     |> assign(:next_event_index, payload.next_event_index)
+    |> assign_last_scenario_tick(payload)
     |> assign(:snapshot, Assets.portfolio_snapshot(shocked_asset_ids))
     |> assign(:review_states, simulator_review_states(payload))
     |> assign(:shocked_asset_ids, shocked_asset_ids)
@@ -718,6 +759,60 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp simulator_review_states(%{review_states: review_states}), do: review_states
   defp simulator_review_states(_payload), do: ReviewStore.all_states()
+
+  defp assign_last_event_tick(socket, %{event_history: [event | _events]}) do
+    assign(socket, :last_simulator_action, %{
+      context: event.chain || event.status,
+      detail: event.detail,
+      label: "Event tick",
+      timestamp: simulator_action_time(event.occurred_at),
+      title: event.title,
+      tone: event.tone
+    })
+  end
+
+  defp assign_last_event_tick(socket, _feed), do: socket
+
+  defp assign_last_scenario_tick(socket, %{asset: asset} = payload) do
+    scenario = scenario_for_payload(payload)
+
+    assign(socket, :last_simulator_action, %{
+      context: asset.chain,
+      detail: scenario_detail(asset, scenario),
+      label: "Scenario tick",
+      timestamp: simulator_action_time(DateTime.utc_now(:second)),
+      title: scenario_title(scenario),
+      tone: scenario_tone(scenario)
+    })
+  end
+
+  defp scenario_for_payload(%{scenario_id: scenario_id}) do
+    AssetScenarioStore.scenario_option_for(scenario_id)
+  end
+
+  defp scenario_for_payload(%{asset: asset}) do
+    AssetScenarioStore.scenario_option_for_asset(asset.id)
+  end
+
+  defp scenario_title(%{label: label}), do: label
+  defp scenario_title(_scenario), do: "Scenario applied"
+
+  defp scenario_detail(asset, %{description: description}) do
+    "#{asset.name} · #{description}"
+  end
+
+  defp scenario_detail(asset, _scenario), do: "#{asset.name} scenario updated."
+
+  defp scenario_tone(%{tone: tone}), do: tone
+  defp scenario_tone(_scenario), do: :neutral
+
+  defp simulator_action_time(nil), do: "now"
+
+  defp simulator_action_time(datetime) do
+    datetime
+    |> DateTime.truncate(:second)
+    |> Calendar.strftime("%H:%M:%S UTC")
+  end
 
   defp assign_scenario_summary(socket) do
     assign(socket, :scenario_summary, AssetScenarioStore.active_summary())
@@ -742,7 +837,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   defp record_demo_event(next_event_index) do
-    case Simulator.tick() do
+    case Simulator.event_tick() do
       {:error, :not_started} -> ActivityLog.record_demo_event(next_event_index)
       feed -> feed
     end

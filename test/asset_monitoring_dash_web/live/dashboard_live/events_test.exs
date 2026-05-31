@@ -47,12 +47,25 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
     assert has_element?(view, "#simulator-active-scenarios", "0 / 5")
 
     view
-    |> element("#simulator-run-tick")
+    |> element("#simulator-run-event-tick")
     |> render_click()
 
     assert has_element?(view, "#event-row-event-live-1")
     assert has_element?(view, "#simulator-tick-index", "1")
     assert has_element?(view, "#simulator-next-event-index", "1")
+    assert has_element?(view, "#simulator-last-action-kind", "Event tick")
+    assert has_element?(view, "#simulator-last-action", "Oracle heartbeat")
+
+    view
+    |> element("#simulator-run-scenario-tick")
+    |> render_click()
+
+    assert has_element?(view, "#simulator-tick-index", "2")
+    assert has_element?(view, "#simulator-next-event-index", "1")
+    assert has_element?(view, "#simulator-active-scenarios", "1 / 5")
+    assert has_element?(view, "#simulator-scenario-count-oracle_stale", "Oracle stale")
+    assert has_element?(view, "#simulator-last-action-kind", "Scenario tick")
+    assert has_element?(view, "#simulator-last-action", "Oracle stale")
 
     view
     |> element("#simulator-toggle")

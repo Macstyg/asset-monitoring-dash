@@ -7,11 +7,13 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
 
   import AssetMonitoringDashWeb.CoreComponents, only: [icon: 1]
 
+  alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.Panel
   alias AssetMonitoringDashWeb.UI.SectionHeader
 
+  attr :last_action, :map, default: nil
   attr :scenario_count, :integer, required: true
   attr :scenario_summary, :list, default: []
   attr :status, :map, required: true
@@ -131,14 +133,71 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
         </div>
       </div>
 
+      <div
+        id="simulator-last-action"
+        class="mt-4 rounded-app border border-app-border bg-app-surface-2/70 p-4"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+              Last simulator action
+            </p>
+            <p class="mt-1 text-sm font-semibold text-app-fg">
+              {last_action_title(@last_action)}
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <Badge.render
+              :if={@last_action}
+              id="simulator-last-action-kind"
+              label={@last_action.label}
+              tone={@last_action.tone}
+            />
+            <span
+              id="simulator-last-action-time"
+              class="rounded-full px-3 py-1 font-mono text-xs font-semibold text-app-muted ring-1 ring-app-border"
+            >
+              {last_action_time(@last_action)}
+            </span>
+          </div>
+        </div>
+
+        <p
+          id="simulator-last-action-detail"
+          class="mt-3 max-w-4xl text-sm leading-6 text-app-muted"
+        >
+          {last_action_detail(@last_action)}
+        </p>
+
+        <p
+          :if={last_action_context(@last_action)}
+          id="simulator-last-action-context"
+          class="mt-2 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted"
+        >
+          {last_action_context(@last_action)}
+        </p>
+      </div>
+
       <div class="mt-5 flex flex-wrap gap-2">
         <Button.render
-          id="simulator-run-tick"
-          phx-click="push_demo_event"
+          id="simulator-run-event-tick"
+          phx-click="run_event_tick"
           disabled={!@status.running?}
           class="h-9 gap-2 rounded-app px-3"
+          title="Emit one persisted activity event without changing asset state."
         >
-          <.icon name="hero-bolt" class="size-3.5" /> Run tick now
+          <.icon name="hero-bolt" class="size-3.5" /> Run event tick
+        </Button.render>
+
+        <Button.render
+          id="simulator-run-scenario-tick"
+          phx-click="run_scenario_tick"
+          disabled={!@status.running?}
+          class="h-9 gap-2 rounded-app px-3"
+          title="Apply the next persisted scenario overlay to a candidate asset."
+        >
+          <.icon name="hero-sparkles" class="size-3.5" /> Run scenario tick
         </Button.render>
 
         <Button.render
@@ -173,6 +232,22 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
 
   defp cadence_label(value) when is_integer(value), do: "every #{value} ticks"
   defp cadence_label(_value), do: "manual"
+
+  defp last_action_title(nil), do: "Waiting for the next tick"
+  defp last_action_title(%{title: title}), do: title
+
+  defp last_action_detail(nil) do
+    "Run an event tick to append operational activity, or run a scenario tick to mutate a candidate asset."
+  end
+
+  defp last_action_detail(%{detail: detail}), do: detail
+
+  defp last_action_time(nil), do: "not run"
+  defp last_action_time(%{timestamp: timestamp}), do: timestamp
+
+  defp last_action_context(nil), do: nil
+  defp last_action_context(%{context: nil}), do: nil
+  defp last_action_context(%{context: context}), do: context
 
   defp toggle_icon(%{paused?: true}), do: "hero-play"
   defp toggle_icon(_status), do: "hero-pause"

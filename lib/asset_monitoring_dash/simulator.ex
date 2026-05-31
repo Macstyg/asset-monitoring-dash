@@ -53,6 +53,14 @@ defmodule AssetMonitoringDash.Simulator do
     call(server, :tick)
   end
 
+  def event_tick(server \\ __MODULE__) do
+    call(server, :event_tick)
+  end
+
+  def scenario_tick(server \\ __MODULE__) do
+    call(server, :scenario_tick)
+  end
+
   def pause(server \\ __MODULE__) do
     call(server, :pause)
   end
@@ -88,6 +96,18 @@ defmodule AssetMonitoringDash.Simulator do
     {feed, state} = record_activity_tick(state)
 
     {:reply, feed, state}
+  end
+
+  def handle_call(:event_tick, _from, state) do
+    {feed, state} = record_activity_tick(state)
+
+    {:reply, feed, state}
+  end
+
+  def handle_call(:scenario_tick, _from, state) do
+    {payload, state} = record_scenario_tick(state)
+
+    {:reply, payload, state}
   end
 
   def handle_call(:pause, _from, state) do

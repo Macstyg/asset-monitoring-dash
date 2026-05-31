@@ -6,6 +6,14 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatusTest do
   test "renders running simulator state and controls" do
     document =
       render_component(&SimulatorStatus.render/1,
+        last_action: %{
+          context: "Arbitrum",
+          detail: "Ancient Mech Core · Forces price-feed freshness outside the trusted window.",
+          label: "Scenario tick",
+          timestamp: "18:42:10 UTC",
+          title: "Oracle stale",
+          tone: :danger
+        },
         scenario_count: 2,
         scenario_summary: [
           %{
@@ -64,8 +72,27 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatusTest do
     assert document |> LazyHTML.query("#simulator-runtime-path") |> LazyHTML.text() =~
              "Dashboard and detail refresh"
 
+    assert document |> LazyHTML.query("#simulator-last-action") |> LazyHTML.text() =~
+             "Last simulator action"
+
+    assert document |> LazyHTML.query("#simulator-last-action") |> LazyHTML.text() =~
+             "Oracle stale"
+
+    assert document |> LazyHTML.query("#simulator-last-action-kind") |> LazyHTML.text() =~
+             "Scenario tick"
+
+    assert document |> LazyHTML.query("#simulator-last-action-detail") |> LazyHTML.text() =~
+             "Ancient Mech Core"
+
+    assert document |> LazyHTML.query("#simulator-last-action-time") |> LazyHTML.text() =~
+             "18:42:10 UTC"
+
     assert document
-           |> LazyHTML.query("#simulator-run-tick[phx-click=\"push_demo_event\"]")
+           |> LazyHTML.query("#simulator-run-event-tick[phx-click=\"run_event_tick\"]")
+           |> Enum.any?()
+
+    assert document
+           |> LazyHTML.query("#simulator-run-scenario-tick[phx-click=\"run_scenario_tick\"]")
            |> Enum.any?()
 
     assert document
@@ -100,7 +127,12 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatusTest do
     assert document |> LazyHTML.query("#simulator-scenario-cadence") |> LazyHTML.text() =~
              "manual"
 
-    assert document |> LazyHTML.query("#simulator-run-tick[disabled]") |> Enum.any?()
+    assert document |> LazyHTML.query("#simulator-last-action") |> LazyHTML.text() =~
+             "Waiting for the next tick"
+
+    assert document |> LazyHTML.query("#simulator-last-action-kind") |> Enum.empty?()
+    assert document |> LazyHTML.query("#simulator-run-event-tick[disabled]") |> Enum.any?()
+    assert document |> LazyHTML.query("#simulator-run-scenario-tick[disabled]") |> Enum.any?()
     assert document |> LazyHTML.query("#simulator-toggle[disabled]") |> Enum.any?()
   end
 end

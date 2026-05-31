@@ -40,6 +40,50 @@ defmodule AssetMonitoringDash.SimulatorTest do
              Simulator.tick(name)
   end
 
+  test "manual event ticks use the explicit event tick API" do
+    name = :"simulator-#{System.unique_integer([:positive])}"
+
+    start_supervised!(
+      {Simulator, enabled: true, interval_ms: :manual, name: name, next_event_index: 0}
+    )
+
+    Simulator.subscribe()
+
+    assert %{next_event_index: 1, event_history: [%{id: "event-live-1"} | _]} =
+             Simulator.event_tick(name)
+
+    assert_receive {Simulator, :event_recorded,
+                    %{next_event_index: 1, event_history: [%{id: "event-live-1"} | _]}}
+  end
+
+  test "manual scenario ticks apply the next scenario without waiting for cadence" do
+    name = :"simulator-#{System.unique_integer([:positive])}"
+
+    start_supervised!(
+      {Simulator,
+       enabled: true,
+       interval_ms: :manual,
+       max_active_scenarios: 5,
+       name: name,
+       scenario_every: 4,
+       tick_index: 1}
+    )
+
+    Simulator.subscribe()
+
+    assert %{
+             asset: %{oracle_status: "Stale"},
+             event_history: [
+               %{id: "event-oracle_stale-" <> _asset_key, kind: :scenario}
+               | _events
+             ],
+             next_event_index: 0,
+             scenario_id: "oracle_stale"
+           } = Simulator.scenario_tick(name)
+
+    assert_receive {Simulator, :scenario_applied, %{scenario_id: "oracle_stale"}}
+  end
+
   test "reports and changes runtime status" do
     name = :"simulator-#{System.unique_integer([:positive])}"
 
