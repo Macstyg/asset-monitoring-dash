@@ -47,8 +47,14 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateAssetCatalog do
 
     create unique_index(:monitored_assets, [:name])
     create index(:monitored_assets, [:chain_id])
+    create index(:monitored_assets, [:chain_id, :risk_band])
+    create index(:monitored_assets, [:current_value_usd])
+    create index(:monitored_assets, [:floor_price_usd])
     create index(:monitored_assets, [:game_ecosystem_id])
+    create index(:monitored_assets, [:game_ecosystem_id, :risk_band])
+    create index(:monitored_assets, [:ltv_percent])
     create index(:monitored_assets, [:risk_band])
+    create index(:monitored_assets, [:risk_score])
 
     create table(:asset_market_snapshots, primary_key: false) do
       add :id, :uuid, primary_key: true

@@ -17,8 +17,8 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateReviewDecisions do
       timestamps(type: :utc_datetime_usec)
     end
 
-    create index(:review_decisions, [:asset_id, :occurred_at])
-    create index(:review_decisions, [:asset_id, :id])
+    create index(:review_decisions, [:asset_id, :occurred_at, :id])
+    create index(:review_decisions, [:state_id, :occurred_at])
 
     create table(:asset_scenarios, primary_key: false) do
       add :id, :uuid, primary_key: true
@@ -38,6 +38,7 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateReviewDecisions do
     end
 
     create unique_index(:asset_scenarios, [:asset_id, :scenario_id])
+    create index(:asset_scenarios, [:scenario_id, :asset_id])
 
     create table(:activity_events, primary_key: false) do
       add :id, :uuid, primary_key: true
@@ -61,6 +62,8 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateReviewDecisions do
 
     create unique_index(:activity_events, [:event_key])
     create index(:activity_events, [:asset_id, :occurred_at])
+    create index(:activity_events, [:asset_id, :kind, :occurred_at])
+    create index(:activity_events, [:kind, :occurred_at])
     create index(:activity_events, [:occurred_at])
   end
 end

@@ -23,10 +23,10 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDashWeb.UI.Tabs
 
   @related_asset_limit 4
+  @related_asset_candidate_limit 24
   @impl true
   def mount(%{"id" => asset_id} = params, _session, socket) do
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
-    assets = Assets.list_persisted_assets_with_scenarios(shocked_asset_ids)
     detail_state = AssetDetailURLState.from_params(params)
     event_filters = detail_state.event_filters
 
@@ -34,7 +34,6 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       socket
       |> stream_configure(:events, dom_id: &"asset-event-row-#{&1.id}")
       |> assign(:page_title, "Asset detail")
-      |> assign(:all_assets, assets)
       |> assign(:review_states, ReviewStore.all_states())
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:return_to, normalize_return_to(Map.get(params, "return_to")))
@@ -151,7 +150,8 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   end
 
   defp assign_asset_from_id(socket, asset_id) do
-    asset = Assets.get_asset(socket.assigns.all_assets, asset_id)
+    asset =
+      Assets.get_persisted_asset_with_scenarios(asset_id, socket.assigns.shocked_asset_ids)
 
     assign_asset(socket, asset)
   end
@@ -165,6 +165,11 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   defp assign_asset(socket, asset) do
     review_state = ReviewState.state_for(asset.id, socket.assigns.review_states)
     risk_recommendation = RiskRecommendation.recommendation_for(asset)
+
+    related_candidates =
+      Assets.list_related_asset_candidates(asset, socket.assigns.shocked_asset_ids,
+        limit: @related_asset_candidate_limit
+      )
 
     socket
     |> assign(:page_title, "#{asset.name} · Asset detail")
@@ -183,9 +188,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> assign(:review_history, ReviewStore.history_for(asset.id))
     |> assign(
       :related_assets,
-      RelatedAssetRanker.related_assets(asset, socket.assigns.all_assets,
-        limit: @related_asset_limit
-      )
+      RelatedAssetRanker.related_assets(asset, related_candidates, limit: @related_asset_limit)
     )
     |> assign_asset_events(asset.id)
   end
@@ -195,14 +198,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   defp apply_price_shock(socket, false) do
     asset_id = socket.assigns.asset.id
     shocked_asset_ids = AssetScenarioStore.apply_price_shock(asset_id)
-    all_assets = Assets.list_persisted_assets_with_scenarios(shocked_asset_ids)
-    asset = Assets.get_asset(all_assets, asset_id)
+    asset = Assets.get_persisted_asset_with_scenarios(asset_id, shocked_asset_ids)
     ActivityLog.record_price_shock(asset, 12)
     review_reset = ReviewStore.reset_after_scenario(asset_id)
     record_review_decision(asset, review_reset.decision)
 
     socket
-    |> assign(:all_assets, all_assets)
     |> assign(:review_states, review_reset.states)
     |> assign(:shocked_asset_ids, shocked_asset_ids)
     |> assign_asset(asset)
@@ -213,14 +214,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   defp reset_asset_scenario(socket, true) do
     asset_id = socket.assigns.asset.id
     shocked_asset_ids = AssetScenarioStore.reset(asset_id)
-    all_assets = Assets.list_persisted_assets_with_scenarios(shocked_asset_ids)
-    asset = Assets.get_asset(all_assets, asset_id)
+    asset = Assets.get_persisted_asset_with_scenarios(asset_id, shocked_asset_ids)
     ActivityLog.record_scenario_reset(asset)
     review_reset = ReviewStore.reset_after_scenario(asset_id)
     record_review_decision(asset, review_reset.decision)
 
     socket
-    |> assign(:all_assets, all_assets)
     |> assign(:review_states, review_reset.states)
     |> assign(:shocked_asset_ids, shocked_asset_ids)
     |> assign_asset(asset)

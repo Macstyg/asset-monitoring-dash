@@ -84,11 +84,15 @@ defmodule AssetMonitoringDash.Assets do
   def resolve_persisted_asset_id(asset_id), do: asset_id
 
   def persisted_asset_id(dom_id) do
-    list_persisted_assets()
-    |> Enum.find(&(&1.dom_id == dom_id))
-    |> case do
-      nil -> nil
-      asset -> asset.id
+    case demo_name_from_dom_id(dom_id) do
+      nil ->
+        nil
+
+      name ->
+        MonitoredAsset
+        |> where([asset], asset.name == ^name)
+        |> select([asset], asset.id)
+        |> Repo.one()
     end
   end
 
@@ -123,19 +127,15 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   def list_persisted_assets do
-    MonitoredAsset
+    persisted_asset_base_query()
     |> order_by([asset], asc: asset.name)
-    |> preload([:chain, :game_ecosystem])
     |> Repo.all()
     |> Enum.map(&persisted_asset_to_map/1)
   end
 
   def get_persisted_asset(asset_id) do
-    asset_id = resolve_persisted_asset_id(asset_id)
-
-    MonitoredAsset
-    |> where([asset], asset.id == ^asset_id)
-    |> preload([:chain, :game_ecosystem])
+    asset_id
+    |> persisted_asset_lookup_query()
     |> Repo.one()
     |> case do
       nil -> nil
@@ -143,8 +143,31 @@ defmodule AssetMonitoringDash.Assets do
     end
   end
 
+  def get_persisted_asset_with_scenarios(asset_id, shocked_asset_ids) do
+    case get_persisted_asset(asset_id) do
+      nil ->
+        nil
+
+      asset ->
+        [asset]
+        |> apply_scenarios(shocked_asset_ids)
+        |> List.first()
+    end
+  end
+
   def list_persisted_assets_with_scenarios(shocked_asset_ids) do
     list_persisted_assets()
+    |> apply_scenarios(shocked_asset_ids)
+  end
+
+  def list_related_asset_candidates(asset, shocked_asset_ids, opts \\ []) do
+    candidate_limit = Keyword.get(opts, :limit, 24)
+
+    asset
+    |> related_asset_candidates_query(shocked_asset_ids)
+    |> limit(^candidate_limit)
+    |> Repo.all()
+    |> Enum.map(&persisted_asset_to_map/1)
     |> apply_scenarios(shocked_asset_ids)
   end
 
@@ -156,6 +179,25 @@ defmodule AssetMonitoringDash.Assets do
     review_states = Map.get(opts, :review_states, %{})
     shocked_asset_ids = Map.get(opts, :shocked_asset_ids, MapSet.new())
 
+    page =
+      case runtime_asset_page?(filters, sort) do
+        true ->
+          runtime_asset_page(filters, sort, cursor, limit, review_states, shocked_asset_ids)
+
+        false ->
+          persisted_asset_page(filters, sort, cursor, limit, shocked_asset_ids)
+      end
+
+    Map.put(page, :summary, normalize_summary(page.summary))
+  end
+
+  defp runtime_asset_page?(filters, %{field: field}) do
+    field in [:action, :operator] or
+      filter_values(filters, :actions, :action, "All") != [] or
+      filter_values(filters, :operator_states, :operator_state, "All") != []
+  end
+
+  defp runtime_asset_page(filters, sort, cursor, limit, review_states, shocked_asset_ids) do
     assets =
       filters
       |> persisted_asset_query(shocked_asset_ids, sort)
@@ -178,6 +220,29 @@ defmodule AssetMonitoringDash.Assets do
       next_cursor: next_cursor(next_offset, length(assets)),
       total_count: length(assets),
       summary: summarize_assets(assets)
+    }
+  end
+
+  defp persisted_asset_page(filters, sort, cursor, limit, shocked_asset_ids) do
+    offset = cursor_to_offset(cursor)
+    query = persisted_asset_query(filters, shocked_asset_ids, sort)
+
+    entries =
+      query
+      |> offset(^offset)
+      |> limit(^limit)
+      |> Repo.all()
+      |> Enum.map(&persisted_asset_to_map/1)
+      |> apply_scenarios(shocked_asset_ids)
+
+    total_count = query |> countable_query() |> Repo.aggregate(:count)
+    next_offset = offset + length(entries)
+
+    %{
+      entries: entries,
+      next_cursor: next_cursor(next_offset, total_count),
+      total_count: total_count,
+      summary: persisted_assets_summary(filters, shocked_asset_ids)
     }
   end
 
@@ -521,27 +586,154 @@ defmodule AssetMonitoringDash.Assets do
     |> Kernel.++([trend_point("Now", asset.ltv_percent)])
   end
 
-  defp persisted_asset_query(filters, shocked_asset_ids, sort) do
-    scenario_asset_ids = scenario_asset_ids(shocked_asset_ids)
-
+  defp persisted_asset_base_query do
     MonitoredAsset
     |> join(:inner, [asset], chain in assoc(asset, :chain), as: :chain)
     |> join(:inner, [asset], game_ecosystem in assoc(asset, :game_ecosystem), as: :game_ecosystem)
-    |> join(:left, [asset], scenario in AssetScenario,
+    |> preload([chain: chain, game_ecosystem: game_ecosystem],
+      chain: chain,
+      game_ecosystem: game_ecosystem
+    )
+  end
+
+  defp persisted_asset_lookup_query(asset_id) do
+    persisted_asset_base_query()
+    |> filter_persisted_asset_by_identity(asset_id)
+  end
+
+  defp filter_persisted_asset_by_identity(query, asset_id) do
+    case Ecto.UUID.cast(asset_id) do
+      {:ok, uuid} ->
+        where(query, [asset], asset.id == ^uuid)
+
+      :error ->
+        filter_persisted_asset_by_demo_name(query, demo_name_from_dom_id(asset_id))
+    end
+  end
+
+  defp filter_persisted_asset_by_demo_name(query, nil), do: where(query, [asset], false)
+
+  defp filter_persisted_asset_by_demo_name(query, name) do
+    where(query, [asset], asset.name == ^name)
+  end
+
+  defp persisted_asset_query(filters, shocked_asset_ids, sort) do
+    persisted_asset_base_query()
+    |> join_active_scenarios(shocked_asset_ids)
+    |> filter_persisted_assets_by_query(filter_value(filters, :query, ""))
+    |> filter_persisted_assets_by_risks(filter_values(filters, :risks, :risk, "All"))
+    |> filter_persisted_assets_by_chains(filter_values(filters, :chains, :chain, "All chains"))
+    |> order_persisted_assets(sort)
+  end
+
+  defp related_asset_candidates_query(asset, shocked_asset_ids) do
+    persisted_asset_base_query()
+    |> join_active_scenarios(shocked_asset_ids)
+    |> where([candidate], candidate.id != ^asset.id)
+    |> where([candidate], not fragment("? ~ ?", candidate.name, " V[0-9]{3}$"))
+    |> where(
+      [candidate, chain: chain, game_ecosystem: game_ecosystem, scenario: scenario],
+      chain.name == ^asset.chain or
+        game_ecosystem.name == ^asset.ecosystem or
+        fragment("COALESCE(?, ?)", scenario.risk_band, candidate.risk_band) == ^asset.risk_band
+    )
+    |> order_by([candidate, scenario: scenario],
+      desc:
+        fragment(
+          """
+          CASE COALESCE(?, ?)
+            WHEN 'Critical' THEN 4
+            WHEN 'Elevated' THEN 3
+            WHEN 'Moderate' THEN 2
+            WHEN 'Low' THEN 1
+            ELSE 0
+          END
+          """,
+          scenario.risk_band,
+          candidate.risk_band
+        ),
+      desc: candidate.risk_score,
+      asc: candidate.name,
+      asc: candidate.id
+    )
+  end
+
+  defp join_active_scenarios(query, shocked_asset_ids) do
+    scenario_asset_ids = scenario_asset_ids(shocked_asset_ids)
+
+    join(query, :left, [asset], scenario in AssetScenario,
       as: :scenario,
       on:
         scenario.asset_id == asset.id and
           scenario.scenario_id == ^@price_shock_scenario_id and
           scenario.asset_id in ^scenario_asset_ids
     )
-    |> preload([chain: chain, game_ecosystem: game_ecosystem],
-      chain: chain,
-      game_ecosystem: game_ecosystem
-    )
-    |> filter_persisted_assets_by_query(filter_value(filters, :query, ""))
-    |> filter_persisted_assets_by_risks(filter_values(filters, :risks, :risk, "All"))
-    |> filter_persisted_assets_by_chains(filter_values(filters, :chains, :chain, "All chains"))
-    |> order_persisted_assets(sort)
+  end
+
+  defp countable_query(query) do
+    query
+    |> exclude(:order_by)
+    |> exclude(:preload)
+  end
+
+  defp persisted_assets_summary(filters, shocked_asset_ids) do
+    filters
+    |> persisted_asset_query(shocked_asset_ids, %{field: :asset, direction: :asc})
+    |> countable_query()
+    |> select([asset, scenario: scenario], %{
+      visible_count: count(asset.id),
+      total_value_usd:
+        type(
+          fragment(
+            "COALESCE(SUM(COALESCE(?, ?)), 0)",
+            scenario.current_value_usd,
+            asset.current_value_usd
+          ),
+          :decimal
+        ),
+      at_risk_count:
+        type(
+          fragment(
+            "COUNT(*) FILTER (WHERE COALESCE(?, ?) IN ('Elevated', 'Critical'))",
+            scenario.risk_band,
+            asset.risk_band
+          ),
+          :integer
+        ),
+      average_ltv_percent:
+        type(
+          fragment("COALESCE(AVG(COALESCE(?, ?)), 0)", scenario.ltv_percent, asset.ltv_percent),
+          :decimal
+        ),
+      highest_ltv_percent:
+        type(
+          fragment("COALESCE(MAX(COALESCE(?, ?)), 0)", scenario.ltv_percent, asset.ltv_percent),
+          :decimal
+        )
+    })
+    |> Repo.one()
+  end
+
+  defp normalize_summary(nil) do
+    %{
+      visible_count: 0,
+      total_value_usd: Decimal.new("0.00"),
+      at_risk_count: 0,
+      average_ltv_percent: Decimal.new("0.0"),
+      highest_ltv_percent: Decimal.new("0.0")
+    }
+  end
+
+  defp normalize_summary(summary) do
+    %{
+      visible_count: Map.get(summary, :visible_count, 0) || 0,
+      total_value_usd: summary |> Map.get(:total_value_usd, 0) |> Money.usd(),
+      at_risk_count: Map.get(summary, :at_risk_count, 0) || 0,
+      average_ltv_percent:
+        summary |> Map.get(:average_ltv_percent, 0) |> Money.decimal() |> Decimal.round(1),
+      highest_ltv_percent:
+        summary |> Map.get(:highest_ltv_percent, 0) |> Money.decimal() |> Decimal.round(1)
+    }
   end
 
   defp scenario_asset_ids(shocked_asset_ids) do
@@ -765,6 +957,30 @@ defmodule AssetMonitoringDash.Assets do
 
       _no_match ->
         slugify(name)
+    end
+  end
+
+  defp demo_name_from_dom_id(dom_id) do
+    canonical_assets_by_id =
+      DemoData.monitored_assets()
+      |> Map.new(&{&1.id, &1.name})
+
+    case Map.fetch(canonical_assets_by_id, dom_id) do
+      {:ok, name} -> name
+      :error -> variant_name_from_dom_id(dom_id, canonical_assets_by_id)
+    end
+  end
+
+  defp variant_name_from_dom_id(dom_id, canonical_assets_by_id) do
+    case Regex.run(~r/^(asset-\d{3})-variant-(\d{3})$/, dom_id) do
+      [_dom_id, base_dom_id, suffix] ->
+        case Map.fetch(canonical_assets_by_id, base_dom_id) do
+          {:ok, name} -> "#{name} V#{suffix}"
+          :error -> nil
+        end
+
+      _no_match ->
+        nil
     end
   end
 

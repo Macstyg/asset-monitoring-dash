@@ -27,6 +27,16 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert Enum.all?(snapshots, &(&1.asset_id == asset_id))
   end
 
+  test "looks up a single persisted asset by UUID or legacy demo route id" do
+    uuid = Assets.persisted_asset_id("asset-001")
+
+    assert %{id: ^uuid, dom_id: "asset-001", name: "Aegis Dragon Helm"} =
+             Assets.get_persisted_asset(uuid)
+
+    assert %{id: ^uuid, dom_id: "asset-001", name: "Aegis Dragon Helm"} =
+             Assets.get_persisted_asset("asset-001")
+  end
+
   test "builds LTV trend from persisted market snapshots with current asset as latest point" do
     asset =
       "asset-001"
@@ -138,16 +148,31 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert_decimal_equal(asset.current_value_usd, "999999.00")
   end
 
-  test "reads the persisted catalog with scenario adjustments for detail pages" do
+  test "reads one persisted asset with scenario adjustments for detail pages" do
     asset =
       "asset-001"
       |> AssetScenarioStore.apply_price_shock()
-      |> Assets.list_persisted_assets_with_scenarios()
-      |> Assets.get_asset("asset-001")
+      |> then(&Assets.get_persisted_asset_with_scenarios("asset-001", &1))
 
     assert_decimal_equal(asset.current_value_usd, "4276.80")
     assert_decimal_equal(asset.ltv_percent, "67.8")
     assert asset.risk_score == 80
+  end
+
+  test "returns bounded canonical related asset candidates from the database" do
+    asset = Assets.get_persisted_asset("asset-001")
+
+    candidates = Assets.list_related_asset_candidates(asset, MapSet.new(), limit: 20)
+
+    refute candidates == []
+    refute Enum.any?(candidates, &(&1.id == asset.id))
+    refute Enum.any?(candidates, &String.contains?(&1.dom_id, "-variant-"))
+
+    assert Enum.all?(candidates, fn candidate ->
+             candidate.chain == asset.chain or
+               candidate.ecosystem == asset.ecosystem or
+               candidate.risk_band == asset.risk_band
+           end)
   end
 
   defp assert_decimal_equal(actual, expected) do
