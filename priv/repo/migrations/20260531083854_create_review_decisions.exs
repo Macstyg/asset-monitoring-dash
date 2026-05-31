@@ -27,6 +27,12 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateReviewDecisions do
         null: false
 
       add :scenario_id, :string, null: false
+      add :drop_percent, :integer, null: false
+      add :current_value_usd, :decimal, precision: 14, scale: 2, null: false
+      add :ltv_percent, :decimal, precision: 7, scale: 2, null: false
+      add :risk_score, :integer, null: false
+      add :risk_band, :string, null: false
+      add :applied_at, :utc_datetime_usec, null: false
 
       timestamps(type: :utc_datetime_usec)
     end

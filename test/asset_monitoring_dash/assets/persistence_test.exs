@@ -2,6 +2,7 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   use AssetMonitoringDash.DataCase, async: true
 
   alias AssetMonitoringDash.Assets
+  alias AssetMonitoringDash.AssetScenarioStore
 
   test "reads persisted assets in the same shape used by the dashboard" do
     assert %{
@@ -27,7 +28,8 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
 
   test "builds LTV trend from persisted market snapshots with current asset as latest point" do
     asset =
-      MapSet.new(["asset-001"])
+      "asset-001"
+      |> AssetScenarioStore.apply_price_shock()
       |> Assets.list_persisted_assets_with_scenarios()
       |> Assets.get_asset("asset-001")
 
@@ -68,11 +70,13 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   end
 
   test "applies scenario state on top of persisted assets before returning a page" do
+    shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-001")
+
     page =
       Assets.list_persisted_assets_page(%{
         filters: %{Assets.default_filters() | query: "aegis"},
         sort: %{field: :asset, direction: :asc},
-        shocked_asset_ids: MapSet.new(["asset-001"]),
+        shocked_asset_ids: shocked_asset_ids,
         limit: 1
       })
 
@@ -85,7 +89,8 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
 
   test "reads the persisted catalog with scenario adjustments for detail pages" do
     asset =
-      MapSet.new(["asset-001"])
+      "asset-001"
+      |> AssetScenarioStore.apply_price_shock()
       |> Assets.list_persisted_assets_with_scenarios()
       |> Assets.get_asset("asset-001")
 

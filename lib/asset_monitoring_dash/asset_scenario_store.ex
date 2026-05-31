@@ -14,6 +14,7 @@ defmodule AssetMonitoringDash.AssetScenarioStore do
   alias AssetMonitoringDash.Repo
 
   @price_shock_scenario_id "price_shock"
+  @price_shock_drop_percent 12
 
   @spec shocked_asset_ids() :: MapSet.t(String.t())
   def shocked_asset_ids do
@@ -28,12 +29,15 @@ defmodule AssetMonitoringDash.AssetScenarioStore do
   def apply_price_shock(asset_id) do
     asset_id = Assets.resolve_persisted_asset_id(asset_id)
 
-    %AssetScenario{}
-    |> AssetScenario.changeset(%{asset_id: asset_id, scenario_id: @price_shock_scenario_id})
-    |> Repo.insert(
-      on_conflict: :nothing,
-      conflict_target: [:asset_id, :scenario_id]
-    )
+    case Assets.price_drop_projection(asset_id, @price_shock_drop_percent) do
+      nil ->
+        :ok
+
+      asset ->
+        asset
+        |> scenario_attrs()
+        |> upsert_scenario()
+    end
 
     shocked_asset_ids()
   end
@@ -57,5 +61,37 @@ defmodule AssetMonitoringDash.AssetScenarioStore do
     Repo.delete_all(AssetScenario)
 
     shocked_asset_ids()
+  end
+
+  defp scenario_attrs(asset) do
+    %{
+      applied_at: DateTime.utc_now(:microsecond),
+      asset_id: asset.id,
+      current_value_usd: asset.current_value_usd,
+      drop_percent: @price_shock_drop_percent,
+      ltv_percent: asset.ltv_percent,
+      risk_band: asset.risk_band,
+      risk_score: asset.risk_score,
+      scenario_id: @price_shock_scenario_id
+    }
+  end
+
+  defp upsert_scenario(attrs) do
+    %AssetScenario{}
+    |> AssetScenario.changeset(attrs)
+    |> Repo.insert(
+      on_conflict:
+        {:replace,
+         [
+           :applied_at,
+           :current_value_usd,
+           :drop_percent,
+           :ltv_percent,
+           :risk_band,
+           :risk_score,
+           :updated_at
+         ]},
+      conflict_target: [:asset_id, :scenario_id]
+    )
   end
 end

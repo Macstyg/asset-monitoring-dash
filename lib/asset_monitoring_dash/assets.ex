@@ -11,6 +11,7 @@ defmodule AssetMonitoringDash.Assets do
 
   alias AssetMonitoringDash.Assets.MarketSnapshot
   alias AssetMonitoringDash.Assets.MonitoredAsset
+  alias AssetMonitoringDash.AssetScenario
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.Money
   alias AssetMonitoringDash.Repo
@@ -128,6 +129,19 @@ defmodule AssetMonitoringDash.Assets do
     |> Enum.map(&persisted_asset_to_map/1)
   end
 
+  def get_persisted_asset(asset_id) do
+    asset_id = resolve_persisted_asset_id(asset_id)
+
+    MonitoredAsset
+    |> where([asset], asset.id == ^asset_id)
+    |> preload([:chain, :game_ecosystem])
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      asset -> persisted_asset_to_map(asset)
+    end
+  end
+
   def list_persisted_assets_with_scenarios(shocked_asset_ids) do
     list_persisted_assets()
     |> apply_scenarios(shocked_asset_ids)
@@ -188,6 +202,13 @@ defmodule AssetMonitoringDash.Assets do
 
   def apply_price_drop(assets, asset_id, drop_percent) do
     Enum.map(assets, &apply_asset_price_drop(&1, asset_id, drop_percent))
+  end
+
+  def price_drop_projection(asset_id, drop_percent) do
+    case get_persisted_asset(asset_id) do
+      nil -> nil
+      asset -> reprice_asset(asset, drop_percent)
+    end
   end
 
   def list_market_snapshots(asset_id) do
@@ -543,7 +564,45 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   defp apply_scenarios(assets, shocked_asset_ids) do
-    Enum.reduce(shocked_asset_ids, assets, &apply_price_drop(&2, &1, 12))
+    scenarios_by_asset_id = active_scenarios_for(shocked_asset_ids)
+
+    Enum.map(assets, &apply_stored_scenario(&1, scenarios_by_asset_id))
+  end
+
+  defp active_scenarios_for(shocked_asset_ids) do
+    asset_ids =
+      shocked_asset_ids
+      |> Enum.map(&resolve_persisted_asset_id/1)
+      |> Enum.reject(&is_nil/1)
+
+    case asset_ids do
+      [] ->
+        %{}
+
+      asset_ids ->
+        AssetScenario
+        |> where([scenario], scenario.asset_id in ^asset_ids)
+        |> Repo.all()
+        |> Map.new(&{&1.asset_id, &1})
+    end
+  end
+
+  defp apply_stored_scenario(asset, scenarios_by_asset_id) do
+    case Map.fetch(scenarios_by_asset_id, asset.id) do
+      :error ->
+        asset
+
+      {:ok, scenario} ->
+        asset
+        |> Map.merge(%{
+          current_value_usd: scenario.current_value_usd,
+          ltv_percent: scenario.ltv_percent,
+          risk_score: scenario.risk_score,
+          risk_band: scenario.risk_band
+        })
+        |> Map.put(:oracle_status, oracle_status(asset.oracle_freshness_seconds))
+        |> Map.put(:liquidity_status, liquidity_status(asset.market_depth_usd))
+    end
   end
 
   defp slugify(value) do

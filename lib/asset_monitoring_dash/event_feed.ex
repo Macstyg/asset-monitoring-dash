@@ -9,6 +9,7 @@ defmodule AssetMonitoringDash.EventFeed do
 
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.DemoData
+  alias AssetMonitoringDash.Money
   alias AssetMonitoringDash.ReviewAudit
 
   @visible_event_limit 6
@@ -73,7 +74,7 @@ defmodule AssetMonitoringDash.EventFeed do
       asset_id: asset.id,
       time_label: "now",
       title: "Price shock applied",
-      detail: "#{asset.name} repriced #{drop_percent}% lower; LTV is now #{asset.ltv_percent}%.",
+      detail: "#{asset.name} repriced #{drop_percent}% lower; LTV is now #{format_ltv(asset)}.",
       chain: asset.chain,
       kind: :scenario,
       status: "risk",
@@ -309,6 +310,14 @@ defmodule AssetMonitoringDash.EventFeed do
 
   defp review_event_detail(detail, %{reason: reason, note: note}) do
     "#{detail} Reason: #{reason}. Note: #{note}"
+  end
+
+  defp format_ltv(asset) do
+    asset.ltv_percent
+    |> Money.decimal()
+    |> Decimal.round(1)
+    |> Decimal.to_string(:normal)
+    |> Kernel.<>("%")
   end
 
   defp event_asset_key(%{dom_id: dom_id}) when is_binary(dom_id), do: dom_id
