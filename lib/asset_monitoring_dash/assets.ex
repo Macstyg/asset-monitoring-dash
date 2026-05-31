@@ -53,6 +53,7 @@ defmodule AssetMonitoringDash.Assets do
     %{label: "Reviewed", value: "reviewed", icon_text: "R", tone: :success},
     %{label: "Escalated", value: "escalated", icon_text: "E", tone: :warning}
   ]
+  @price_shock_scenario_id "price_shock"
   @at_risk_bands ["Elevated", "Critical"]
   @fresh_oracle_max_seconds 60
   @delayed_oracle_max_seconds 300
@@ -157,7 +158,7 @@ defmodule AssetMonitoringDash.Assets do
 
     assets =
       filters
-      |> persisted_asset_query()
+      |> persisted_asset_query(shocked_asset_ids, sort)
       |> Repo.all()
       |> Enum.map(&persisted_asset_to_map/1)
       |> apply_scenarios(shocked_asset_ids)
@@ -166,7 +167,7 @@ defmodule AssetMonitoringDash.Assets do
         filter_values(filters, :operator_states, :operator_state, "All"),
         review_states
       )
-      |> sort_assets(sort, review_states)
+      |> sort_runtime_assets(sort, review_states)
 
     offset = cursor_to_offset(cursor)
     entries = Enum.slice(assets, offset, limit)
@@ -520,10 +521,19 @@ defmodule AssetMonitoringDash.Assets do
     |> Kernel.++([trend_point("Now", asset.ltv_percent)])
   end
 
-  defp persisted_asset_query(filters) do
+  defp persisted_asset_query(filters, shocked_asset_ids, sort) do
+    scenario_asset_ids = scenario_asset_ids(shocked_asset_ids)
+
     MonitoredAsset
     |> join(:inner, [asset], chain in assoc(asset, :chain), as: :chain)
     |> join(:inner, [asset], game_ecosystem in assoc(asset, :game_ecosystem), as: :game_ecosystem)
+    |> join(:left, [asset], scenario in AssetScenario,
+      as: :scenario,
+      on:
+        scenario.asset_id == asset.id and
+          scenario.scenario_id == ^@price_shock_scenario_id and
+          scenario.asset_id in ^scenario_asset_ids
+    )
     |> preload([chain: chain, game_ecosystem: game_ecosystem],
       chain: chain,
       game_ecosystem: game_ecosystem
@@ -531,7 +541,13 @@ defmodule AssetMonitoringDash.Assets do
     |> filter_persisted_assets_by_query(filter_value(filters, :query, ""))
     |> filter_persisted_assets_by_risks(filter_values(filters, :risks, :risk, "All"))
     |> filter_persisted_assets_by_chains(filter_values(filters, :chains, :chain, "All chains"))
-    |> order_by([asset], asc: asset.name)
+    |> order_persisted_assets(sort)
+  end
+
+  defp scenario_asset_ids(shocked_asset_ids) do
+    shocked_asset_ids
+    |> Enum.map(&resolve_persisted_asset_id/1)
+    |> Enum.reject(&is_nil/1)
   end
 
   defp filter_persisted_assets_by_query(query, ""), do: query
@@ -554,13 +570,129 @@ defmodule AssetMonitoringDash.Assets do
   defp filter_persisted_assets_by_risks(query, []), do: query
 
   defp filter_persisted_assets_by_risks(query, risk_filters) do
-    where(query, [asset], asset.risk_band in ^risk_filters)
+    where(
+      query,
+      [asset, scenario: scenario],
+      fragment("COALESCE(?, ?)", scenario.risk_band, asset.risk_band) in ^risk_filters
+    )
   end
 
   defp filter_persisted_assets_by_chains(query, []), do: query
 
   defp filter_persisted_assets_by_chains(query, chain_filters) do
     where(query, [chain: chain], chain.name in ^chain_filters)
+  end
+
+  defp order_persisted_assets(query, %{field: :asset, direction: :desc}) do
+    order_by(query, [asset], desc: asset.name, asc: asset.id)
+  end
+
+  defp order_persisted_assets(query, %{field: :asset}) do
+    order_by(query, [asset], asc: asset.name, asc: asset.id)
+  end
+
+  defp order_persisted_assets(query, %{field: :chain, direction: :desc}) do
+    order_by(query, [asset, chain: chain, game_ecosystem: game_ecosystem],
+      desc: chain.name,
+      desc: game_ecosystem.name,
+      asc: asset.name,
+      asc: asset.id
+    )
+  end
+
+  defp order_persisted_assets(query, %{field: :chain}) do
+    order_by(query, [asset, chain: chain, game_ecosystem: game_ecosystem],
+      asc: chain.name,
+      asc: game_ecosystem.name,
+      asc: asset.name,
+      asc: asset.id
+    )
+  end
+
+  defp order_persisted_assets(query, %{field: :floor, direction: :desc}) do
+    order_by(query, [asset], desc: asset.floor_price_usd, asc: asset.name, asc: asset.id)
+  end
+
+  defp order_persisted_assets(query, %{field: :floor}) do
+    order_by(query, [asset], asc: asset.floor_price_usd, asc: asset.name, asc: asset.id)
+  end
+
+  defp order_persisted_assets(query, %{field: :value, direction: :desc}) do
+    order_by(query, [asset, scenario: scenario],
+      desc: fragment("COALESCE(?, ?)", scenario.current_value_usd, asset.current_value_usd),
+      asc: asset.name,
+      asc: asset.id
+    )
+  end
+
+  defp order_persisted_assets(query, %{field: :value}) do
+    order_by(query, [asset, scenario: scenario],
+      asc: fragment("COALESCE(?, ?)", scenario.current_value_usd, asset.current_value_usd),
+      asc: asset.name,
+      asc: asset.id
+    )
+  end
+
+  defp order_persisted_assets(query, %{field: :ltv, direction: :desc}) do
+    order_by(query, [asset, scenario: scenario],
+      desc: fragment("COALESCE(?, ?)", scenario.ltv_percent, asset.ltv_percent),
+      asc: asset.name,
+      asc: asset.id
+    )
+  end
+
+  defp order_persisted_assets(query, %{field: :ltv}) do
+    order_by(query, [asset, scenario: scenario],
+      asc: fragment("COALESCE(?, ?)", scenario.ltv_percent, asset.ltv_percent),
+      asc: asset.name,
+      asc: asset.id
+    )
+  end
+
+  defp order_persisted_assets(query, %{field: :risk, direction: :desc}) do
+    order_by(query, [asset, scenario: scenario],
+      desc:
+        fragment(
+          """
+          CASE COALESCE(?, ?)
+            WHEN 'Critical' THEN 4
+            WHEN 'Elevated' THEN 3
+            WHEN 'Moderate' THEN 2
+            WHEN 'Low' THEN 1
+            ELSE 0
+          END
+          """,
+          scenario.risk_band,
+          asset.risk_band
+        ),
+      asc: asset.name,
+      asc: asset.id
+    )
+  end
+
+  defp order_persisted_assets(query, %{field: :risk}) do
+    order_by(query, [asset, scenario: scenario],
+      asc:
+        fragment(
+          """
+          CASE COALESCE(?, ?)
+            WHEN 'Critical' THEN 4
+            WHEN 'Elevated' THEN 3
+            WHEN 'Moderate' THEN 2
+            WHEN 'Low' THEN 1
+            ELSE 0
+          END
+          """,
+          scenario.risk_band,
+          asset.risk_band
+        ),
+      asc: asset.name,
+      asc: asset.id
+    )
+  end
+
+  defp order_persisted_assets(query, _sort) do
+    order_by(query, [asset], asc: asset.name, asc: asset.id)
   end
 
   defp apply_scenarios(assets, shocked_asset_ids) do
@@ -688,6 +820,13 @@ defmodule AssetMonitoringDash.Assets do
   defp sort_assets(assets, sort, review_states) do
     Enum.sort(assets, &asset_before?(&1, &2, sort, review_states))
   end
+
+  defp sort_runtime_assets(assets, %{field: field} = sort, review_states)
+       when field in [:action, :operator] do
+    sort_assets(assets, sort, review_states)
+  end
+
+  defp sort_runtime_assets(assets, _sort, _review_states), do: assets
 
   defp asset_before?(asset, other_asset, %{field: field, direction: direction}, review_states) do
     asset_value = sort_value(asset, field, review_states)

@@ -2,6 +2,7 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   use AssetMonitoringDash.DataCase, async: true
 
   alias AssetMonitoringDash.Assets
+  alias AssetMonitoringDash.AssetScenario
   alias AssetMonitoringDash.AssetScenarioStore
 
   test "reads persisted assets in the same shape used by the dashboard" do
@@ -85,6 +86,56 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert id == Assets.persisted_asset_id("asset-001")
     assert_decimal_equal(asset.current_value_usd, "4276.80")
     assert_decimal_equal(asset.ltv_percent, "67.8")
+  end
+
+  test "filters persisted pages using scenario-adjusted risk bands" do
+    shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-004")
+    asset_id = Assets.persisted_asset_id("asset-004")
+
+    page =
+      Assets.list_persisted_assets_page(%{
+        filters: %{
+          Assets.default_filters()
+          | query: "Ronin Warbeast",
+            chains: ["Ronin"],
+            risks: ["Elevated"]
+        },
+        sort: %{field: :asset, direction: :asc},
+        shocked_asset_ids: shocked_asset_ids,
+        limit: 50
+      })
+
+    assert Enum.any?(page.entries, &(&1.id == asset_id))
+    assert %{risk_band: "Elevated"} = Enum.find(page.entries, &(&1.id == asset_id))
+  end
+
+  test "sorts persisted pages using scenario-adjusted numeric fields" do
+    asset_id = Assets.persisted_asset_id("asset-011")
+    AssetScenarioStore.apply_price_shock(asset_id)
+
+    AssetScenario
+    |> where([scenario], scenario.asset_id == ^asset_id)
+    |> Repo.update_all(
+      set: [
+        current_value_usd: Decimal.new("999999.00"),
+        ltv_percent: Decimal.new("99.9"),
+        risk_band: "Critical",
+        risk_score: 99
+      ]
+    )
+
+    shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
+
+    page =
+      Assets.list_persisted_assets_page(%{
+        filters: %{Assets.default_filters() | query: "Sealed Victory Crate"},
+        sort: %{field: :value, direction: :desc},
+        shocked_asset_ids: shocked_asset_ids,
+        limit: 1
+      })
+
+    assert [%{id: ^asset_id} = asset] = page.entries
+    assert_decimal_equal(asset.current_value_usd, "999999.00")
   end
 
   test "reads the persisted catalog with scenario adjustments for detail pages" do
