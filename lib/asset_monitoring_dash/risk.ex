@@ -3,23 +3,33 @@ defmodule AssetMonitoringDash.Risk do
   Risk calculations for collateral-backed positions.
   """
 
-  @liquidation_buffer 0.85
-  @liquidation_threshold_percent 85
+  @liquidation_buffer Decimal.new("0.85")
+  @liquidation_threshold_percent Decimal.new("85")
+  @one_hundred Decimal.new("100")
 
   def health_factor(asset) do
-    asset.current_value_usd * @liquidation_buffer / asset.loan_value_usd
+    asset.current_value_usd
+    |> decimal()
+    |> Decimal.mult(@liquidation_buffer)
+    |> Decimal.div(decimal(asset.loan_value_usd))
+    |> Decimal.round(2)
   end
 
   def ltv_percent(asset) do
-    asset.loan_value_usd / asset.current_value_usd * 100
+    asset.loan_value_usd
+    |> decimal()
+    |> Decimal.div(decimal(asset.current_value_usd))
+    |> Decimal.mult(@one_hundred)
+    |> Decimal.round(1)
   end
 
   def risk_score(asset) do
     asset
     |> ltv_percent()
-    |> Kernel./(@liquidation_threshold_percent)
-    |> Kernel.*(100)
-    |> round()
+    |> Decimal.div(@liquidation_threshold_percent)
+    |> Decimal.mult(@one_hundred)
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
     |> min(100)
     |> max(0)
   end
@@ -46,7 +56,15 @@ defmodule AssetMonitoringDash.Risk do
   defp headline("Low"), do: "Position has a comfortable collateral buffer."
   defp headline(_risk_band), do: "Position risk is being monitored."
 
-  defp ltv_reason(ltv_percent) when ltv_percent >= 75 do
+  defp ltv_reason(ltv_percent) do
+    cond do
+      decimal_gte?(ltv_percent, 75) -> high_ltv_reason(ltv_percent)
+      decimal_gte?(ltv_percent, 60) -> rising_ltv_reason(ltv_percent)
+      true -> conservative_ltv_reason(ltv_percent)
+    end
+  end
+
+  defp high_ltv_reason(ltv_percent) do
     %{
       id: :ltv_pressure,
       label: "High LTV",
@@ -56,7 +74,7 @@ defmodule AssetMonitoringDash.Risk do
     }
   end
 
-  defp ltv_reason(ltv_percent) when ltv_percent >= 60 do
+  defp rising_ltv_reason(ltv_percent) do
     %{
       id: :ltv_pressure,
       label: "Rising LTV",
@@ -66,7 +84,7 @@ defmodule AssetMonitoringDash.Risk do
     }
   end
 
-  defp ltv_reason(ltv_percent) do
+  defp conservative_ltv_reason(ltv_percent) do
     %{
       id: :ltv_pressure,
       label: "Conservative LTV",
@@ -76,7 +94,15 @@ defmodule AssetMonitoringDash.Risk do
     }
   end
 
-  defp health_reason(health_factor) when health_factor < 1.1 do
+  defp health_reason(health_factor) do
+    cond do
+      decimal_lt?(health_factor, "1.1") -> thin_health_reason(health_factor)
+      decimal_lt?(health_factor, "1.3") -> narrowing_health_reason(health_factor)
+      true -> healthy_reason(health_factor)
+    end
+  end
+
+  defp thin_health_reason(health_factor) do
     %{
       id: :health_factor,
       label: "Thin health buffer",
@@ -86,7 +112,7 @@ defmodule AssetMonitoringDash.Risk do
     }
   end
 
-  defp health_reason(health_factor) when health_factor < 1.3 do
+  defp narrowing_health_reason(health_factor) do
     %{
       id: :health_factor,
       label: "Narrowing health",
@@ -96,7 +122,7 @@ defmodule AssetMonitoringDash.Risk do
     }
   end
 
-  defp health_reason(health_factor) do
+  defp healthy_reason(health_factor) do
     %{
       id: :health_factor,
       label: "Healthy buffer",
@@ -106,8 +132,14 @@ defmodule AssetMonitoringDash.Risk do
     }
   end
 
-  defp value_reason(%{current_value_usd: current_value_usd, floor_price_usd: floor_price_usd})
-       when current_value_usd < floor_price_usd do
+  defp value_reason(%{current_value_usd: current_value_usd, floor_price_usd: floor_price_usd}) do
+    case Decimal.compare(decimal(current_value_usd), decimal(floor_price_usd)) do
+      :lt -> below_floor_reason(current_value_usd)
+      _comparison -> above_floor_reason(current_value_usd)
+    end
+  end
+
+  defp below_floor_reason(current_value_usd) do
     %{
       id: :valuation_gap,
       label: "Below floor",
@@ -117,7 +149,7 @@ defmodule AssetMonitoringDash.Risk do
     }
   end
 
-  defp value_reason(%{current_value_usd: current_value_usd}) do
+  defp above_floor_reason(current_value_usd) do
     %{
       id: :valuation_gap,
       label: "Above floor",
@@ -126,4 +158,21 @@ defmodule AssetMonitoringDash.Risk do
       detail: "Current valuation remains above the reference floor price."
     }
   end
+
+  defp decimal(%Decimal{} = value), do: value
+  defp decimal(value) when is_integer(value), do: Decimal.new(value)
+
+  defp decimal(value) when is_float(value) do
+    value
+    |> Float.to_string()
+    |> Decimal.new()
+  end
+
+  defp decimal(value) when is_binary(value), do: Decimal.new(value)
+
+  defp decimal_gte?(value, threshold),
+    do: Decimal.compare(decimal(value), decimal(threshold)) in [:gt, :eq]
+
+  defp decimal_lt?(value, threshold),
+    do: Decimal.compare(decimal(value), decimal(threshold)) == :lt
 end

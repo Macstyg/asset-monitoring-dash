@@ -6,9 +6,9 @@ defmodule AssetMonitoringDash.DemoDataTest do
   test "portfolio snapshot exposes the first dashboard metrics" do
     snapshot = DemoData.portfolio_snapshot()
 
-    assert snapshot.total_collateral_value_usd > 0
+    assert Decimal.positive?(snapshot.total_collateral_value_usd)
     assert snapshot.active_loans > 0
-    assert snapshot.weighted_apy_percent > 0
+    assert Decimal.positive?(snapshot.weighted_apy_percent)
     assert snapshot.risk_score in 0..100
     assert is_binary(snapshot.risk_band)
   end
@@ -26,10 +26,10 @@ defmodule AssetMonitoringDash.DemoDataTest do
                is_binary(asset.chain) and
                is_binary(asset.ecosystem) and
                is_binary(asset.rarity) and
-               is_integer(asset.floor_price_usd) and
-               is_integer(asset.current_value_usd) and
-               is_integer(asset.loan_value_usd) and
-               is_float(asset.ltv_percent) and
+               match?(%Decimal{}, asset.floor_price_usd) and
+               match?(%Decimal{}, asset.current_value_usd) and
+               match?(%Decimal{}, asset.loan_value_usd) and
+               match?(%Decimal{}, asset.ltv_percent) and
                asset.risk_score in 0..100 and
                asset.risk_band in ["Low", "Moderate", "Elevated", "Critical"]
            end)

@@ -4,12 +4,11 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.Assets.Chain
   alias AssetMonitoringDash.Assets.GameEcosystem
+  alias AssetMonitoringDash.Assets.MarketSnapshot
   alias AssetMonitoringDash.Assets.MonitoredAsset
   alias AssetMonitoringDash.Seeds.DemoCatalog
 
   test "seeds the canonical demo asset catalog idempotently" do
-    assert Assets.catalog_seeded?() == false
-
     persisted_assets = DemoCatalog.run!()
 
     assert length(persisted_assets) == 600
@@ -17,12 +16,14 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert Repo.aggregate(Chain, :count) == 6
     assert Repo.aggregate(GameEcosystem, :count) == 6
     assert Repo.aggregate(MonitoredAsset, :count) == 600
+    assert Repo.aggregate(MarketSnapshot, :count) == 4_200
 
     DemoCatalog.run!()
 
     assert Repo.aggregate(Chain, :count) == 6
     assert Repo.aggregate(GameEcosystem, :count) == 6
     assert Repo.aggregate(MonitoredAsset, :count) == 600
+    assert Repo.aggregate(MarketSnapshot, :count) == 4_200
   end
 
   test "reads persisted assets in the same shape used by the dashboard" do
@@ -37,6 +38,35 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
            } = Enum.find(Assets.list_persisted_assets(), &(&1.dom_id == "asset-001"))
 
     assert Ecto.UUID.cast(id) == {:ok, id}
+  end
+
+  test "reads persisted market snapshots for an asset" do
+    DemoCatalog.run!()
+
+    asset_id = Assets.persisted_asset_id("asset-001")
+    snapshots = Assets.list_market_snapshots(asset_id)
+
+    assert length(snapshots) == 7
+    assert_decimal_equal(List.first(snapshots).ltv_percent, "56.5")
+    assert_decimal_equal(List.last(snapshots).ltv_percent, "59.7")
+    assert Enum.all?(snapshots, &(&1.asset_id == asset_id))
+  end
+
+  test "builds LTV trend from persisted market snapshots with current asset as latest point" do
+    DemoCatalog.run!()
+
+    asset =
+      MapSet.new(["asset-001"])
+      |> Assets.list_persisted_assets_with_scenarios()
+      |> Assets.get_asset("asset-001")
+
+    trend = Assets.ltv_trend(asset)
+
+    assert length(trend) == 7
+    assert %{label: "6d", value: first_value} = List.first(trend)
+    assert %{label: "Now", value: last_value} = List.last(trend)
+    assert_decimal_equal(first_value, "56.5")
+    assert_decimal_equal(last_value, "67.8")
   end
 
   test "pages persisted assets through the context query boundary" do
@@ -80,8 +110,10 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
       })
 
     assert page.total_count == 50
-    assert [%{id: id, current_value_usd: 4_277, ltv_percent: 67.8}] = page.entries
+    assert [%{id: id} = asset] = page.entries
     assert id == Assets.persisted_asset_id("asset-001")
+    assert_decimal_equal(asset.current_value_usd, "4276.80")
+    assert_decimal_equal(asset.ltv_percent, "67.8")
   end
 
   test "reads the persisted catalog with scenario adjustments for detail pages" do
@@ -92,6 +124,12 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
       |> Assets.list_persisted_assets_with_scenarios()
       |> Assets.get_asset("asset-001")
 
-    assert %{current_value_usd: 4_277, ltv_percent: 67.8, risk_score: 80} = asset
+    assert_decimal_equal(asset.current_value_usd, "4276.80")
+    assert_decimal_equal(asset.ltv_percent, "67.8")
+    assert asset.risk_score == 80
+  end
+
+  defp assert_decimal_equal(actual, expected) do
+    assert Decimal.equal?(actual, Decimal.new(expected))
   end
 end

@@ -34,7 +34,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
     refute has_element?(view, "#asset-table-end")
     assert has_element?(view, "#asset-summary")
     assert has_element?(view, "#asset-summary-visible-count", "600")
-    assert has_element?(view, "#asset-summary-value", "$3,474,056")
+    assert has_element?(view, "#asset-summary-value", "$3,474,033")
     assert has_element?(view, "#asset-summary-at-risk", "165")
     assert has_element?(view, "#asset-summary-highest-ltv", "80.1%")
     assert has_element?(view, "#asset-filters")
@@ -173,7 +173,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
     assert has_element?(view, "#asset-count", "14 monitored")
     assert has_element?(view, "#asset-summary-visible-count", "14")
-    assert has_element?(view, "#asset-summary-value", "$136,168")
+    assert has_element?(view, "#asset-summary-value", "$136,169")
     assert has_element?(view, "#asset-summary-at-risk", "14")
     assert has_element?(view, "#asset-summary-highest-ltv", "80.1%")
     assert has_element?(view, "#asset-loaded-count", "Showing 1-14 of 14")

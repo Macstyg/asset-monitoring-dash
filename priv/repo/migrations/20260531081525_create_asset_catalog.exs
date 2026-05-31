@@ -30,14 +30,14 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateAssetCatalog do
       add :icon, :string, null: false
       add :asset_type, :string, null: false
       add :rarity, :string, null: false
-      add :floor_price_usd, :integer, null: false
-      add :current_value_usd, :integer, null: false
-      add :loan_value_usd, :integer, null: false
-      add :ltv_percent, :float, null: false
+      add :floor_price_usd, :decimal, precision: 14, scale: 2, null: false
+      add :current_value_usd, :decimal, precision: 14, scale: 2, null: false
+      add :loan_value_usd, :decimal, precision: 14, scale: 2, null: false
+      add :ltv_percent, :decimal, precision: 7, scale: 2, null: false
       add :risk_score, :integer, null: false
       add :risk_band, :string, null: false
       add :oracle_freshness_seconds, :integer, null: false
-      add :market_depth_usd, :integer, null: false
+      add :market_depth_usd, :decimal, precision: 14, scale: 2, null: false
 
       add :chain_id, references(:chains, on_delete: :restrict), null: false
       add :game_ecosystem_id, references(:game_ecosystems, on_delete: :restrict), null: false
@@ -49,5 +49,27 @@ defmodule AssetMonitoringDash.Repo.Migrations.CreateAssetCatalog do
     create index(:monitored_assets, [:chain_id])
     create index(:monitored_assets, [:game_ecosystem_id])
     create index(:monitored_assets, [:risk_band])
+
+    create table(:asset_market_snapshots, primary_key: false) do
+      add :id, :uuid, primary_key: true
+
+      add :asset_id, references(:monitored_assets, type: :uuid, on_delete: :delete_all),
+        null: false
+
+      add :floor_price_usd, :decimal, precision: 14, scale: 2, null: false
+      add :current_value_usd, :decimal, precision: 14, scale: 2, null: false
+      add :loan_value_usd, :decimal, precision: 14, scale: 2, null: false
+      add :ltv_percent, :decimal, precision: 7, scale: 2, null: false
+      add :oracle_freshness_seconds, :integer, null: false
+      add :market_depth_usd, :decimal, precision: 14, scale: 2, null: false
+      add :source, :string, null: false
+      add :observed_at, :utc_datetime, null: false
+
+      timestamps(type: :utc_datetime)
+    end
+
+    create unique_index(:asset_market_snapshots, [:asset_id, :observed_at])
+    create index(:asset_market_snapshots, [:asset_id])
+    create index(:asset_market_snapshots, [:observed_at])
   end
 end

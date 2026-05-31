@@ -9,8 +9,10 @@ defmodule AssetMonitoringDash.Assets do
 
   import Ecto.Query
 
+  alias AssetMonitoringDash.Assets.MarketSnapshot
   alias AssetMonitoringDash.Assets.MonitoredAsset
   alias AssetMonitoringDash.DemoData
+  alias AssetMonitoringDash.Money
   alias AssetMonitoringDash.Repo
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.Risk
@@ -53,8 +55,8 @@ defmodule AssetMonitoringDash.Assets do
   @at_risk_bands ["Elevated", "Critical"]
   @fresh_oracle_max_seconds 60
   @delayed_oracle_max_seconds 300
-  @deep_market_depth_min_usd 25_000
-  @thin_market_depth_min_usd 5_000
+  @deep_market_depth_min_usd Money.usd(25_000)
+  @thin_market_depth_min_usd Money.usd(5_000)
   @ltv_trend_offsets %{
     "asset-001" => [-3.2, -2.4, -1.9, -1.1, -0.8, -0.3],
     "asset-002" => [-1.0, 0.7, -0.2, 1.6, 2.1, 1.2],
@@ -231,14 +233,35 @@ defmodule AssetMonitoringDash.Assets do
     Enum.map(assets, &reset_asset_value(&1, asset_id, original_asset))
   end
 
+  def list_market_snapshots(asset_id) do
+    asset_id = resolve_persisted_asset_id(asset_id)
+
+    MarketSnapshot
+    |> where([snapshot], snapshot.asset_id == ^asset_id)
+    |> order_by([snapshot], asc: snapshot.observed_at)
+    |> Repo.all()
+    |> Enum.map(&market_snapshot_to_map/1)
+  end
+
+  def ltv_trend(%{id: "asset-" <> _rest} = asset), do: demo_ltv_trend(asset)
+
   def ltv_trend(asset) do
+    case list_market_snapshots(asset.id) do
+      [] -> demo_ltv_trend(asset)
+      snapshots -> snapshots_to_ltv_trend(snapshots, asset)
+    end
+  end
+
+  defp demo_ltv_trend(asset) do
     baseline_asset = get_asset(Map.get(asset, :dom_id, asset.id)) || asset
     baseline_ltv = baseline_asset.ltv_percent
 
     baseline_asset.id
     |> ltv_trend_offsets()
     |> Enum.zip(["6d", "5d", "4d", "3d", "2d", "1d"])
-    |> Enum.map(fn {offset, label} -> trend_point(label, baseline_ltv + offset) end)
+    |> Enum.map(fn {offset, label} ->
+      trend_point(label, Decimal.add(Money.decimal(baseline_ltv), Money.decimal(offset)))
+    end)
     |> Kernel.++([trend_point("Now", asset.ltv_percent)])
   end
 
@@ -330,13 +353,13 @@ defmodule AssetMonitoringDash.Assets do
 
   def oracle_status(_freshness_seconds), do: "Stale"
 
-  def liquidity_status(market_depth_usd) when market_depth_usd >= @deep_market_depth_min_usd,
-    do: "Deep"
-
-  def liquidity_status(market_depth_usd) when market_depth_usd >= @thin_market_depth_min_usd,
-    do: "Thin"
-
-  def liquidity_status(_market_depth_usd), do: "Illiquid"
+  def liquidity_status(market_depth_usd) do
+    cond do
+      decimal_gte?(market_depth_usd, @deep_market_depth_min_usd) -> "Deep"
+      decimal_gte?(market_depth_usd, @thin_market_depth_min_usd) -> "Thin"
+      true -> "Illiquid"
+    end
+  end
 
   defp filter_assets_by_query(assets, ""), do: assets
 
@@ -484,6 +507,41 @@ defmodule AssetMonitoringDash.Assets do
     |> normalize_risk_fields()
   end
 
+  defp market_snapshot_to_map(snapshot) do
+    %{
+      id: snapshot.id,
+      asset_id: snapshot.asset_id,
+      current_value_usd: snapshot.current_value_usd,
+      floor_price_usd: snapshot.floor_price_usd,
+      loan_value_usd: snapshot.loan_value_usd,
+      ltv_percent: snapshot.ltv_percent,
+      market_depth_usd: snapshot.market_depth_usd,
+      observed_at: snapshot.observed_at,
+      oracle_freshness_seconds: snapshot.oracle_freshness_seconds,
+      source: snapshot.source
+    }
+  end
+
+  defp snapshots_to_ltv_trend(snapshots, asset) do
+    snapshots
+    |> Enum.with_index()
+    |> Enum.map(fn {snapshot, index} ->
+      trend_point(snapshot_label(index, length(snapshots)), snapshot.ltv_percent)
+    end)
+    |> replace_latest_trend_point(asset)
+  end
+
+  defp snapshot_label(index, total_count) when index == total_count - 1, do: "Now"
+  defp snapshot_label(index, total_count), do: "#{total_count - index - 1}d"
+
+  defp replace_latest_trend_point([], asset), do: [trend_point("Now", asset.ltv_percent)]
+
+  defp replace_latest_trend_point(points, asset) do
+    points
+    |> Enum.drop(-1)
+    |> Kernel.++([trend_point("Now", asset.ltv_percent)])
+  end
+
   defp persisted_asset_query(filters) do
     MonitoredAsset
     |> join(:inner, [asset], chain in assoc(asset, :chain), as: :chain)
@@ -585,16 +643,15 @@ defmodule AssetMonitoringDash.Assets do
       | id: dom_id,
         dom_id: dom_id,
         name: "#{asset.name} V#{suffix}",
-        floor_price_usd: asset.floor_price_usd |> Kernel.*(floor_factor) |> round() |> max(1),
+        floor_price_usd: asset.floor_price_usd |> Money.multiply(floor_factor) |> Money.max(1),
         current_value_usd:
-          asset.current_value_usd |> Kernel.*(current_factor) |> round() |> max(1),
+          asset.current_value_usd |> Money.multiply(current_factor) |> Money.max(1),
         loan_value_usd:
           asset.loan_value_usd
-          |> Kernel.*(current_factor * ltv_factor)
-          |> round()
-          |> max(1),
+          |> Money.multiply(current_factor * ltv_factor)
+          |> Money.max(1),
         oracle_freshness_seconds: variant_oracle_freshness(sequence),
-        market_depth_usd: asset.market_depth_usd |> Kernel.*(depth_factor) |> round() |> max(500)
+        market_depth_usd: asset.market_depth_usd |> Money.multiply(depth_factor) |> Money.max(500)
     }
   end
 
@@ -628,10 +685,23 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   defp compare_sort_values(value, value, _direction), do: :same
+
+  defp compare_sort_values(%Decimal{} = value, %Decimal{} = other_value, direction) do
+    value
+    |> Decimal.compare(other_value)
+    |> decimal_sort_result(direction)
+  end
+
   defp compare_sort_values(value, other_value, :asc) when value < other_value, do: :before
   defp compare_sort_values(_value, _other_value, :asc), do: :after
   defp compare_sort_values(value, other_value, :desc) when value > other_value, do: :before
   defp compare_sort_values(_value, _other_value, :desc), do: :after
+
+  defp decimal_sort_result(:eq, _direction), do: :same
+  defp decimal_sort_result(:lt, :asc), do: :before
+  defp decimal_sort_result(:gt, :asc), do: :after
+  defp decimal_sort_result(:gt, :desc), do: :before
+  defp decimal_sort_result(:lt, :desc), do: :after
 
   defp sort_value(asset, :asset, _review_states), do: String.downcase(asset.name)
 
@@ -686,15 +756,20 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   defp trend_point(label, value) do
-    %{label: label, value: value |> clamp_ltv() |> Float.round(1)}
+    %{label: label, value: value |> clamp_ltv() |> Decimal.round(1)}
   end
 
-  defp clamp_ltv(value) when value < 0.0, do: 0.0
-  defp clamp_ltv(value) when value > 100.0, do: 100.0
-  defp clamp_ltv(value), do: value
+  defp clamp_ltv(value) do
+    cond do
+      decimal_lt?(value, 0) -> Decimal.new("0.0")
+      decimal_gt?(value, 100) -> Decimal.new("100.0")
+      true -> Money.decimal(value)
+    end
+  end
 
   defp normalize_risk_fields(asset) do
-    ltv_percent = Float.round(Risk.ltv_percent(asset), 1)
+    asset = normalize_numeric_fields(asset)
+    ltv_percent = Risk.ltv_percent(asset)
     risk_score = Risk.risk_score(%{asset | ltv_percent: ltv_percent})
 
     asset
@@ -716,9 +791,9 @@ defmodule AssetMonitoringDash.Assets do
 
   defp reprice_asset(asset, drop_percent) do
     value_multiplier = 1 - drop_percent / 100
-    current_value_usd = round(asset.current_value_usd * value_multiplier)
+    current_value_usd = Money.multiply(asset.current_value_usd, value_multiplier)
     repriced_asset = %{asset | current_value_usd: current_value_usd}
-    ltv_percent = Float.round(Risk.ltv_percent(repriced_asset), 1)
+    ltv_percent = Risk.ltv_percent(repriced_asset)
     risk_score = Risk.risk_score(repriced_asset)
 
     repriced_asset
@@ -744,28 +819,49 @@ defmodule AssetMonitoringDash.Assets do
     asset.id == asset_id || Map.get(asset, :dom_id) == asset_id
   end
 
-  defp total_value_usd(assets) do
-    Enum.sum(Enum.map(assets, & &1.current_value_usd))
-  end
+  defp total_value_usd(assets), do: assets |> Enum.map(& &1.current_value_usd) |> Money.sum()
 
   defp at_risk_count(assets) do
     Enum.count(assets, &(&1.risk_band in @at_risk_bands))
   end
 
-  defp average_ltv_percent([]), do: 0.0
+  defp average_ltv_percent([]), do: Decimal.new("0.0")
 
   defp average_ltv_percent(assets) do
     assets
     |> Enum.map(& &1.ltv_percent)
-    |> Enum.sum()
-    |> Kernel./(length(assets))
+    |> Enum.reduce(Decimal.new("0"), fn value, total ->
+      Decimal.add(total, Money.decimal(value))
+    end)
+    |> Decimal.div(length(assets))
+    |> Decimal.round(1)
   end
 
-  defp highest_ltv_percent([]), do: 0.0
+  defp highest_ltv_percent([]), do: Decimal.new("0.0")
 
   defp highest_ltv_percent(assets) do
     assets
     |> Enum.map(& &1.ltv_percent)
-    |> Enum.max()
+    |> Enum.max_by(&Money.decimal/1, Decimal)
   end
+
+  defp normalize_numeric_fields(asset) do
+    %{
+      asset
+      | current_value_usd: Money.usd(asset.current_value_usd),
+        floor_price_usd: Money.usd(asset.floor_price_usd),
+        loan_value_usd: Money.usd(asset.loan_value_usd),
+        ltv_percent: Money.decimal(asset.ltv_percent),
+        market_depth_usd: Money.usd(asset.market_depth_usd)
+    }
+  end
+
+  defp decimal_gte?(value, threshold),
+    do: Decimal.compare(Money.decimal(value), Money.decimal(threshold)) in [:gt, :eq]
+
+  defp decimal_gt?(value, threshold),
+    do: Decimal.compare(Money.decimal(value), Money.decimal(threshold)) == :gt
+
+  defp decimal_lt?(value, threshold),
+    do: Decimal.compare(Money.decimal(value), Money.decimal(threshold)) == :lt
 end

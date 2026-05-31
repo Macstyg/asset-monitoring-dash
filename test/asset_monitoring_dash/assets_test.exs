@@ -16,7 +16,7 @@ defmodule AssetMonitoringDash.AssetsTest do
     test "derives loan risk fields from current value and loan value" do
       asset = Assets.get_asset("asset-001")
 
-      assert asset.ltv_percent == 59.7
+      assert_decimal_equal(asset.ltv_percent, "59.7")
       assert asset.risk_score == 70
       assert asset.risk_band == "Elevated"
     end
@@ -26,9 +26,9 @@ defmodule AssetMonitoringDash.AssetsTest do
       asset = Assets.get_asset(assets, "asset-001")
       untouched_asset = Assets.get_asset(assets, "asset-002")
 
-      assert asset.current_value_usd == 4_277
-      assert asset.ltv_percent == 67.8
-      assert untouched_asset.current_value_usd == 21_150
+      assert_decimal_equal(asset.current_value_usd, "4276.80")
+      assert_decimal_equal(asset.ltv_percent, "67.8")
+      assert_decimal_equal(untouched_asset.current_value_usd, "21150.00")
     end
 
     test "derives oracle status from freshness seconds" do
@@ -221,8 +221,8 @@ defmodule AssetMonitoringDash.AssetsTest do
       |> Assets.apply_price_drop("asset-001", 12)
       |> Enum.filter(&(&1.id == "asset-001"))
 
-    assert asset.current_value_usd == 4_277
-    assert asset.ltv_percent == 67.8
+    assert_decimal_equal(asset.current_value_usd, "4276.80")
+    assert_decimal_equal(asset.ltv_percent, "67.8")
     assert asset.risk_score == 80
     assert asset.risk_band == "Elevated"
   end
@@ -233,8 +233,11 @@ defmodule AssetMonitoringDash.AssetsTest do
       |> Assets.apply_price_drop("asset-001", 12)
       |> Assets.reset_asset("asset-001")
 
-    assert %{current_value_usd: 4_860, ltv_percent: 59.7, risk_score: 70} =
-             Assets.get_asset(assets, "asset-001")
+    asset = Assets.get_asset(assets, "asset-001")
+
+    assert_decimal_equal(asset.current_value_usd, "4860.00")
+    assert_decimal_equal(asset.ltv_percent, "59.7")
+    assert asset.risk_score == 70
   end
 
   test "builds an LTV trend with the current asset as the latest point" do
@@ -246,8 +249,10 @@ defmodule AssetMonitoringDash.AssetsTest do
     trend = Assets.ltv_trend(asset)
 
     assert length(trend) == 7
-    assert List.first(trend) == %{label: "6d", value: 56.5}
-    assert List.last(trend) == %{label: "Now", value: 67.8}
+    assert %{label: "6d", value: first_value} = List.first(trend)
+    assert %{label: "Now", value: last_value} = List.last(trend)
+    assert_decimal_equal(first_value, "56.5")
+    assert_decimal_equal(last_value, "67.8")
   end
 
   test "uses different LTV trend shapes for different assets" do
@@ -257,8 +262,25 @@ defmodule AssetMonitoringDash.AssetsTest do
     improving_trend = Assets.ltv_trend(improving_asset)
     volatile_trend = Assets.ltv_trend(volatile_asset)
 
-    assert Enum.map(improving_trend, & &1.value) == [40.2, 39.6, 38.9, 38.3, 37.7, 37.4, 37.8]
-    assert Enum.map(volatile_trend, & &1.value) == [74.5, 77.0, 75.7, 78.4, 81.0, 82.9, 80.1]
+    assert Enum.map(improving_trend, &decimal_string(&1.value)) == [
+             "40.2",
+             "39.6",
+             "38.9",
+             "38.3",
+             "37.7",
+             "37.4",
+             "37.8"
+           ]
+
+    assert Enum.map(volatile_trend, &decimal_string(&1.value)) == [
+             "74.5",
+             "77.0",
+             "75.7",
+             "78.4",
+             "81.0",
+             "82.9",
+             "80.1"
+           ]
   end
 
   test "summarizes a list of visible assets" do
@@ -267,19 +289,19 @@ defmodule AssetMonitoringDash.AssetsTest do
       |> Assets.summarize_assets()
 
     assert summary.visible_count == 2
-    assert summary.total_value_usd == 29_910
+    assert_decimal_equal(summary.total_value_usd, "29910.00")
     assert summary.at_risk_count == 2
-    assert_in_delta summary.average_ltv_percent, 77.65, 0.001
-    assert summary.highest_ltv_percent == 80.1
+    assert_decimal_equal(summary.average_ltv_percent, "77.7")
+    assert_decimal_equal(summary.highest_ltv_percent, "80.1")
   end
 
   test "summarizes an empty asset list" do
     assert Assets.summarize_assets([]) == %{
              visible_count: 0,
-             total_value_usd: 0,
+             total_value_usd: Decimal.new("0.00"),
              at_risk_count: 0,
-             average_ltv_percent: 0.0,
-             highest_ltv_percent: 0.0
+             average_ltv_percent: Decimal.new("0.0"),
+             highest_ltv_percent: Decimal.new("0.0")
            }
   end
 
@@ -324,5 +346,13 @@ defmodule AssetMonitoringDash.AssetsTest do
     assert Assets.filter_options(Assets.chain_filter_options(), "poly") == [
              %{label: "Polygon", value: "Polygon", icon: :chain}
            ]
+  end
+
+  defp assert_decimal_equal(actual, expected) do
+    assert Decimal.equal?(actual, Decimal.new(expected))
+  end
+
+  defp decimal_string(value) do
+    Decimal.to_string(value, :normal)
   end
 end

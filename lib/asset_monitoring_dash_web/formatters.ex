@@ -3,15 +3,19 @@ defmodule AssetMonitoringDashWeb.Formatters do
   Formatting helpers for dashboard display values.
   """
 
-  def compact_usd(value) when is_integer(value) do
+  alias AssetMonitoringDash.Money
+
+  def compact_usd(value) do
+    value = Money.decimal(value)
+
     cond do
-      value >= 1_000_000 -> "$#{decimal(value / 1_000_000)}M"
-      value >= 1_000 -> "$#{decimal(value / 1_000)}K"
+      decimal_gte?(value, 1_000_000) -> "$#{decimal(Decimal.div(value, 1_000_000))}M"
+      decimal_gte?(value, 1_000) -> "$#{decimal(Decimal.div(value, 1_000))}K"
       true -> usd(value)
     end
   end
 
-  def usd(value) when is_integer(value) do
+  def usd(value) do
     "$#{number(value)}"
   end
 
@@ -19,8 +23,12 @@ defmodule AssetMonitoringDashWeb.Formatters do
     "#{decimal(value)}%"
   end
 
-  def signed_percent(value) when value > 0, do: "+#{decimal(value)}%"
-  def signed_percent(value), do: "#{decimal(value)}%"
+  def signed_percent(value) do
+    case Decimal.compare(Money.decimal(value), Decimal.new("0")) do
+      :gt -> "+#{decimal(value)}%"
+      _comparison -> "#{decimal(value)}%"
+    end
+  end
 
   def duration_seconds(value) when is_integer(value) and value < 60, do: "#{value}s"
 
@@ -33,12 +41,21 @@ defmodule AssetMonitoringDashWeb.Formatters do
   end
 
   def decimal(value) do
-    :erlang.float_to_binary(value / 1, decimals: 1)
+    value
+    |> Money.decimal()
+    |> Decimal.round(1)
+    |> Decimal.to_string(:normal)
   end
 
-  def number(value) when is_integer(value) do
+  def number(value) do
     value
+    |> Money.decimal()
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
     |> Integer.to_string()
     |> String.replace(~r/\B(?=(\d{3})+(?!\d))/, ",")
   end
+
+  defp decimal_gte?(value, threshold),
+    do: Decimal.compare(Money.decimal(value), Money.decimal(threshold)) in [:gt, :eq]
 end

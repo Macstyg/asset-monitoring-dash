@@ -10,6 +10,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.AssetScenarioStore
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.EventFeed
+  alias AssetMonitoringDash.Money
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Risk
@@ -326,7 +327,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     ]
   end
 
-  defp total_collateral_value_usd(assets), do: Enum.sum(Enum.map(assets, & &1.current_value_usd))
+  defp total_collateral_value_usd(assets),
+    do: assets |> Enum.map(& &1.current_value_usd) |> Money.sum()
 
   defp average_risk_score([]), do: 0
 
@@ -338,14 +340,19 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> round()
   end
 
-  defp percent_delta(_current_value, 0), do: 0.0
-
   defp percent_delta(current_value, baseline_value) do
-    current_value
-    |> Kernel.-(baseline_value)
-    |> Kernel./(baseline_value)
-    |> Kernel.*(100)
-    |> Float.round(1)
+    case Decimal.compare(Money.decimal(baseline_value), Decimal.new("0")) do
+      :eq ->
+        Decimal.new("0.0")
+
+      _comparison ->
+        current_value
+        |> Money.decimal()
+        |> Decimal.sub(Money.decimal(baseline_value))
+        |> Decimal.div(Money.decimal(baseline_value))
+        |> Decimal.mult(100)
+        |> Decimal.round(1)
+    end
   end
 
   defp signed_integer(value) when value > 0, do: "+#{value}"
@@ -355,9 +362,13 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp delta_tone(value) when value < 0, do: :positive
   defp delta_tone(_value), do: :neutral
 
-  defp collateral_delta_tone(value) when value > 0, do: :positive
-  defp collateral_delta_tone(value) when value < 0, do: :negative
-  defp collateral_delta_tone(_value), do: :neutral
+  defp collateral_delta_tone(value) do
+    case Decimal.compare(Money.decimal(value), Decimal.new("0")) do
+      :gt -> :positive
+      :lt -> :negative
+      :eq -> :neutral
+    end
+  end
 
   defp apply_asset_state(socket, %DashboardURLState{} = asset_state) do
     socket

@@ -14,7 +14,7 @@ defmodule AssetMonitoringDashWeb.AssetControllerTest do
              "name" => "Aegis Dragon Helm",
              "icon" => "dragon-helm",
              "chain" => "Polygon",
-             "ltv_percent" => 59.7,
+             "ltv_percent" => "59.7",
              "risk_score" => 70,
              "risk_band" => "Elevated"
            } = List.first(response["data"])

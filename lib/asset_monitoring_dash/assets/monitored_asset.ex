@@ -9,16 +9,17 @@ defmodule AssetMonitoringDash.Assets.MonitoredAsset do
 
   alias AssetMonitoringDash.Assets.Chain
   alias AssetMonitoringDash.Assets.GameEcosystem
+  alias AssetMonitoringDash.Assets.MarketSnapshot
 
   @primary_key {:id, :binary_id, autogenerate: true}
   schema "monitored_assets" do
     field :asset_type, :string
-    field :current_value_usd, :integer
-    field :floor_price_usd, :integer
+    field :current_value_usd, :decimal
+    field :floor_price_usd, :decimal
     field :icon, :string
-    field :loan_value_usd, :integer
-    field :ltv_percent, :float
-    field :market_depth_usd, :integer
+    field :loan_value_usd, :decimal
+    field :ltv_percent, :decimal
+    field :market_depth_usd, :decimal
     field :name, :string
     field :oracle_freshness_seconds, :integer
     field :rarity, :string
@@ -27,6 +28,7 @@ defmodule AssetMonitoringDash.Assets.MonitoredAsset do
 
     belongs_to :chain, Chain
     belongs_to :game_ecosystem, GameEcosystem
+    has_many :market_snapshots, MarketSnapshot, foreign_key: :asset_id
 
     timestamps(type: :utc_datetime)
   end

@@ -28,7 +28,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetTrend do
       <div class="flex items-start justify-between gap-3">
         <div>
           <p class="font-mono text-xs uppercase tracking-[0.12em] text-app-muted">LTV trend</p>
-          <p class="mt-1 text-sm text-app-muted">Last 7 demo points for the selected asset.</p>
+          <p class="mt-1 text-sm text-app-muted">Persisted market observations for this asset.</p>
         </div>
         <div class="shrink-0 text-right">
           <p
@@ -87,7 +87,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetTrend do
   end
 
   defp chart_points(points) do
-    values = Enum.map(points, & &1.value)
+    values = Enum.map(points, &decimal_to_float(&1.value))
     min_value = Enum.min(values)
     max_value = Enum.max(values)
     range = chart_range(max_value - min_value)
@@ -100,7 +100,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetTrend do
         label: point.label,
         value: point.value,
         x: Float.round(6 + index * step, 2),
-        y: Float.round(76 - (point.value - min_value) / range * 64, 2)
+        y: Float.round(76 - (decimal_to_float(point.value) - min_value) / range * 64, 2)
       }
     end)
   end
@@ -127,14 +127,33 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetTrend do
   defp chart_range(range), do: range
 
   defp trend_delta(points) do
-    List.last(points).value - List.first(points).value
+    Decimal.sub(decimal(List.last(points).value), decimal(List.first(points).value))
   end
 
-  defp format_delta(delta) when delta > 0, do: "+#{Formatters.decimal(delta)} pts"
-  defp format_delta(delta) when delta < 0, do: "#{Formatters.decimal(delta)} pts"
-  defp format_delta(_delta), do: "0.0 pts"
+  defp format_delta(delta) do
+    case Decimal.compare(decimal(delta), Decimal.new("0")) do
+      :gt -> "+#{Formatters.decimal(delta)} pts"
+      :lt -> "#{Formatters.decimal(delta)} pts"
+      :eq -> "0.0 pts"
+    end
+  end
 
-  defp delta_class(delta) when delta > 0, do: "text-app-warn"
-  defp delta_class(delta) when delta < 0, do: "text-app-accent"
-  defp delta_class(_delta), do: "text-app-muted"
+  defp delta_class(delta) do
+    case Decimal.compare(decimal(delta), Decimal.new("0")) do
+      :gt -> "text-app-warn"
+      :lt -> "text-app-accent"
+      :eq -> "text-app-muted"
+    end
+  end
+
+  defp decimal(%Decimal{} = value), do: value
+  defp decimal(value) when is_integer(value), do: Decimal.new(value)
+
+  defp decimal(value) when is_float(value) do
+    value
+    |> Float.to_string()
+    |> Decimal.new()
+  end
+
+  defp decimal_to_float(value), do: value |> decimal() |> Decimal.to_float()
 end

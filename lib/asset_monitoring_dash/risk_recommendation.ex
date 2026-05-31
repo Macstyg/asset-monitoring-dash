@@ -132,21 +132,23 @@ defmodule AssetMonitoringDash.RiskRecommendation do
      }}
   end
 
-  defp critical_recommendation_reason(health_factor) when health_factor < 1.2 do
-    {:liquidation_candidate,
-     %{
-       id: :critical_health,
-       label: "Critical health",
-       detail: "Risk is critical and the oracle is fresh enough to prepare escalation."
-     }}
-  end
+  defp critical_recommendation_reason(health_factor) do
+    case Decimal.compare(health_factor, Decimal.new("1.2")) do
+      :lt ->
+        {:liquidation_candidate,
+         %{
+           id: :critical_health,
+           label: "Critical health",
+           detail: "Risk is critical and the oracle is fresh enough to prepare escalation."
+         }}
 
-  defp critical_recommendation_reason(_health_factor) do
-    {:manual_review,
-     %{
-       id: :critical_risk,
-       label: "Critical risk",
-       detail: "Risk is critical, but the position still needs analyst confirmation."
-     }}
+      _comparison ->
+        {:manual_review,
+         %{
+           id: :critical_risk,
+           label: "Critical risk",
+           detail: "Risk is critical, but the position still needs analyst confirmation."
+         }}
+    end
   end
 end

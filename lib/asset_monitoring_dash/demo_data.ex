@@ -7,14 +7,16 @@ defmodule AssetMonitoringDash.DemoData do
   contexts without forcing the LiveView to know where the data came from.
   """
 
+  alias AssetMonitoringDash.Money
+
   def portfolio_snapshot do
     %{
-      total_collateral_value_usd: 12_840_000,
-      collateral_delta_percent: 4.8,
+      total_collateral_value_usd: Money.usd(12_840_000),
+      collateral_delta_percent: decimal("4.8"),
       active_loans: 132,
       active_loans_delta: 9,
-      weighted_apy_percent: 13.7,
-      apy_delta_percent: -0.4,
+      weighted_apy_percent: decimal("13.7"),
+      apy_delta_percent: decimal("-0.4"),
       risk_score: 68,
       risk_delta: 6,
       risk_band: "Elevated"
@@ -81,7 +83,7 @@ defmodule AssetMonitoringDash.DemoData do
   end
 
   def monitored_assets do
-    [
+    assets = [
       %{
         id: "asset-001",
         name: "Aegis Dragon Helm",
@@ -287,7 +289,31 @@ defmodule AssetMonitoringDash.DemoData do
         market_depth_usd: 3_900
       }
     ]
+
+    Enum.map(assets, &normalize_asset/1)
   end
+
+  defp normalize_asset(asset) do
+    %{
+      asset
+      | current_value_usd: Money.usd(asset.current_value_usd),
+        floor_price_usd: Money.usd(asset.floor_price_usd),
+        loan_value_usd: Money.usd(asset.loan_value_usd),
+        ltv_percent: decimal(asset.ltv_percent),
+        market_depth_usd: Money.usd(asset.market_depth_usd)
+    }
+  end
+
+  defp decimal(%Decimal{} = value), do: value
+
+  defp decimal(value) when is_float(value) do
+    value
+    |> Float.to_string()
+    |> Decimal.new()
+  end
+
+  defp decimal(value) when is_integer(value), do: Decimal.new(value)
+  defp decimal(value) when is_binary(value), do: Decimal.new(value)
 
   defp live_event_templates do
     [
