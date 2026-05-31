@@ -1,22 +1,23 @@
 defmodule AssetMonitoringDashWeb.AssetLive do
   use AssetMonitoringDashWeb, :live_view
 
+  alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenarioStore
-  alias AssetMonitoringDash.EventStore
+  alias AssetMonitoringDash.ReviewAudit
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Risk
   alias AssetMonitoringDash.RiskRecommendation
+  alias AssetMonitoringDashWeb.AssetDetailURLState
+  alias AssetMonitoringDashWeb.DashboardComponents.AssetActivity
   alias AssetMonitoringDashWeb.DashboardComponents.AssetInspection
-  alias AssetMonitoringDashWeb.DashboardComponents.EventItem
   alias AssetMonitoringDashWeb.DashboardComponents.InvestigationBrief
+  alias AssetMonitoringDashWeb.DashboardComponents.RelatedAssets
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.Card
-  alias AssetMonitoringDashWeb.UI.ChainIcon
-  alias AssetMonitoringDashWeb.UI.FilterBar
 
   @related_asset_limit 4
   @default_review_reason "signal_reviewed"
@@ -25,7 +26,8 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   def mount(%{"id" => asset_id} = params, _session, socket) do
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
     assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
-    event_filters = default_asset_event_filters()
+    detail_state = AssetDetailURLState.from_params(params)
+    event_filters = detail_state.event_filters
 
     socket =
       socket
@@ -37,16 +39,29 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       |> assign(:return_to, normalize_return_to(Map.get(params, "return_to")))
       |> assign(:visible_events, [])
       |> assign(:event_count, 0)
-      |> assign(:asset_event_filters, event_filters)
-      |> assign(:asset_event_filter_form, asset_event_filter_form(event_filters))
+      |> assign(:asset_detail_url_state, detail_state)
       |> assign(:asset_event_source_filter_options, asset_event_source_filter_options())
-      |> assign(:active_asset_event_filter_chips, active_asset_event_filter_chips(event_filters))
       |> assign(:review_reason_options, review_reason_options())
       |> assign(:review_action_form, review_action_form(default_review_action_params()))
+      |> assign_asset_event_filter_state(event_filters)
       |> stream(:events, [])
       |> assign_asset_from_id(asset_id)
 
     {:ok, socket}
+  end
+
+  @impl true
+  def handle_params(%{"id" => asset_id} = params, _uri, socket) do
+    detail_state = AssetDetailURLState.from_params(params)
+
+    socket =
+      socket
+      |> assign(:return_to, normalize_return_to(Map.get(params, "return_to")))
+      |> assign(:asset_detail_url_state, detail_state)
+      |> assign_asset_event_filter_state(detail_state.event_filters)
+      |> assign_asset_from_id(asset_id)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -84,12 +99,13 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   @impl true
   def handle_event("filter_asset_events", %{"asset_event_filters" => params}, socket) do
-    filters = normalize_asset_event_filters(params, socket.assigns.asset_event_filters)
+    filters = normalize_asset_event_filters(params)
+
+    detail_state =
+      AssetDetailURLState.with_event_filters(socket.assigns.asset_detail_url_state, filters)
 
     socket =
-      socket
-      |> assign_asset_event_filter_state(filters)
-      |> assign_asset_events(socket.assigns.asset.id)
+      update_asset_detail_state(socket, detail_state, filters)
 
     {:noreply, socket}
   end
@@ -105,10 +121,11 @@ defmodule AssetMonitoringDashWeb.AssetLive do
         Enum.reject(sources, &(&1 == value))
       end)
 
+    detail_state =
+      AssetDetailURLState.with_event_filters(socket.assigns.asset_detail_url_state, filters)
+
     socket =
-      socket
-      |> assign_asset_event_filter_state(filters)
-      |> assign_asset_events(socket.assigns.asset.id)
+      update_asset_detail_state(socket, detail_state, filters)
 
     {:noreply, socket}
   end
@@ -151,7 +168,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     shocked_asset_ids = AssetScenarioStore.apply_price_shock(asset_id)
     all_assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
     asset = Assets.get_asset(all_assets, asset_id)
-    EventStore.push_price_shock_event(asset, 12)
+    ActivityLog.record_price_shock(asset, 12)
     review_states = ReviewStore.reset(asset_id)
 
     socket
@@ -168,7 +185,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     shocked_asset_ids = AssetScenarioStore.reset(asset_id)
     all_assets = Assets.list_assets_with_scenarios(shocked_asset_ids)
     asset = Assets.get_asset(all_assets, asset_id)
-    EventStore.push_scenario_reset_event(asset)
+    ActivityLog.record_scenario_reset(asset)
     review_states = ReviewStore.reset(asset_id)
 
     socket
@@ -182,7 +199,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     asset = socket.assigns.asset
     review_states = ReviewStore.mark_reviewed(asset.id)
     review_state = ReviewState.state_for(asset.id, review_states)
-    EventStore.push_review_event(asset, review_state, audit_context)
+    ActivityLog.record_review(asset, review_state, audit_context)
 
     socket
     |> assign(:review_states, review_states)
@@ -194,7 +211,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     asset = socket.assigns.asset
     review_states = ReviewStore.escalate(asset.id)
     review_state = ReviewState.state_for(asset.id, review_states)
-    EventStore.push_review_event(asset, review_state, audit_context)
+    ActivityLog.record_review(asset, review_state, audit_context)
 
     socket
     |> assign(:review_states, review_states)
@@ -205,7 +222,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   defp assign_asset_events(socket, asset_id) do
     events =
       asset_id
-      |> EventStore.visible_events_for_asset()
+      |> ActivityLog.visible_events_for_asset()
       |> filter_events(socket.assigns.asset_event_filters.sources)
 
     assign_events(socket, events)
@@ -225,14 +242,32 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> assign(:active_asset_event_filter_chips, active_asset_event_filter_chips(filters))
   end
 
+  defp update_asset_detail_state(socket, %AssetDetailURLState{} = detail_state, filters) do
+    current_detail_state = socket.assigns.asset_detail_url_state
+
+    socket =
+      socket
+      |> assign(:asset_detail_url_state, detail_state)
+      |> assign_asset_event_filter_state(filters)
+      |> assign_asset_events(socket.assigns.asset.id)
+
+    case AssetDetailURLState.same_url_params?(detail_state, current_detail_state) do
+      true -> socket
+      false -> patch_asset_detail_state(socket, detail_state)
+    end
+  end
+
+  defp patch_asset_detail_state(socket, %AssetDetailURLState{} = detail_state) do
+    push_patch(
+      socket,
+      to: asset_detail_path(socket.assigns.asset.id, socket.assigns.return_to, detail_state)
+    )
+  end
+
   defp filter_events(events, []), do: events
 
   defp filter_events(events, sources) do
     Enum.filter(events, &(Map.get(&1, :source_value, event_source_value(&1)) in sources))
-  end
-
-  defp default_asset_event_filters do
-    %{sources: [], source_option_query: ""}
   end
 
   defp asset_event_source_filter_options do
@@ -242,30 +277,14 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     ]
   end
 
-  defp normalize_asset_event_filters(params, current_filters) do
+  defp normalize_asset_event_filters(params) do
     %{
-      sources: normalize_event_source_values(Map.get(params, "sources", current_filters.sources)),
+      sources: Map.get(params, "sources") || Map.get(params, :sources),
       source_option_query:
-        normalize_event_source_query(Map.get(params, "source_option_query", ""))
+        Map.get(params, "source_option_query") || Map.get(params, :source_option_query)
     }
-  end
-
-  defp normalize_event_source_values(values) do
-    allowed_values = Enum.map(asset_event_source_filter_options(), & &1.value)
-
-    values
-    |> List.wrap()
-    |> Enum.reject(&(&1 in [nil, ""]))
-    |> Enum.filter(&(&1 in allowed_values))
-    |> Enum.uniq()
-  end
-
-  defp normalize_event_source_query(nil), do: ""
-
-  defp normalize_event_source_query(query) do
-    query
-    |> String.trim()
-    |> String.downcase()
+    |> AssetDetailURLState.new()
+    |> Map.fetch!(:event_filters)
   end
 
   defp asset_event_filter_form(filters) do
@@ -306,20 +325,6 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> String.replace(~r/[^a-z0-9_-]/, "-")
   end
 
-  defp visible_source_options(options, ""), do: options
-
-  defp visible_source_options(options, query) do
-    Enum.filter(options, fn option ->
-      option
-      |> Map.fetch!(:label)
-      |> String.downcase()
-      |> String.contains?(query)
-    end)
-  end
-
-  defp asset_event_empty_title(%{sources: []}), do: "No recorded activity for this asset yet."
-  defp asset_event_empty_title(_filters), do: "No activity matches these filters."
-
   defp related_assets(asset, all_assets) do
     all_assets
     |> Enum.filter(&canonical_asset?/1)
@@ -350,11 +355,20 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   defp risk_band_match_score(%{risk_band: risk_band}, %{risk_band: risk_band}), do: 1
   defp risk_band_match_score(_asset, _related_asset), do: 0
 
-  defp asset_detail_path(asset_id, "/"), do: ~p"/assets/#{asset_id}"
+  defp asset_detail_path(asset_id, return_to, %AssetDetailURLState{} = detail_state) do
+    params =
+      detail_state
+      |> AssetDetailURLState.params()
+      |> put_return_to_param(return_to)
 
-  defp asset_detail_path(asset_id, return_to) do
-    ~p"/assets/#{asset_id}?#{%{return_to: return_to}}"
+    case params do
+      empty when empty == %{} -> ~p"/assets/#{asset_id}"
+      params -> ~p"/assets/#{asset_id}?#{params}"
+    end
   end
+
+  defp put_return_to_param(params, "/"), do: params
+  defp put_return_to_param(params, return_to), do: Map.put(params, "return_to", return_to)
 
   defp default_review_action_params do
     %{"reason" => @default_review_reason, "note" => ""}
@@ -371,10 +385,10 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   end
 
   defp review_audit_context(params) do
-    %{
+    ReviewAudit.new(%{
       reason: review_reason_label(Map.get(params, "reason")),
       note: review_note(Map.get(params, "note"))
-    }
+    })
   end
 
   defp review_reason_options do

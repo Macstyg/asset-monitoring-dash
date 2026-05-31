@@ -3,7 +3,8 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias AssetMonitoringDash.EventStore
+  alias AssetMonitoringDash.ActivityLog
+  alias AssetMonitoringDash.ReviewState
 
   test "renders a dedicated asset inspection page", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
@@ -106,8 +107,8 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
       ltv_percent: 85.5
     }
 
-    EventStore.push_price_shock_event(other_asset, 12)
-    EventStore.push_price_shock_event(asset, 12)
+    ActivityLog.record_price_shock(other_asset, 12)
+    ActivityLog.record_price_shock(asset, 12)
 
     {:ok, view, _html} = live(conn, ~p"/assets/asset-001")
 
@@ -154,6 +155,7 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     })
     |> render_change()
 
+    assert assert_patch(view) == "/assets/asset-001?activity_sources=scenario"
     assert has_element?(view, "#asset-event-count", "1 events")
     assert has_element?(view, "#active-filter-asset-event-sources-scenario", "Scenario")
     assert has_element?(view, "#asset-event-row-event-shock-asset-001")
@@ -163,8 +165,37 @@ defmodule AssetMonitoringDashWeb.AssetLiveTest do
     |> element("#active-filter-asset-event-sources-scenario")
     |> render_click()
 
+    assert assert_patch(view) == "/assets/asset-001"
     assert has_element?(view, "#asset-event-count", "2 events")
     refute has_element?(view, "#active-filter-asset-event-sources-scenario")
+  end
+
+  test "loads asset activity source filters from the URL", %{conn: conn} do
+    asset = %{
+      id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon",
+      ltv_percent: 67.8
+    }
+
+    ActivityLog.record_price_shock(asset, 12)
+    ActivityLog.record_review(asset, ReviewState.state(:reviewed))
+
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?activity_sources=scenario")
+
+    assert has_element?(view, "#asset-event-count", "1 events")
+    assert has_element?(view, "#active-filter-asset-event-sources-scenario", "Scenario")
+    assert has_element?(view, "#asset-event-row-event-shock-asset-001")
+    refute has_element?(view, "#asset-event-row-event-review-reviewed-asset-001")
+  end
+
+  test "keeps asset activity source filters on related asset links", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?activity_sources=scenario")
+
+    assert has_element?(
+             view,
+             ~s(#related-asset-asset-009[href="/assets/asset-009?activity_sources=scenario"])
+           )
   end
 
   test "updates operator review state without changing system recommendation", %{conn: conn} do

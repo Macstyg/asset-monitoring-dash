@@ -188,131 +188,20 @@
         </AssetInspection.render>
 
         <div class="grid min-w-0 gap-4">
-          <Card.surface
-            id="asset-activity"
-            class="min-h-72"
-          >
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <h2 class="text-base font-semibold text-app-fg">Asset activity</h2>
-                <p class="mt-1 text-sm text-app-muted">
-                  Recorded scenario and operator events for this asset.
-                </p>
-              </div>
-              <span
-                id="asset-event-count"
-                class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
-              >
-                {@event_count} events
-              </span>
-            </div>
+          <AssetActivity.render
+            active_filter_chips={@active_asset_event_filter_chips}
+            event_count={@event_count}
+            event_filter_form={@asset_event_filter_form}
+            event_filters={@asset_event_filters}
+            rows={@streams.events}
+            source_filter_options={@asset_event_source_filter_options}
+          />
 
-            <FilterBar.render
-              form={@asset_event_filter_form}
-              id="asset-activity-filters"
-              phx-change="filter_asset_events"
-              class="mt-4"
-            >
-              <div class="flex flex-wrap items-center gap-2">
-                <FilterBar.multi_select
-                  field={@asset_event_filter_form[:sources]}
-                  search_field={@asset_event_filter_form[:source_option_query]}
-                  label="Source"
-                  icon="hero-funnel"
-                  search_placeholder="Find source"
-                  options={
-                    visible_source_options(
-                      @asset_event_source_filter_options,
-                      @asset_event_filters.source_option_query
-                    )
-                  }
-                />
-              </div>
-            </FilterBar.render>
-
-            <div
-              :if={@active_asset_event_filter_chips != []}
-              id="active-asset-event-filter-chips"
-              class="mt-3 flex flex-wrap items-center gap-2"
-            >
-              <FilterBar.active_chip :for={chip <- @active_asset_event_filter_chips} chip={chip} />
-            </div>
-
-            <div
-              id="asset-event-list"
-              phx-update="stream"
-              class="mt-5"
-            >
-              <div
-                id="asset-event-list-empty"
-                class="hidden only:block rounded-app border border-dashed border-app-border bg-app-surface-2 px-4 py-8 text-center text-sm text-app-muted"
-              >
-                {asset_event_empty_title(@asset_event_filters)}
-              </div>
-
-              <EventItem.render
-                :for={{event_id, event} <- @streams.events}
-                id={event_id}
-                actor={event.actor}
-                time_label={event.time_label}
-                title={event.title}
-                detail={event.detail}
-                chain={event.chain}
-                source_label={event.source_label}
-                source_tone={event.source_tone}
-                severity_label={event.severity_label}
-                severity_tone={event.severity_tone}
-                status={event.status}
-                tone={event.tone}
-              />
-            </div>
-          </Card.surface>
-
-          <Card.surface id="related-assets">
-            <div>
-              <h2 class="text-base font-semibold text-app-fg">Related assets</h2>
-              <p class="mt-1 text-sm text-app-muted">
-                Same chain, game, or risk band for faster review triage.
-              </p>
-            </div>
-
-            <div class="mt-4 grid gap-2">
-              <.link
-                :for={related_asset <- @related_assets}
-                id={"related-asset-#{related_asset.id}"}
-                navigate={asset_detail_path(related_asset.id, @return_to)}
-                class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-app border border-app-border bg-app-surface-2 px-3 py-3 transition hover:border-app-accent/40 hover:bg-app-bg"
-              >
-                <ChainIcon.render chain={related_asset.chain} size="size-9" />
-                <span class="min-w-0">
-                  <span class="block truncate text-sm font-semibold text-app-fg">
-                    {related_asset.name}
-                  </span>
-                  <span class="mt-0.5 block truncate font-mono text-xs text-app-muted">
-                    {related_asset.chain} · {related_asset.ecosystem}
-                  </span>
-                </span>
-                <span class="text-right">
-                  <Badge.render
-                    id={"related-asset-risk-#{related_asset.id}"}
-                    label={related_asset.risk_band}
-                    tone={signal_tone(related_asset.risk_band)}
-                  />
-                  <span class="mt-1 block font-mono text-xs text-app-muted">
-                    {Formatters.ltv(related_asset.ltv_percent)}
-                  </span>
-                </span>
-              </.link>
-
-              <div
-                :if={@related_assets == []}
-                id="related-assets-empty"
-                class="rounded-app border border-dashed border-app-border bg-app-surface-2 px-4 py-6 text-center text-sm text-app-muted"
-              >
-                No nearby assets in this demo set.
-              </div>
-            </div>
-          </Card.surface>
+          <RelatedAssets.render
+            activity_sources={@asset_event_filters.sources}
+            related_assets={@related_assets}
+            return_to={@return_to}
+          />
         </div>
       </section>
     </div>

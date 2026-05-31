@@ -3,8 +3,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
-  alias AssetMonitoringDash.EventStore
   alias AssetMonitoringDash.ReviewState
 
   test "renders the asset risk cockpit as a full-width monitor", %{conn: conn} do
@@ -631,8 +631,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
   test "filters event feed by source kind", %{conn: conn} do
     asset = asset_fixture("asset-001")
 
-    EventStore.push_price_shock_event(%{asset | ltv_percent: 67.8}, 12)
-    EventStore.push_review_event(asset, ReviewState.state(:reviewed))
+    ActivityLog.record_price_shock(%{asset | ltv_percent: 67.8}, 12)
+    ActivityLog.record_review(asset, ReviewState.state(:reviewed))
 
     {:ok, view, _html} = live(conn, ~p"/")
 
@@ -688,8 +688,8 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
   test "combines multiple event source filters", %{conn: conn} do
     asset = asset_fixture("asset-001")
 
-    EventStore.push_price_shock_event(%{asset | ltv_percent: 67.8}, 12)
-    EventStore.push_review_event(asset, ReviewState.state(:reviewed))
+    ActivityLog.record_price_shock(%{asset | ltv_percent: 67.8}, 12)
+    ActivityLog.record_review(asset, ReviewState.state(:reviewed))
 
     {:ok, view, _html} = live(conn, ~p"/")
 
@@ -733,7 +733,7 @@ defmodule AssetMonitoringDashWeb.DashboardLiveTest do
   test "active event source filters are not displaced by hidden system ticks", %{conn: conn} do
     asset = asset_fixture("asset-001")
 
-    EventStore.push_price_shock_event(%{asset | ltv_percent: 67.8}, 12)
+    ActivityLog.record_price_shock(%{asset | ltv_percent: 67.8}, 12)
 
     {:ok, view, _html} = live(conn, ~p"/")
 

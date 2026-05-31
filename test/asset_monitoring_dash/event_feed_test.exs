@@ -2,6 +2,7 @@ defmodule AssetMonitoringDash.EventFeedTest do
   use ExUnit.Case, async: true
 
   alias AssetMonitoringDash.EventFeed
+  alias AssetMonitoringDash.ReviewAudit
   alias AssetMonitoringDash.ReviewState
 
   test "starts with deterministic feed events" do
@@ -236,6 +237,11 @@ defmodule AssetMonitoringDash.EventFeedTest do
       )
 
     assert [%{id: "event-review-reviewed-asset-001"} = event | _events] = feed.visible_events
+
+    assert event.review_audit == %ReviewAudit{
+             reason: "Oracle checked",
+             note: "Floor feed matched marketplace depth."
+           }
 
     assert event.review_reason == "Oracle checked"
     assert event.operator_note == "Floor feed matched marketplace depth."

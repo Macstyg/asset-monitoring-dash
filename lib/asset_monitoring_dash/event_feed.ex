@@ -8,6 +8,7 @@ defmodule AssetMonitoringDash.EventFeed do
   """
 
   alias AssetMonitoringDash.DemoData
+  alias AssetMonitoringDash.ReviewAudit
 
   @visible_event_limit 6
   @event_history_limit 24
@@ -96,9 +97,11 @@ defmodule AssetMonitoringDash.EventFeed do
   end
 
   def push_review_event(visible_events, asset, review_state, audit_context \\ %{}) do
+    review_audit = ReviewAudit.normalize(audit_context)
+
     event =
       asset
-      |> review_event(review_state, normalize_audit_context(audit_context))
+      |> review_event(review_state, review_audit)
       |> Map.put(:time_label, "now")
 
     push_event(visible_events, event)
@@ -246,23 +249,6 @@ defmodule AssetMonitoringDash.EventFeed do
   defp asset_event?(%{asset_id: asset_id}, asset_id), do: true
   defp asset_event?(_event, _asset_id), do: false
 
-  defp normalize_audit_context(context) when is_map(context) do
-    %{
-      reason: normalize_audit_value(Map.get(context, :reason) || Map.get(context, "reason")),
-      note: normalize_audit_value(Map.get(context, :note) || Map.get(context, "note"))
-    }
-  end
-
-  defp normalize_audit_context(_context), do: %{reason: "", note: ""}
-
-  defp normalize_audit_value(nil), do: ""
-
-  defp normalize_audit_value(value) do
-    value
-    |> to_string()
-    |> String.trim()
-  end
-
   defp review_event(asset, %{id: :reviewed}, audit_context) do
     %{
       id: "event-review-reviewed-#{asset.id}",
@@ -275,6 +261,7 @@ defmodule AssetMonitoringDash.EventFeed do
         ),
       chain: asset.chain,
       kind: :operator,
+      review_audit: audit_context,
       review_reason: audit_context.reason,
       operator_note: audit_context.note,
       status: "reviewed",
@@ -290,6 +277,7 @@ defmodule AssetMonitoringDash.EventFeed do
       detail: review_event_detail("#{asset.name} escalated for follow-up.", audit_context),
       chain: asset.chain,
       kind: :operator,
+      review_audit: audit_context,
       review_reason: audit_context.reason,
       operator_note: audit_context.note,
       status: "review",

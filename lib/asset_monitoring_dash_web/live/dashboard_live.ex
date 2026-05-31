@@ -5,11 +5,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @asset_page_limit 50
   @asset_stream_limit 150
 
+  alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.AssetScenarioStore
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.EventFeed
-  alias AssetMonitoringDash.EventStore
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.Risk
@@ -24,7 +24,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def mount(params, _session, socket) do
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
-    events = EventStore.visible_events()
+    events = ActivityLog.visible_events()
     review_states = ReviewStore.all_states()
     asset_state = DashboardURLState.from_params(params)
 
@@ -110,7 +110,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     push_scenario_reset_events(socket.assigns.shocked_asset_ids)
 
     shocked_asset_ids = AssetScenarioStore.reset_all()
-    events = EventStore.visible_events()
+    events = ActivityLog.visible_events()
 
     socket =
       socket
@@ -450,7 +450,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     shocked_asset_ids
     |> Assets.list_assets_with_scenarios()
     |> Enum.filter(&MapSet.member?(shocked_asset_ids, &1.id))
-    |> Enum.each(&EventStore.push_scenario_reset_event/1)
+    |> Enum.each(&ActivityLog.record_scenario_reset/1)
   end
 
   defp remove_filter_value(socket, field, value) do
