@@ -1,17 +1,22 @@
 defmodule AssetMonitoringDash.EventStoreTest do
-  use ExUnit.Case
+  use AssetMonitoringDash.DataCase, async: false
 
   alias AssetMonitoringDash.EventStore
+  alias AssetMonitoringDash.Seeds.DemoCatalog
 
   setup do
+    DemoCatalog.run!()
     EventStore.reset_all()
 
     :ok
   end
 
   test "publishes generated scenario events above seeded dashboard events" do
+    expected_asset_id = asset_id("asset-001")
+
     asset = %{
-      id: "asset-001",
+      id: expected_asset_id,
+      dom_id: "asset-001",
       name: "Aegis Dragon Helm",
       chain: "Polygon",
       ltv_percent: 67.8
@@ -19,13 +24,16 @@ defmodule AssetMonitoringDash.EventStoreTest do
 
     events = EventStore.push_price_shock_event(asset, 12)
 
-    assert [%{id: "event-shock-asset-001", asset_id: "asset-001", kind: :scenario} | _events] =
+    assert [
+             %{id: "event-shock-asset-001", asset_id: ^expected_asset_id, kind: :scenario}
+             | _events
+           ] =
              events
 
     assert length(events) == 6
 
     assert [
-             %{id: "event-shock-asset-001", asset_id: "asset-001", kind: :scenario},
+             %{id: "event-shock-asset-001", asset_id: ^expected_asset_id, kind: :scenario},
              %{id: "event-001", kind: :system} | _events
            ] =
              EventStore.visible_events()
@@ -33,7 +41,8 @@ defmodule AssetMonitoringDash.EventStoreTest do
 
   test "resets generated event history" do
     asset = %{
-      id: "asset-001",
+      id: asset_id("asset-001"),
+      dom_id: "asset-001",
       name: "Aegis Dragon Helm",
       chain: "Polygon",
       ltv_percent: 67.8
@@ -53,14 +62,16 @@ defmodule AssetMonitoringDash.EventStoreTest do
 
   test "publishes generated events for one asset inspection history" do
     asset = %{
-      id: "asset-001",
+      id: asset_id("asset-001"),
+      dom_id: "asset-001",
       name: "Aegis Dragon Helm",
       chain: "Polygon",
       ltv_percent: 67.8
     }
 
     other_asset = %{
-      id: "asset-002",
+      id: asset_id("asset-002"),
+      dom_id: "asset-002",
       name: "Citadel Founder Parcel",
       chain: "Ethereum",
       ltv_percent: 75.2
@@ -69,7 +80,11 @@ defmodule AssetMonitoringDash.EventStoreTest do
     EventStore.push_price_shock_event(other_asset, 12)
     EventStore.push_price_shock_event(asset, 12)
 
-    assert [%{id: "event-shock-asset-001", asset_id: "asset-001"}] =
+    expected_asset_id = asset_id("asset-001")
+
+    assert [%{id: "event-shock-asset-001", asset_id: ^expected_asset_id}] =
              EventStore.visible_events_for_asset("asset-001")
   end
+
+  defp asset_id(code), do: AssetMonitoringDash.Assets.resolve_persisted_asset_id(code)
 end

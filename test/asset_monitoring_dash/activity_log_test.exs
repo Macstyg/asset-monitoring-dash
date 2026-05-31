@@ -1,12 +1,15 @@
 defmodule AssetMonitoringDash.ActivityLogTest do
-  use ExUnit.Case, async: false
+  use AssetMonitoringDash.DataCase, async: false
 
   alias AssetMonitoringDash.ActivityLog
+  alias AssetMonitoringDash.Assets
   alias AssetMonitoringDash.EventStore
   alias AssetMonitoringDash.ReviewAudit
   alias AssetMonitoringDash.ReviewState
+  alias AssetMonitoringDash.Seeds.DemoCatalog
 
   setup do
+    DemoCatalog.run!()
     EventStore.reset_all()
 
     :ok
@@ -37,9 +40,11 @@ defmodule AssetMonitoringDash.ActivityLogTest do
   defp asset_fixture do
     %{
       id: "asset-001",
+      dom_id: "asset-001",
       name: "Aegis Dragon Helm",
       chain: "Polygon",
       ltv_percent: 59.7
     }
+    |> Map.put(:id, Assets.resolve_persisted_asset_id("asset-001"))
   end
 end
