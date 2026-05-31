@@ -16,6 +16,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDashWeb.AssetLive.Components.DecisionRail
   alias AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets
   alias AssetMonitoringDashWeb.AssetLive.Components.ReviewHistory
+  alias AssetMonitoringDashWeb.AssetLive.RelatedAssetRanker
   alias AssetMonitoringDashWeb.AssetLive.ReviewAction
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Badge
@@ -177,7 +178,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     |> assign(:asset_risk_recommendation, risk_recommendation)
     |> assign(:asset_review_state, review_state)
     |> assign(:review_history, ReviewStore.history_for(asset.id))
-    |> assign(:related_assets, related_assets(asset, socket.assigns.all_assets))
+    |> assign(
+      :related_assets,
+      RelatedAssetRanker.related_assets(asset, socket.assigns.all_assets,
+        limit: @related_asset_limit
+      )
+    )
     |> assign_asset_events(asset.id)
   end
 
@@ -285,36 +291,6 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       %{value: "related", label: "Related"}
     ]
   end
-
-  defp related_assets(asset, all_assets) do
-    all_assets
-    |> Enum.filter(&canonical_asset?/1)
-    |> Enum.reject(&(&1.id == asset.id))
-    |> Enum.map(&{related_asset_score(asset, &1), &1})
-    |> Enum.reject(fn {score, _asset} -> score == 0 end)
-    |> Enum.sort_by(fn {score, related_asset} ->
-      {-score, -related_asset.risk_score, related_asset.name}
-    end)
-    |> Enum.take(@related_asset_limit)
-    |> Enum.map(fn {_score, related_asset} -> related_asset end)
-  end
-
-  defp related_asset_score(asset, related_asset) do
-    chain_match_score(asset, related_asset) +
-      ecosystem_match_score(asset, related_asset) +
-      risk_band_match_score(asset, related_asset)
-  end
-
-  defp canonical_asset?(%{id: id}), do: !String.contains?(id, "-variant-")
-
-  defp chain_match_score(%{chain: chain}, %{chain: chain}), do: 3
-  defp chain_match_score(_asset, _related_asset), do: 0
-
-  defp ecosystem_match_score(%{ecosystem: ecosystem}, %{ecosystem: ecosystem}), do: 2
-  defp ecosystem_match_score(_asset, _related_asset), do: 0
-
-  defp risk_band_match_score(%{risk_band: risk_band}, %{risk_band: risk_band}), do: 1
-  defp risk_band_match_score(_asset, _related_asset), do: 0
 
   defp asset_detail_path(asset_id, return_to, %AssetDetailURLState{} = detail_state) do
     params =
