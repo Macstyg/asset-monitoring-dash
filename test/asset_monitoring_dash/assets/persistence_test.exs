@@ -108,6 +108,24 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert snapshot.risk_score == 54
   end
 
+  test "builds risk pressure buckets from scenario-adjusted assets" do
+    baseline_buckets = Assets.risk_pressure_buckets()
+    shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-004")
+
+    adjusted_buckets = Assets.risk_pressure_buckets(shocked_asset_ids)
+
+    assert Enum.map(baseline_buckets, & &1.label) == ["Low", "Moderate", "Elevated", "Critical"]
+    assert Enum.sum(Enum.map(baseline_buckets, & &1.count)) == 600
+    assert_decimal_equal(bucket(baseline_buckets, "Moderate").collateral_value_usd, "1278596.80")
+    assert_decimal_equal(bucket(baseline_buckets, "Moderate").average_ltv_percent, "44.8")
+
+    assert bucket(adjusted_buckets, "Moderate").count ==
+             bucket(baseline_buckets, "Moderate").count - 1
+
+    assert bucket(adjusted_buckets, "Elevated").count ==
+             bucket(baseline_buckets, "Elevated").count + 1
+  end
+
   test "applies scenario state on top of persisted assets before returning a page" do
     shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-001")
 
@@ -205,5 +223,9 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
 
   defp assert_decimal_equal(actual, expected) do
     assert Decimal.equal?(actual, Decimal.new(expected))
+  end
+
+  defp bucket(buckets, label) do
+    Enum.find(buckets, &(&1.label == label))
   end
 end

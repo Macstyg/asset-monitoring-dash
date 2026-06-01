@@ -222,6 +222,28 @@ defmodule AssetMonitoringDash.Assets do
     }
   end
 
+  def risk_pressure_buckets(shocked_asset_ids \\ MapSet.new()) do
+    assets =
+      list_persisted_assets()
+      |> apply_scenarios(shocked_asset_ids)
+
+    assets_by_risk = Enum.group_by(assets, & &1.risk_band)
+
+    Enum.map(@risk_filter_options, fn option ->
+      assets = Map.get(assets_by_risk, option.value, [])
+
+      %{
+        id: "risk-pressure-#{slugify(option.value)}",
+        label: option.label,
+        value: option.value,
+        tone: option.tone,
+        count: length(assets),
+        collateral_value_usd: assets |> Enum.map(& &1.current_value_usd) |> Money.sum(),
+        average_ltv_percent: average_ltv_percent(assets)
+      }
+    end)
+  end
+
   defp runtime_asset_page?(filters, %{field: field}) do
     field in [:action, :operator] or
       filter_values(filters, :actions, :action, "All") != [] or

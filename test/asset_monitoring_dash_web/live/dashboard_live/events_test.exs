@@ -22,6 +22,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     initial_option = chart_option_from_render(view)
+    flush_chart_updates(view)
 
     assert has_element?(view, "#simulator-state", "Streaming")
     assert has_element?(view, "#simulator-tick-index", "0")
@@ -59,6 +60,15 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
     assert has_element?(view, "#simulator-last-action", "Oracle stale")
     scenario_option = assert_chart_update(view, &(latest_chart_value(&1, "Scenario") == 1))
     assert latest_chart_value(scenario_option, "Scenario") == 1
+
+    pressure_option =
+      assert_chart_update(
+        view,
+        "risk-pressure-chart",
+        &(chart_key(List.first(&1.series), :type) == "pie")
+      )
+
+    assert chart_values(pressure_option, "Collateral") |> Enum.sum() > 3_000_000
 
     view
     |> element("#simulator-toggle")
@@ -260,11 +270,21 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
   end
 
   defp latest_chart_value(option, source_name) do
+    option
+    |> chart_values(source_name)
+    |> List.last()
+  end
+
+  defp chart_values(option, source_name) do
     option.series
     |> Enum.find(&(chart_key(&1, :name) == source_name))
     |> chart_key(:data)
-    |> List.last()
+    |> Enum.map(&chart_point_value/1)
   end
+
+  defp chart_point_value(%{value: value}), do: value
+  defp chart_point_value(%{"value" => value}), do: value
+  defp chart_point_value(value), do: value
 
   defp chart_option_from_render(view) do
     view
@@ -289,23 +309,26 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
 
   defp chart_key(map, key), do: Map.get(map, key) || Map.fetch!(map, Atom.to_string(key))
 
-  defp assert_chart_update(view, predicate, attempts \\ 6)
+  defp assert_chart_update(view, predicate),
+    do: assert_chart_update(view, "event-volume-chart", predicate)
 
-  defp assert_chart_update(_view, _predicate, 0) do
-    flunk("expected matching event-volume-chart update")
+  defp assert_chart_update(view, chart_id, predicate, attempts \\ 6)
+
+  defp assert_chart_update(_view, chart_id, _predicate, 0) do
+    flunk("expected matching #{chart_id} update")
   end
 
-  defp assert_chart_update(view, predicate, attempts) do
+  defp assert_chart_update(view, chart_id, predicate, attempts) do
     %{proxy: {ref, _topic, _}} = view
 
     receive do
-      {^ref, {:push_event, "chart:update", %{id: "event-volume-chart", option: option}}} ->
+      {^ref, {:push_event, "chart:update", %{id: ^chart_id, option: option}}} ->
         case predicate.(option) do
           true -> option
-          false -> assert_chart_update(view, predicate, attempts - 1)
+          false -> assert_chart_update(view, chart_id, predicate, attempts - 1)
         end
     after
-      100 -> flunk("expected event-volume-chart update")
+      100 -> flunk("expected #{chart_id} update")
     end
   end
 
@@ -313,7 +336,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
     %{proxy: {ref, _topic, _}} = view
 
     receive do
-      {^ref, {:push_event, "chart:update", %{id: "event-volume-chart"}}} ->
+      {^ref, {:push_event, "chart:update", %{}}} ->
         flush_chart_updates(view)
     after
       0 -> :ok
