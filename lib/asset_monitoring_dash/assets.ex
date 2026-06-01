@@ -247,9 +247,9 @@ defmodule AssetMonitoringDash.Assets do
     end)
   end
 
-  def portfolio_value_trend(shocked_asset_ids \\ MapSet.new()) do
+  def portfolio_value_trend(shocked_asset_ids \\ MapSet.new(), analytics_window \\ :demo) do
     shocked_asset_ids
-    |> portfolio_snapshot_points()
+    |> portfolio_snapshot_points(analytics_window)
     |> Enum.map(fn point ->
       %{
         id: "portfolio-value-#{point.index}",
@@ -260,9 +260,9 @@ defmodule AssetMonitoringDash.Assets do
     end)
   end
 
-  def portfolio_risk_trend(shocked_asset_ids \\ MapSet.new()) do
+  def portfolio_risk_trend(shocked_asset_ids \\ MapSet.new(), analytics_window \\ :demo) do
     shocked_asset_ids
-    |> portfolio_snapshot_points()
+    |> portfolio_snapshot_points(analytics_window)
     |> Enum.map(fn point ->
       %{
         id: "portfolio-risk-#{point.index}",
@@ -283,11 +283,12 @@ defmodule AssetMonitoringDash.Assets do
   defp persisted_apy_percent(nil, fallback_snapshot), do: fallback_snapshot.weighted_apy_percent
   defp persisted_apy_percent(snapshot, _fallback_snapshot), do: snapshot.weighted_apy_percent
 
-  defp portfolio_snapshot_points(shocked_asset_ids) do
+  defp portfolio_snapshot_points(shocked_asset_ids, analytics_window) do
     points =
       PortfolioSnapshot
       |> order_by([snapshot], asc: snapshot.observed_at)
       |> Repo.all()
+      |> portfolio_points_for_window(analytics_window)
 
     total_count = length(points)
     current = portfolio_snapshot(shocked_asset_ids)
@@ -303,6 +304,9 @@ defmodule AssetMonitoringDash.Assets do
       })
     end)
   end
+
+  defp portfolio_points_for_window(points, :full), do: points
+  defp portfolio_points_for_window(points, _analytics_window), do: Enum.take(points, -7)
 
   defp portfolio_point_values(point, index, total_count, current, shocked_asset_ids)
        when index == total_count - 1 do

@@ -206,8 +206,14 @@ defmodule AssetMonitoringDash.EventStore do
   defp event_source_bucket_label(index, bucket_count, bucket_seconds) do
     seconds_ago = (bucket_count - index) * bucket_seconds
 
-    "-#{seconds_ago}s"
+    "-#{relative_duration_label(seconds_ago)}"
   end
+
+  defp relative_duration_label(seconds) when rem(seconds, 60) == 0 do
+    "#{div(seconds, 60)}m"
+  end
+
+  defp relative_duration_label(seconds), do: "#{seconds}s"
 
   defp bucket_index(occurred_at, window_start, bucket_count, bucket_seconds) do
     occurred_at

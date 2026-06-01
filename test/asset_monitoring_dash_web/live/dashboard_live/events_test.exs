@@ -124,6 +124,51 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
     refute_push_event(view, "chart:update", %{id: "event-volume-chart", option: _option})
   end
 
+  test "changes the analytics window without disturbing asset filters", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/?query=mech")
+
+    initial_option = chart_option_from_render(view)
+    assert chart_key(initial_option.xAxis, :data) |> length() == 6
+    assert has_element?(view, "#active-filter-query-mech", "mech")
+    assert has_element?(view, ~s(#analytics-window-demo[aria-pressed="true"]))
+    assert has_element?(view, "#event-volume-total", "90s window")
+    flush_chart_updates(view)
+
+    view
+    |> element("#analytics-window-recent")
+    |> render_click()
+
+    assert has_element?(view, ~s(#analytics-window-recent[aria-pressed="true"]))
+    assert has_element?(view, "#event-volume-total", "3m window")
+    assert has_element?(view, "#active-filter-query-mech", "mech")
+
+    recent_option =
+      assert_chart_update(
+        view,
+        "event-volume-chart",
+        &(chart_key(&1.xAxis, :data) |> length() == 12)
+      )
+
+    assert List.first(chart_key(recent_option.xAxis, :data)) == "-3m"
+
+    view
+    |> element("#analytics-window-full")
+    |> render_click()
+
+    assert has_element?(view, ~s(#analytics-window-full[aria-pressed="true"]))
+    assert has_element?(view, "#event-volume-total", "12m window")
+    assert has_element?(view, "#active-filter-query-mech", "mech")
+
+    full_option =
+      assert_chart_update(
+        view,
+        "event-volume-chart",
+        &(chart_key(&1.xAxis, :data) |> length() == 12)
+      )
+
+    assert List.first(chart_key(full_option.xAxis, :data)) == "-12m"
+  end
+
   test "filters event feed by source kind", %{conn: conn} do
     asset = asset_fixture("asset-001")
 

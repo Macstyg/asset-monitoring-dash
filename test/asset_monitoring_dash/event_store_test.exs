@@ -52,6 +52,15 @@ defmodule AssetMonitoringDash.EventStoreTest do
     assert last_bucket.sources["system"] == 1
   end
 
+  test "formats minute-scale event bucket labels for chart axes" do
+    labels =
+      EventStore.event_source_buckets(12, 60)
+      |> Enum.map(& &1.label)
+
+    assert List.first(labels) == "-12m"
+    assert List.last(labels) == "now"
+  end
+
   test "resets generated event history" do
     asset = %{
       id: asset_id("asset-001"),

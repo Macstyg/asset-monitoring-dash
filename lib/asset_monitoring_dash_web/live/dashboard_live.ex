@@ -3,6 +3,33 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   @asset_page_limit 50
   @asset_stream_limit 150
+  @default_analytics_window :demo
+  @analytics_window_options [
+    %{
+      value: :demo,
+      label: "Demo",
+      event_bucket_count: 6,
+      event_bucket_seconds: 15,
+      event_window_label: "90s window",
+      portfolio_window_label: "7 points"
+    },
+    %{
+      value: :recent,
+      label: "Recent",
+      event_bucket_count: 12,
+      event_bucket_seconds: 15,
+      event_window_label: "3m window",
+      portfolio_window_label: "7 points"
+    },
+    %{
+      value: :full,
+      label: "Full",
+      event_bucket_count: 12,
+      event_bucket_seconds: 60,
+      event_window_label: "12m window",
+      portfolio_window_label: "7 points"
+    }
+  ]
 
   alias AssetMonitoringDash.ActivityLog
   alias AssetMonitoringDash.Assets
@@ -19,6 +46,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus
   alias AssetMonitoringDashWeb.DashboardURLState
   alias AssetMonitoringDashWeb.Formatters
+  alias AssetMonitoringDashWeb.UI.Button
   alias AssetMonitoringDashWeb.UI.Card
   alias AssetMonitoringDashWeb.UI.Chart
   alias AssetMonitoringDashWeb.UI.Panel
@@ -69,6 +97,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_filters, asset_state.filters)
       |> assign(:asset_sort, asset_state.sort)
       |> assign(:asset_sort_options, asset_sort_options())
+      |> assign_analytics_window(@default_analytics_window)
       |> assign_metric_cards()
       |> assign_portfolio_value_chart()
       |> assign_portfolio_risk_chart()
@@ -217,6 +246,18 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   @impl true
+  def handle_event("set_analytics_window", %{"window" => window}, socket) do
+    socket =
+      socket
+      |> assign_analytics_window(window)
+      |> assign_portfolio_value_chart()
+      |> assign_portfolio_risk_chart()
+      |> assign_event_volume_chart()
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("sort_assets", %{"field" => field}, socket) do
     socket =
       socket
@@ -335,6 +376,30 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp assign_metric_cards(socket) do
     assign(socket, :metric_cards, metric_cards(socket.assigns.snapshot))
+  end
+
+  defp assign_analytics_window(socket, window) do
+    analytics_window = normalize_analytics_window(window)
+    option = analytics_window_option(analytics_window)
+
+    socket
+    |> assign(:analytics_window, analytics_window)
+    |> assign(:analytics_window_options, @analytics_window_options)
+    |> assign(:event_window_label, option.event_window_label)
+    |> assign(:portfolio_window_label, option.portfolio_window_label)
+  end
+
+  defp normalize_analytics_window(:demo), do: :demo
+  defp normalize_analytics_window(:recent), do: :recent
+  defp normalize_analytics_window(:full), do: :full
+  defp normalize_analytics_window("demo"), do: :demo
+  defp normalize_analytics_window("recent"), do: :recent
+  defp normalize_analytics_window("full"), do: :full
+  defp normalize_analytics_window(_window), do: @default_analytics_window
+
+  defp analytics_window_option(window) do
+    Enum.find(@analytics_window_options, &(&1.value == window)) ||
+      analytics_window_option(@default_analytics_window)
   end
 
   defp metric_cards(snapshot) do
@@ -621,7 +686,14 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   defp assign_event_volume_chart(socket) do
-    option = event_volume_chart_option(ActivityLog.event_source_buckets())
+    window = analytics_window_option(socket.assigns.analytics_window)
+
+    option =
+      ActivityLog.event_source_buckets(
+        bucket_count: window.event_bucket_count,
+        bucket_seconds: window.event_bucket_seconds
+      )
+      |> event_volume_chart_option()
 
     socket
     |> assign(:event_volume_chart_option, option)
@@ -640,7 +712,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp assign_portfolio_value_chart(socket) do
     option =
       socket.assigns.shocked_asset_ids
-      |> Assets.portfolio_value_trend()
+      |> Assets.portfolio_value_trend(socket.assigns.analytics_window)
       |> portfolio_value_chart_option()
 
     socket
@@ -651,7 +723,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp assign_portfolio_risk_chart(socket) do
     option =
       socket.assigns.shocked_asset_ids
-      |> Assets.portfolio_risk_trend()
+      |> Assets.portfolio_risk_trend(socket.assigns.analytics_window)
       |> portfolio_risk_chart_option()
 
     socket
