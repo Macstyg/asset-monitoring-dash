@@ -41,6 +41,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.ReviewStore
   alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDash.Simulator
+  alias AssetMonitoringDashWeb.ChartOptions
   alias AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor
   alias AssetMonitoringDashWeb.DashboardLive.Components.EventFeed, as: DashboardEventFeed
   alias AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus
@@ -757,9 +758,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         bucket_seconds: window.event_bucket_seconds
       )
 
-    option =
-      buckets
-      |> event_volume_chart_option()
+    option = ChartOptions.event_volume(buckets, event_source_filter_options())
 
     socket
     |> assign(:event_volume_empty?, event_volume_empty?(buckets))
@@ -771,7 +770,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp assign_risk_pressure_chart(socket) do
     buckets = Assets.risk_pressure_buckets(socket.assigns.shocked_asset_ids)
-    option = risk_pressure_chart_option(buckets)
+    option = ChartOptions.risk_pressure(buckets)
 
     socket
     |> assign(:risk_pressure_interpretation, risk_pressure_interpretation(buckets))
@@ -787,7 +786,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         socket.assigns.analytics_window
       )
 
-    option = portfolio_value_chart_option(points)
+    option = ChartOptions.portfolio_value_trend(points)
 
     socket
     |> assign(:portfolio_value_interpretation, portfolio_value_interpretation(points))
@@ -803,7 +802,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         socket.assigns.analytics_window
       )
 
-    option = portfolio_risk_chart_option(points)
+    option = ChartOptions.portfolio_risk_trend(points)
 
     socket
     |> assign(:portfolio_risk_interpretation, portfolio_risk_interpretation(points))
@@ -1033,215 +1032,6 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp event_source_value(%{kind: kind}) when is_atom(kind), do: Atom.to_string(kind)
   defp event_source_value(_event), do: "system"
-
-  defp event_volume_chart_option(buckets) do
-    source_options = event_source_filter_options()
-
-    %{
-      animationDuration: 350,
-      grid: chart_grid(96),
-      legend: %{
-        itemHeight: 8,
-        itemWidth: 8,
-        right: 0,
-        textStyle: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
-        top: 0
-      },
-      series: Enum.map(source_options, &event_volume_chart_series(&1, buckets)),
-      tooltip: axis_tooltip("Window"),
-      xAxis: category_axis(Enum.map(buckets, & &1.label)),
-      yAxis: value_axis(%{minInterval: 1})
-    }
-  end
-
-  defp event_volume_chart_series(option, buckets) do
-    color = event_volume_chart_color(option.tone)
-
-    %{
-      itemStyle: %{
-        borderRadius: [4, 4, 0, 0],
-        color: color
-      },
-      emphasis: %{
-        disabled: true,
-        itemStyle: %{color: color, opacity: 1}
-      },
-      name: option.label,
-      stack: "events",
-      type: "bar",
-      data: Enum.map(buckets, &Map.get(&1.sources, option.value, 0))
-    }
-  end
-
-  defp risk_pressure_chart_option(buckets) do
-    %{
-      animationDuration: 350,
-      legend: %{
-        bottom: 0,
-        itemHeight: 8,
-        itemWidth: 8,
-        textStyle: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"}
-      },
-      series: [
-        %{
-          data: Enum.map(buckets, &risk_pressure_chart_point/1),
-          emphasis: %{disabled: true},
-          label: %{
-            color: "css:--amd-muted",
-            fontFamily: "var(--amd-font-mono)",
-            formatter: "{b}"
-          },
-          labelLine: %{lineStyle: %{color: "css:--amd-border"}},
-          name: "Collateral value",
-          radius: ["48%", "72%"],
-          type: "pie"
-        }
-      ],
-      tooltip: %{
-        backgroundColor: "css:--amd-surface",
-        borderColor: "css:--amd-border",
-        borderRadius: 8,
-        borderWidth: 1,
-        confine: true,
-        padding: [10, 12],
-        textStyle: %{color: "css:--amd-fg"},
-        titlePrefix: "Risk tier",
-        trigger: "item"
-      }
-    }
-  end
-
-  defp risk_pressure_chart_point(bucket) do
-    %{
-      itemStyle: %{
-        color: chart_color(bucket.tone)
-      },
-      name: bucket.label,
-      tooltipLabel: "Collateral value",
-      tooltipValue: Money.format_usd(bucket.collateral_value_usd),
-      value: Decimal.to_float(bucket.collateral_value_usd)
-    }
-  end
-
-  defp portfolio_value_chart_option(points) do
-    line_chart_option(points,
-      area_color: "rgba(34, 199, 230, 0.12)",
-      name: "Collateral value",
-      point_mapper: &portfolio_value_chart_point/1,
-      title_prefix: "Snapshot",
-      tone: :info
-    )
-  end
-
-  defp portfolio_value_chart_point(point) do
-    %{
-      tooltipLabel: "Collateral value",
-      tooltipValue: point.tooltip_value,
-      value: chart_millions(point.value)
-    }
-  end
-
-  defp portfolio_risk_chart_option(points) do
-    line_chart_option(points,
-      area_color: "rgba(245, 183, 10, 0.12)",
-      name: "Risk score",
-      point_mapper: &portfolio_risk_chart_point/1,
-      title_prefix: "Snapshot",
-      tone: :warning,
-      y_axis: %{max: 100, min: 0}
-    )
-  end
-
-  defp line_chart_option(points, opts) do
-    color = chart_color(Keyword.fetch!(opts, :tone))
-    point_mapper = Keyword.fetch!(opts, :point_mapper)
-
-    %{
-      animationDuration: 350,
-      grid: chart_grid(44),
-      series: [
-        %{
-          areaStyle: %{color: Keyword.fetch!(opts, :area_color)},
-          data: Enum.map(points, point_mapper),
-          emphasis: %{disabled: true},
-          itemStyle: %{color: color},
-          lineStyle: %{color: color, width: 2},
-          name: Keyword.fetch!(opts, :name),
-          showSymbol: true,
-          smooth: true,
-          symbolSize: 7,
-          type: "line"
-        }
-      ],
-      tooltip: axis_tooltip(Keyword.fetch!(opts, :title_prefix)),
-      xAxis: category_axis(Enum.map(points, & &1.label)),
-      yAxis: value_axis(Keyword.get(opts, :y_axis, %{}))
-    }
-  end
-
-  defp portfolio_risk_chart_point(point) do
-    %{
-      tooltipLabel: "Risk score",
-      tooltipValue: point.tooltip_value,
-      value: point.value
-    }
-  end
-
-  defp chart_millions(value) do
-    value
-    |> Decimal.div(Decimal.new(1_000_000))
-    |> Decimal.round(2)
-    |> Decimal.to_float()
-  end
-
-  defp chart_grid(top) do
-    %{bottom: 8, containLabel: true, left: 8, right: 8, top: top}
-  end
-
-  defp axis_tooltip(title_prefix) do
-    %{
-      axisPointer: %{
-        lineStyle: %{color: "css:--amd-border", type: "dashed", width: 1},
-        type: "line"
-      },
-      backgroundColor: "css:--amd-surface",
-      borderColor: "css:--amd-border",
-      borderRadius: 8,
-      borderWidth: 1,
-      confine: true,
-      padding: [10, 12],
-      textStyle: %{color: "css:--amd-fg"},
-      titlePrefix: title_prefix,
-      trigger: "axis"
-    }
-  end
-
-  defp category_axis(labels) do
-    %{
-      axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
-      axisLine: %{lineStyle: %{color: "css:--amd-border"}},
-      axisTick: %{show: false},
-      data: labels,
-      type: "category"
-    }
-  end
-
-  defp value_axis(overrides) do
-    %{
-      axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
-      splitLine: %{lineStyle: %{color: "css:--amd-border", type: "dashed"}},
-      type: "value"
-    }
-    |> Map.merge(overrides)
-  end
-
-  defp chart_color(:success), do: "#4ade80"
-  defp chart_color(:warning), do: "#f5b70a"
-  defp chart_color(:danger), do: "#f87171"
-  defp chart_color(:info), do: "#22c7e6"
-  defp chart_color(_tone), do: "#94a3b8"
-
-  defp event_volume_chart_color(tone), do: chart_color(tone)
 
   defp asset_sort_options do
     [
