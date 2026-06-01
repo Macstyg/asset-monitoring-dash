@@ -20,6 +20,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDashWeb.DashboardURLState
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Card
+  alias AssetMonitoringDashWeb.UI.Chart
+  alias AssetMonitoringDashWeb.UI.Panel
+  alias AssetMonitoringDashWeb.UI.SectionHeader
   alias AssetMonitoringDashWeb.UI.ThemeSwitch
 
   @impl true
@@ -317,6 +320,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     {:noreply, socket}
   end
 
+  def handle_info({Simulator, :scenario_unavailable, payload}, socket) do
+    {:noreply, apply_unavailable_scenario_tick(socket, payload)}
+  end
+
   defp assign_metric_cards(socket) do
     assign(socket, :metric_cards, metric_cards(socket.assigns.snapshot))
   end
@@ -600,7 +607,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     socket
     |> assign(:event_count, length(events))
     |> assign(:visible_events, events)
+    |> assign_event_volume_chart()
     |> stream(:events, events, reset: true)
+  end
+
+  defp assign_event_volume_chart(socket) do
+    option = event_volume_chart_option(ActivityLog.event_source_buckets())
+
+    socket
+    |> assign(:event_volume_chart_option, option)
+    |> push_event("chart:update", %{id: "event-volume-chart", option: option})
   end
 
   defp filter_events(events, []), do: events
@@ -659,6 +675,74 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp event_source_value(%{kind: kind}) when is_atom(kind), do: Atom.to_string(kind)
   defp event_source_value(_event), do: "system"
 
+  defp event_volume_chart_option(buckets) do
+    source_options = event_source_filter_options()
+
+    %{
+      animationDuration: 350,
+      grid: %{bottom: 8, containLabel: true, left: 8, right: 8, top: 96},
+      legend: %{
+        itemHeight: 8,
+        itemWidth: 8,
+        right: 0,
+        textStyle: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
+        top: 0
+      },
+      series: Enum.map(source_options, &event_volume_chart_series(&1, buckets)),
+      tooltip: %{
+        axisPointer: %{
+          lineStyle: %{color: "css:--amd-border", type: "dashed", width: 1},
+          type: "line"
+        },
+        backgroundColor: "css:--amd-surface",
+        borderColor: "css:--amd-border",
+        borderRadius: 8,
+        borderWidth: 1,
+        confine: true,
+        padding: [10, 12],
+        textStyle: %{color: "css:--amd-fg"},
+        trigger: "axis"
+      },
+      xAxis: %{
+        axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
+        axisLine: %{lineStyle: %{color: "css:--amd-border"}},
+        axisTick: %{show: false},
+        data: Enum.map(buckets, & &1.label),
+        type: "category"
+      },
+      yAxis: %{
+        axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
+        minInterval: 1,
+        splitLine: %{lineStyle: %{color: "css:--amd-border", type: "dashed"}},
+        type: "value"
+      }
+    }
+  end
+
+  defp event_volume_chart_series(option, buckets) do
+    color = event_volume_chart_color(option.tone)
+
+    %{
+      itemStyle: %{
+        borderRadius: [4, 4, 0, 0],
+        color: color
+      },
+      emphasis: %{
+        disabled: true,
+        itemStyle: %{color: color, opacity: 1}
+      },
+      name: option.label,
+      stack: "events",
+      type: "bar",
+      data: Enum.map(buckets, &Map.get(&1.sources, option.value, 0))
+    }
+  end
+
+  defp event_volume_chart_color(:success), do: "#4ade80"
+  defp event_volume_chart_color(:warning), do: "#f5b70a"
+  defp event_volume_chart_color(:info), do: "#22c7e6"
+  defp event_volume_chart_color(_tone), do: "#94a3b8"
+
   defp asset_sort_options do
     [
       %{field: "asset", label: "Asset"},
@@ -709,9 +793,18 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       %{asset: _asset} = payload ->
         apply_scenario_tick(socket, payload)
 
+      %{reason: _reason} = payload ->
+        apply_unavailable_scenario_tick(socket, payload)
+
       %{event_history: _event_history} = feed ->
         apply_demo_feed(socket, feed)
     end
+  end
+
+  defp apply_unavailable_scenario_tick(socket, payload) do
+    socket
+    |> assign_last_unavailable_scenario_tick(payload)
+    |> assign_simulator_status()
   end
 
   defp apply_scenario_tick(socket, payload) do
@@ -774,6 +867,27 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       tone: scenario_tone(scenario)
     })
   end
+
+  defp assign_last_unavailable_scenario_tick(socket, payload) do
+    assign(socket, :last_simulator_action, %{
+      context: "Scenario controls",
+      detail: unavailable_scenario_detail(payload.reason),
+      label: "Scenario tick",
+      timestamp: simulator_action_time(DateTime.utc_now(:second)),
+      title: "Scenario not applied",
+      tone: :warning
+    })
+  end
+
+  defp unavailable_scenario_detail(:scenario_cap_reached) do
+    "Scenario cap reached. Reset runtime or clear active scenarios before applying another scenario."
+  end
+
+  defp unavailable_scenario_detail(:no_candidate_assets) do
+    "No eligible moderate or elevated assets remain for a scenario tick."
+  end
+
+  defp unavailable_scenario_detail(_reason), do: "Scenario tick could not find an eligible asset."
 
   defp scenario_for_payload(%{scenario_id: scenario_id}) do
     AssetScenarioStore.scenario_option_for(scenario_id)

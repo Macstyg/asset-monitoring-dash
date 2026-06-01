@@ -31,6 +31,27 @@ defmodule AssetMonitoringDash.EventStoreTest do
              EventStore.visible_events()
   end
 
+  test "buckets recent persisted events by source kind" do
+    asset = %{
+      id: asset_id("asset-001"),
+      dom_id: "asset-001",
+      name: "Aegis Dragon Helm",
+      chain: "Polygon",
+      ltv_percent: 67.8
+    }
+
+    EventStore.push_price_shock_event(asset, 12)
+    EventStore.push_demo_event(0)
+
+    last_bucket =
+      EventStore.event_source_buckets()
+      |> List.last()
+
+    assert last_bucket.label == "now"
+    assert last_bucket.sources["scenario"] == 1
+    assert last_bucket.sources["system"] == 1
+  end
+
   test "resets generated event history" do
     asset = %{
       id: asset_id("asset-001"),

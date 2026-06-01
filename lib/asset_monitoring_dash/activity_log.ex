@@ -16,6 +16,10 @@ defmodule AssetMonitoringDash.ActivityLog do
     EventStore.visible_events_for_asset(asset_id)
   end
 
+  def event_source_buckets do
+    EventStore.event_source_buckets()
+  end
+
   def record_price_shock(asset, drop_percent) do
     EventStore.push_price_shock_event(asset, drop_percent)
   end

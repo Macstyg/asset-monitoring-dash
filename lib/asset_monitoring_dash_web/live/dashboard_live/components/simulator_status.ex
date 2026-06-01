@@ -193,9 +193,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
         <Button.render
           id="simulator-run-scenario-tick"
           phx-click="run_scenario_tick"
-          disabled={!@status.running?}
+          disabled={scenario_tick_disabled?(@status, @scenario_count)}
           class="h-9 gap-2 rounded-app px-3"
-          title="Apply the next persisted scenario overlay to a candidate asset."
+          title={scenario_tick_title(@status, @scenario_count)}
         >
           <.icon name="hero-sparkles" class="size-3.5" /> Run scenario tick
         </Button.render>
@@ -229,6 +229,26 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus do
   defp state_class(%{running?: false}), do: "bg-app-bg text-app-muted ring-app-border"
   defp state_class(%{paused?: true}), do: "bg-app-warn/10 text-app-warn ring-app-warn/25"
   defp state_class(_status), do: "bg-app-accent/10 text-app-accent ring-app-accent/20"
+
+  defp scenario_tick_disabled?(%{running?: false}, _scenario_count), do: true
+
+  defp scenario_tick_disabled?(status, scenario_count) do
+    scenario_cap_reached?(status, scenario_count)
+  end
+
+  defp scenario_tick_title(status, scenario_count) do
+    case scenario_cap_reached?(status, scenario_count) do
+      true -> "Scenario cap reached. Reset runtime before applying another scenario."
+      false -> "Apply the next persisted scenario overlay to a candidate asset."
+    end
+  end
+
+  defp scenario_cap_reached?(%{max_active_scenarios: max_active_scenarios}, scenario_count)
+       when is_integer(max_active_scenarios) do
+    scenario_count >= max_active_scenarios
+  end
+
+  defp scenario_cap_reached?(_status, _scenario_count), do: false
 
   defp cadence_label(value) when is_integer(value), do: "every #{value} ticks"
   defp cadence_label(_value), do: "manual"

@@ -169,7 +169,18 @@ defmodule AssetMonitoringDash.Simulator do
   defp record_scenario_tick(state) do
     case next_scenario_asset(state) do
       nil ->
-        record_activity_tick(state)
+        payload = %{
+          reason: scenario_unavailable_reason(state),
+          tick_index: state.tick_index
+        }
+
+        Phoenix.PubSub.broadcast(
+          state.pubsub_server,
+          state.topic,
+          {__MODULE__, :scenario_unavailable, payload}
+        )
+
+        {payload, %{state | tick_index: state.tick_index + 1}}
 
       asset ->
         scenario_id = scenario_id_for_tick(state.tick_index)
@@ -191,6 +202,15 @@ defmodule AssetMonitoringDash.Simulator do
         )
 
         {payload, %{state | tick_index: state.tick_index + 1}}
+    end
+  end
+
+  defp scenario_unavailable_reason(state) do
+    shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
+
+    case MapSet.size(shocked_asset_ids) >= state.max_active_scenarios do
+      true -> :scenario_cap_reached
+      false -> :no_candidate_assets
     end
   end
 

@@ -23,7 +23,13 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/asset_monitoring_dash"
+import * as echarts from "echarts/core"
+import {BarChart} from "echarts/charts"
+import {GridComponent, LegendComponent, TooltipComponent} from "echarts/components"
+import {CanvasRenderer} from "echarts/renderers"
 import topbar from "../vendor/topbar"
+
+echarts.use([BarChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
 const FilterDropdown = {
   mounted() {
@@ -181,11 +187,211 @@ const CopyCurrentUrl = {
   },
 }
 
+const EChart = {
+  mounted() {
+    this.chart = echarts.init(this.el, null, {renderer: "canvas"})
+    this.option = null
+    this.formatter = params => this.formatTooltip(params)
+    this.positioner = (point, params, dom, rect, size) =>
+      this.positionTooltip(point, params, dom, rect, size)
+
+    this.resizeObserver = new ResizeObserver(() => {
+      this.chart.resize()
+    })
+    this.resizeObserver.observe(this.el)
+
+    this.themeObserver = new MutationObserver(() => {
+      this.applyOption(this.option || this.readOption())
+    })
+    this.themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    })
+
+    this.handleEvent("chart:update", ({id, option}) => {
+      if (id === this.el.id) {
+        this.applyOption(option)
+      }
+    })
+
+    this.applyOption(this.readOption())
+  },
+
+  updated() {
+    this.applyOption(this.readOption())
+  },
+
+  destroyed() {
+    this.resizeObserver?.disconnect()
+    this.themeObserver?.disconnect()
+    this.chart?.dispose()
+  },
+
+  readOption() {
+    const encodedOption = this.el.dataset.chartOption
+
+    if (!encodedOption) {
+      return null
+    }
+
+    try {
+      return JSON.parse(encodedOption)
+    } catch (error) {
+      console.warn("Invalid EChart option", error)
+      return null
+    }
+  },
+
+  applyOption(option) {
+    if (!option) {
+      return
+    }
+
+    this.option = option
+    this.el.dataset.chartSeries = JSON.stringify(option.series || [])
+    this.chart.setOption(this.resolveThemeValues(this.withFormatters(option)), {
+      lazyUpdate: false,
+      notMerge: false,
+    })
+  },
+
+  withFormatters(option) {
+    return {
+      ...option,
+      tooltip: {
+        ...option.tooltip,
+        formatter: this.formatter,
+        position: this.positioner,
+      },
+    }
+  },
+
+  positionTooltip(point, params, _dom, _rect, size) {
+    const offset = 12
+    const tooltipWidth = size.contentSize[0]
+    const tooltipHeight = size.contentSize[1]
+    const viewWidth = size.viewSize[0]
+    const viewHeight = size.viewSize[1]
+    const dataIndex = this.tooltipDataIndex(params)
+    const columnX = this.columnX(dataIndex) || point[0]
+    const columnWidth = this.columnWidth() || 0
+    const rightEdge = columnX + columnWidth / 2
+    const leftEdge = columnX - columnWidth / 2
+
+    const rightX = rightEdge + offset
+    const leftX = leftEdge - tooltipWidth - offset
+    const x = rightX + tooltipWidth <= viewWidth ? rightX : Math.max(offset, leftX)
+    const headerY = this.gridTop() - tooltipHeight - offset
+    const centeredY = point[1] - tooltipHeight / 2
+    const preferredY = headerY >= offset ? headerY : centeredY
+    const y = Math.min(Math.max(offset, preferredY), viewHeight - tooltipHeight - offset)
+
+    return [x, y]
+  },
+
+  gridTop() {
+    const top = this.option?.grid?.top
+
+    if (typeof top === "number") {
+      return top
+    }
+
+    if (typeof top === "string") {
+      return Number.parseFloat(top)
+    }
+
+    return 0
+  },
+
+  tooltipDataIndex(params) {
+    const point = Array.isArray(params) ? params[0] : params
+
+    return Number.isInteger(point?.dataIndex) ? point.dataIndex : null
+  },
+
+  columnX(dataIndex) {
+    if (!Number.isInteger(dataIndex)) {
+      return null
+    }
+
+    const point = this.chart.convertToPixel({xAxisIndex: 0}, dataIndex)
+
+    return Array.isArray(point) ? point[0] : point
+  },
+
+  columnWidth() {
+    const xAxisData = this.option?.xAxis?.data || []
+
+    if (xAxisData.length < 2) {
+      return 0
+    }
+
+    const first = this.chart.convertToPixel({xAxisIndex: 0}, 0)
+    const second = this.chart.convertToPixel({xAxisIndex: 0}, 1)
+    const firstX = Array.isArray(first) ? first[0] : first
+    const secondX = Array.isArray(second) ? second[0] : second
+
+    return Math.abs(secondX - firstX) * 0.7
+  },
+
+  formatTooltip(params) {
+    const points = Array.isArray(params) ? params : [params]
+    const visiblePoints = points.filter(point => Number(point.value || 0) > 0)
+
+    if (visiblePoints.length === 0) {
+      return ""
+    }
+
+    const title = points[0]?.axisValueLabel || points[0]?.name || ""
+    const rows = visiblePoints
+      .map(point => `
+        <div style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;min-width:9rem;">
+          <span style="display:inline-flex;align-items:center;gap:0.5rem;">
+            <span style="display:inline-block;width:0.55rem;height:0.55rem;border-radius:999px;background:${point.color};"></span>
+            <span>${point.seriesName}</span>
+          </span>
+          <strong style="font-family:var(--amd-font-mono);">${point.value}</strong>
+        </div>
+      `)
+      .join("")
+
+    return `
+      <div style="font-family:var(--amd-font-body);">
+        <div style="margin-bottom:0.45rem;font-family:var(--amd-font-mono);font-size:0.75rem;font-weight:700;color:var(--amd-muted);">${title}</div>
+        <div style="display:grid;gap:0.35rem;">${rows}</div>
+      </div>
+    `
+  },
+
+  resolveThemeValues(value) {
+    if (Array.isArray(value)) {
+      return value.map(item => this.resolveThemeValues(item))
+    }
+
+    if (value && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, nestedValue]) => [
+          key,
+          this.resolveThemeValues(nestedValue),
+        ])
+      )
+    }
+
+    if (typeof value === "string" && value.startsWith("css:")) {
+      return getComputedStyle(document.documentElement)
+        .getPropertyValue(value.slice(4))
+        .trim()
+    }
+
+    return value
+  },
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, CopyCurrentUrl, FilterDropdown, ScrollableLoadMore},
+  hooks: {...colocatedHooks, CopyCurrentUrl, EChart, FilterDropdown, ScrollableLoadMore},
 })
 
 // Show progress bar on live navigation and form submits

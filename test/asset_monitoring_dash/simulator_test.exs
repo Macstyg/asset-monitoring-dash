@@ -164,7 +164,7 @@ defmodule AssetMonitoringDash.SimulatorTest do
                     }}
   end
 
-  test "scheduled ticks fall back to activity events after scenario cap is reached" do
+  test "scheduled scenario ticks report unavailable state after scenario cap is reached" do
     name = :"simulator-#{System.unique_integer([:positive])}"
 
     pid =
@@ -181,8 +181,34 @@ defmodule AssetMonitoringDash.SimulatorTest do
     Simulator.subscribe()
     send(pid, :tick)
 
+    assert_receive {Simulator, :scenario_unavailable, %{reason: :scenario_cap_reached}}
+    refute Enum.any?(ActivityLog.visible_events(), &(&1.id == "event-live-1"))
+    assert %{tick_index: 1} = Simulator.status(name)
+  end
+
+  test "unavailable scheduled scenario ticks advance back to regular events" do
+    name = :"simulator-#{System.unique_integer([:positive])}"
+
+    pid =
+      start_supervised!(
+        {Simulator,
+         enabled: true,
+         interval_ms: :manual,
+         max_active_scenarios: 0,
+         name: name,
+         next_event_index: 0,
+         scenario_every: 4,
+         tick_index: 3}
+      )
+
+    Simulator.subscribe()
+    send(pid, :tick)
+    assert_receive {Simulator, :scenario_unavailable, %{reason: :scenario_cap_reached}}
+
+    send(pid, :tick)
+
     assert_receive {Simulator, :event_recorded,
-                    %{next_event_index: 1, event_history: [%{id: "event-live-1"} | _]}}
+                    %{next_event_index: 1, event_history: [%{id: "event-live-1"} | _events]}}
   end
 
   test "ignores scheduled ticks while paused" do

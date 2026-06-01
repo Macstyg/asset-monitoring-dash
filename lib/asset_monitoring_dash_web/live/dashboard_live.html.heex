@@ -55,6 +55,29 @@
         status={@simulator_status}
       />
 
+      <Panel.render id="dashboard-analytics">
+        <SectionHeader.render
+          title="Recent event volume"
+          description="System, scenario, and operator activity over the latest demo window."
+        >
+          <:actions>
+            <span
+              id="event-volume-total"
+              class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
+            >
+              {@event_count} visible
+            </span>
+          </:actions>
+        </SectionHeader.render>
+
+        <Chart.render
+          id="event-volume-chart"
+          option={@event_volume_chart_option}
+          class="mt-4 h-72"
+          aria-label="Event volume by source chart"
+        />
+      </Panel.render>
+
       <section class="grid min-w-0 gap-4">
         <AssetMonitor.render
           action_filter_options={@action_filter_options}

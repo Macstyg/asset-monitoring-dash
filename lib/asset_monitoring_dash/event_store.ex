@@ -26,6 +26,18 @@ defmodule AssetMonitoringDash.EventStore do
     |> EventFeed.visible_events_for_asset(asset_id)
   end
 
+  def event_source_buckets(bucket_count \\ 6, bucket_seconds \\ 15) do
+    case latest_event_time() do
+      nil ->
+        empty_event_source_buckets(bucket_count, bucket_seconds)
+
+      latest_at ->
+        latest_at
+        |> recent_event_source_rows(bucket_count, bucket_seconds)
+        |> build_event_source_buckets(latest_at, bucket_count, bucket_seconds)
+    end
+  end
+
   def seed_initial_events! do
     EventFeed.initial_events()
     |> Enum.each(&persist_event!/1)
@@ -140,6 +152,73 @@ defmodule AssetMonitoringDash.EventStore do
     )
     |> Repo.all()
     |> Enum.map(&record_to_event/1)
+  end
+
+  defp latest_event_time do
+    ActivityEventRecord
+    |> select([event], max(event.occurred_at))
+    |> Repo.one()
+  end
+
+  defp recent_event_source_rows(latest_at, bucket_count, bucket_seconds) do
+    window_start = window_start(latest_at, bucket_count, bucket_seconds)
+
+    ActivityEventRecord
+    |> where([event], event.occurred_at >= ^window_start and event.occurred_at <= ^latest_at)
+    |> select([event], {event.kind, event.occurred_at})
+    |> Repo.all()
+  end
+
+  defp build_event_source_buckets(rows, latest_at, bucket_count, bucket_seconds) do
+    window_start = window_start(latest_at, bucket_count, bucket_seconds)
+    bucket_indices = 0..(bucket_count - 1)
+
+    empty_buckets =
+      Map.new(bucket_indices, &{&1, empty_event_source_bucket(&1, bucket_count, bucket_seconds)})
+
+    rows
+    |> Enum.reduce(empty_buckets, fn {kind, occurred_at}, buckets ->
+      index = bucket_index(occurred_at, window_start, bucket_count, bucket_seconds)
+
+      update_in(buckets, [index, :sources, kind], &((&1 || 0) + 1))
+    end)
+    |> Map.values()
+  end
+
+  defp empty_event_source_buckets(bucket_count, bucket_seconds) do
+    0..(bucket_count - 1)
+    |> Enum.map(&empty_event_source_bucket(&1, bucket_count, bucket_seconds))
+  end
+
+  defp empty_event_source_bucket(index, bucket_count, bucket_seconds) do
+    %{
+      id: "event-volume-bucket-#{index}",
+      label: event_source_bucket_label(index, bucket_count, bucket_seconds),
+      sources: %{}
+    }
+  end
+
+  defp event_source_bucket_label(index, bucket_count, _bucket_seconds)
+       when index == bucket_count - 1 do
+    "now"
+  end
+
+  defp event_source_bucket_label(index, bucket_count, bucket_seconds) do
+    seconds_ago = (bucket_count - index) * bucket_seconds
+
+    "-#{seconds_ago}s"
+  end
+
+  defp bucket_index(occurred_at, window_start, bucket_count, bucket_seconds) do
+    occurred_at
+    |> DateTime.diff(window_start, :second)
+    |> div(bucket_seconds)
+    |> min(bucket_count - 1)
+    |> max(0)
+  end
+
+  defp window_start(latest_at, bucket_count, bucket_seconds) do
+    DateTime.add(latest_at, -(bucket_count * bucket_seconds - 1), :second)
   end
 
   defp persist_event!(event) do

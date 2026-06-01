@@ -135,4 +135,32 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatusTest do
     assert document |> LazyHTML.query("#simulator-run-scenario-tick[disabled]") |> Enum.any?()
     assert document |> LazyHTML.query("#simulator-toggle[disabled]") |> Enum.any?()
   end
+
+  test "disables scenario ticks when the scenario cap is reached" do
+    document =
+      render_component(&SimulatorStatus.render/1,
+        scenario_count: 5,
+        status: %{
+          interval_ms: 4_000,
+          max_active_scenarios: 5,
+          next_event_index: 7,
+          paused?: false,
+          running?: true,
+          scenario_every: 4,
+          tick_index: 6
+        }
+      )
+      |> LazyHTML.from_fragment()
+
+    assert document |> LazyHTML.query("#simulator-run-event-tick:not([disabled])") |> Enum.any?()
+
+    assert document
+           |> LazyHTML.query("#simulator-run-scenario-tick[disabled]")
+           |> Enum.any?()
+
+    assert document
+           |> LazyHTML.query("#simulator-run-scenario-tick")
+           |> LazyHTML.attribute("title")
+           |> List.first() =~ "Scenario cap reached"
+  end
 end

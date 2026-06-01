@@ -21,6 +21,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
 
     {:ok, view, _html} = live(conn, ~p"/")
 
+    initial_option = chart_option_from_render(view)
+
     assert has_element?(view, "#simulator-state", "Streaming")
     assert has_element?(view, "#simulator-tick-index", "0")
     assert has_element?(view, "#simulator-next-event-index", "0")
@@ -37,6 +39,14 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
     assert has_element?(view, "#simulator-last-action-kind", "Event tick")
     assert has_element?(view, "#simulator-last-action", "Oracle heartbeat")
 
+    event_option =
+      assert_chart_update(
+        view,
+        &(latest_chart_value(&1, "System") > 0 and &1 != initial_option)
+      )
+
+    assert latest_chart_value(event_option, "System") > 0
+
     view
     |> element("#simulator-run-scenario-tick")
     |> render_click()
@@ -47,6 +57,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
     assert has_element?(view, "#simulator-scenario-count-oracle_stale", "Oracle stale")
     assert has_element?(view, "#simulator-last-action-kind", "Scenario tick")
     assert has_element?(view, "#simulator-last-action", "Oracle stale")
+    scenario_option = assert_chart_update(view, &(latest_chart_value(&1, "Scenario") == 1))
+    assert latest_chart_value(scenario_option, "Scenario") == 1
 
     view
     |> element("#simulator-toggle")
@@ -61,6 +73,27 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
 
     assert has_element?(view, "#simulator-state", "Streaming")
     assert has_element?(view, "#event-feed-state", "streaming")
+  end
+
+  test "scenario tick button is disabled when scenario cap prevents chart updates", %{conn: conn} do
+    start_supervised!(
+      {Simulator,
+       enabled: true,
+       interval_ms: :manual,
+       max_active_scenarios: 0,
+       name: Simulator,
+       next_event_index: 0,
+       scenario_every: 4,
+       tick_index: 0}
+    )
+
+    {:ok, view, _html} = live(conn, ~p"/")
+    flush_chart_updates(view)
+
+    assert has_element?(view, "#simulator-run-scenario-tick[disabled]")
+    assert has_element?(view, ~s(#simulator-run-scenario-tick[title*="Scenario cap reached"]))
+    refute has_element?(view, "#event-row-event-live-1")
+    refute_push_event(view, "chart:update", %{id: "event-volume-chart", option: _option})
   end
 
   test "filters event feed by source kind", %{conn: conn} do
@@ -224,5 +257,66 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
        scenario_every: 4,
        tick_index: 0}
     )
+  end
+
+  defp latest_chart_value(option, source_name) do
+    option.series
+    |> Enum.find(&(chart_key(&1, :name) == source_name))
+    |> chart_key(:data)
+    |> List.last()
+  end
+
+  defp chart_option_from_render(view) do
+    view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("#event-volume-chart")
+    |> LazyHTML.attribute("data-chart-option")
+    |> List.first()
+    |> Jason.decode!()
+    |> atomize_chart_keys()
+  end
+
+  defp atomize_chart_keys(value) when is_list(value), do: Enum.map(value, &atomize_chart_keys/1)
+
+  defp atomize_chart_keys(value) when is_map(value) do
+    Map.new(value, fn {key, nested_value} ->
+      {String.to_existing_atom(key), atomize_chart_keys(nested_value)}
+    end)
+  end
+
+  defp atomize_chart_keys(value), do: value
+
+  defp chart_key(map, key), do: Map.get(map, key) || Map.fetch!(map, Atom.to_string(key))
+
+  defp assert_chart_update(view, predicate, attempts \\ 6)
+
+  defp assert_chart_update(_view, _predicate, 0) do
+    flunk("expected matching event-volume-chart update")
+  end
+
+  defp assert_chart_update(view, predicate, attempts) do
+    %{proxy: {ref, _topic, _}} = view
+
+    receive do
+      {^ref, {:push_event, "chart:update", %{id: "event-volume-chart", option: option}}} ->
+        case predicate.(option) do
+          true -> option
+          false -> assert_chart_update(view, predicate, attempts - 1)
+        end
+    after
+      100 -> flunk("expected event-volume-chart update")
+    end
+  end
+
+  defp flush_chart_updates(view) do
+    %{proxy: {ref, _topic, _}} = view
+
+    receive do
+      {^ref, {:push_event, "chart:update", %{id: "event-volume-chart"}}} ->
+        flush_chart_updates(view)
+    after
+      0 -> :ok
+    end
   end
 end
