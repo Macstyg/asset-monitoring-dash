@@ -4,7 +4,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
   import Phoenix.LiveViewTest
   import AssetMonitoringDashWeb.DashboardLiveTestHelpers
   alias AssetMonitoringDash.ActivityLog
+  alias AssetMonitoringDash.EventStore
   alias AssetMonitoringDash.ReviewState
+  alias AssetMonitoringDash.Seeds.DemoCatalog
   alias AssetMonitoringDash.Simulator
 
   test "shows simulator status and controls the supervised process", %{conn: conn} do
@@ -68,7 +70,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
         &(chart_key(List.first(&1.series), :type) == "pie")
       )
 
-    assert chart_values(pressure_option, "Collateral") |> Enum.sum() > 3_000_000
+    assert chart_values(pressure_option, "Collateral value") |> Enum.sum() > 3_000_000
 
     portfolio_option =
       assert_chart_update(
@@ -77,7 +79,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
         &(chart_key(List.first(&1.series), :type) == "line")
       )
 
-    assert length(chart_values(portfolio_option, "Collateral $M")) == 7
+    assert length(chart_values(portfolio_option, "Collateral value")) == 7
 
     risk_trend_option =
       assert_chart_update(
@@ -86,7 +88,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
         &(chart_key(List.first(&1.series), :type) == "line")
       )
 
-    assert length(chart_values(risk_trend_option, "Portfolio risk")) == 7
+    assert length(chart_values(risk_trend_option, "Risk score")) == 7
 
     view
     |> element("#simulator-toggle")
@@ -132,6 +134,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
     assert has_element?(view, "#active-filter-query-mech", "mech")
     assert has_element?(view, ~s(#analytics-window-demo[aria-pressed="true"]))
     assert has_element?(view, "#event-volume-total", "90s window")
+    assert has_element?(view, "#event-volume-summary-window", "90s window")
     flush_chart_updates(view)
 
     view
@@ -140,6 +143,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
 
     assert has_element?(view, ~s(#analytics-window-recent[aria-pressed="true"]))
     assert has_element?(view, "#event-volume-total", "3m window")
+    assert has_element?(view, "#event-volume-summary-window", "3m window")
     assert has_element?(view, "#active-filter-query-mech", "mech")
 
     recent_option =
@@ -157,6 +161,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
 
     assert has_element?(view, ~s(#analytics-window-full[aria-pressed="true"]))
     assert has_element?(view, "#event-volume-total", "12m window")
+    assert has_element?(view, "#event-volume-summary-window", "12m window")
     assert has_element?(view, "#active-filter-query-mech", "mech")
 
     full_option =
@@ -167,6 +172,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
       )
 
     assert List.first(chart_key(full_option.xAxis, :data)) == "-12m"
+  end
+
+  test "shows an event volume quiet state when the activity store is empty", %{conn: conn} do
+    on_exit(fn -> DemoCatalog.run!() end)
+    EventStore.reset_all()
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#event-volume-summary-total", "0")
+    assert has_element?(view, "#event-volume-empty", "No events in this window")
   end
 
   test "filters event feed by source kind", %{conn: conn} do

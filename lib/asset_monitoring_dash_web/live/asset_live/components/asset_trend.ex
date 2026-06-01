@@ -7,17 +7,17 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetTrend do
 
   alias AssetMonitoringDashWeb.Formatters
   alias AssetMonitoringDashWeb.UI.Card
+  alias AssetMonitoringDashWeb.UI.Chart
 
   attr :points, :list, required: true
 
   def render(assigns) do
     assigns =
       assigns
-      |> assign(:path, line_path(assigns.points))
-      |> assign(:area_path, area_path(assigns.points))
       |> assign(:first_point, List.first(assigns.points))
       |> assign(:latest_point, List.last(assigns.points))
       |> assign(:delta, trend_delta(assigns.points))
+      |> assign(:chart_option, chart_option(assigns.points))
 
     ~H"""
     <Card.surface
@@ -46,39 +46,14 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetTrend do
         </div>
       </div>
 
-      <svg
-        class="mt-4 h-24 w-full overflow-visible"
-        viewBox="0 0 240 88"
-        role="img"
-        aria-labelledby="asset-ltv-trend-title"
-        preserveAspectRatio="none"
-      >
-        <title id="asset-ltv-trend-title">
-          Selected asset LTV moved from {Formatters.ltv(@first_point.value)} to {Formatters.ltv(
-            @latest_point.value
-          )}
-        </title>
-        <path d={@area_path} class="fill-app-warn/10" />
-        <path
-          d={@path}
-          class="fill-none stroke-app-warn"
-          stroke-width="3"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          vector-effect="non-scaling-stroke"
-        />
-        <circle
-          :for={point <- chart_points(@points)}
-          cx={point.x}
-          cy={point.y}
-          r="3"
-          class="fill-app-surface stroke-app-warn"
-          stroke-width="2"
-          vector-effect="non-scaling-stroke"
-        />
-      </svg>
+      <Chart.render
+        id="asset-ltv-trend-chart"
+        option={@chart_option}
+        class="mt-4 h-64 min-h-64"
+        aria-label={"Selected asset LTV moved from #{Formatters.ltv(@first_point.value)} to #{Formatters.ltv(@latest_point.value)}"}
+      />
 
-      <div class="mt-2 flex items-center justify-between font-mono text-xs text-app-muted">
+      <div class="mt-1 flex items-center justify-between font-mono text-xs text-app-muted">
         <span>{@first_point.label}</span>
         <span>{@latest_point.label}</span>
       </div>
@@ -86,45 +61,125 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.AssetTrend do
     """
   end
 
-  defp chart_points(points) do
+  defp chart_option(points) do
     values = Enum.map(points, &decimal_to_float(&1.value))
-    min_value = Enum.min(values)
-    max_value = Enum.max(values)
-    range = chart_range(max_value - min_value)
-    step = 228 / max(length(points) - 1, 1)
 
-    points
-    |> Enum.with_index()
-    |> Enum.map(fn {point, index} ->
-      %{
-        label: point.label,
-        value: point.value,
-        x: Float.round(6 + index * step, 2),
-        y: Float.round(76 - (decimal_to_float(point.value) - min_value) / range * 64, 2)
-      }
-    end)
+    %{
+      animationDuration: 350,
+      grid: %{bottom: 10, containLabel: true, left: 8, right: 8, top: 16},
+      series: [
+        %{
+          areaStyle: %{color: "rgba(245, 183, 10, 0.12)"},
+          data: Enum.map(points, &chart_point/1),
+          itemStyle: %{color: "#f5b70a", borderColor: "css:--amd-surface", borderWidth: 2},
+          lineStyle: %{color: "#f5b70a", width: 3},
+          markLine: threshold_lines(),
+          name: "LTV",
+          showSymbol: true,
+          smooth: true,
+          symbolSize: 8,
+          type: "line"
+        }
+      ],
+      tooltip: axis_tooltip(),
+      xAxis: category_axis(Enum.map(points, & &1.label)),
+      yAxis: value_axis(values)
+    }
   end
 
-  defp line_path(points) do
-    points
-    |> chart_points()
-    |> Enum.with_index()
-    |> Enum.map_join(" ", fn {point, index} -> line_command(point, index) end)
+  defp chart_point(point) do
+    %{
+      tooltipLabel: "LTV",
+      tooltipValue: Formatters.ltv(point.value),
+      value: decimal_to_float(point.value)
+    }
   end
 
-  defp area_path(points) do
-    chart_points = chart_points(points)
-    first_point = List.first(chart_points)
-    last_point = List.last(chart_points)
-
-    "#{line_path(points)} L #{last_point.x} 82 L #{first_point.x} 82 Z"
+  defp threshold_lines do
+    %{
+      data: [
+        threshold_line("Watch", 60, "#f5b70a"),
+        threshold_line("Review", 75, "#f87171"),
+        threshold_line("Liquidation candidate", 80, "#ef4444")
+      ],
+      label: %{
+        color: "css:--amd-muted",
+        fontFamily: "var(--amd-font-mono)",
+        formatter: "{b}",
+        position: "insideEndTop"
+      },
+      lineStyle: %{type: "dashed", width: 1},
+      silent: true,
+      symbol: "none"
+    }
   end
 
-  defp line_command(point, 0), do: "M #{point.x} #{point.y}"
-  defp line_command(point, _index), do: "L #{point.x} #{point.y}"
+  defp threshold_line(name, value, color) do
+    %{
+      lineStyle: %{color: color},
+      name: "#{value}% #{name}",
+      yAxis: value
+    }
+  end
 
-  defp chart_range(range) when range <= 0.0, do: 1.0
-  defp chart_range(range), do: range
+  defp axis_tooltip do
+    %{
+      axisPointer: %{
+        lineStyle: %{color: "css:--amd-border", type: "dashed", width: 1},
+        type: "line"
+      },
+      backgroundColor: "css:--amd-surface",
+      borderColor: "css:--amd-border",
+      borderRadius: 8,
+      borderWidth: 1,
+      confine: true,
+      padding: [10, 12],
+      textStyle: %{color: "css:--amd-fg"},
+      titlePrefix: "Observation",
+      trigger: "axis"
+    }
+  end
+
+  defp category_axis(labels) do
+    %{
+      axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
+      axisLine: %{lineStyle: %{color: "css:--amd-border"}},
+      axisTick: %{show: false},
+      data: labels,
+      type: "category"
+    }
+  end
+
+  defp value_axis(values) do
+    %{
+      axisLabel: %{
+        color: "css:--amd-muted",
+        formatter: "{value}%",
+        fontFamily: "var(--amd-font-mono)"
+      },
+      max: y_axis_max(values),
+      min: y_axis_min(values),
+      splitLine: %{lineStyle: %{color: "css:--amd-border", type: "dashed"}},
+      type: "value"
+    }
+  end
+
+  defp y_axis_min(values) do
+    values
+    |> Enum.min(fn -> 0.0 end)
+    |> min(60.0)
+    |> Kernel.-(4.0)
+    |> Float.floor(0)
+    |> max(0.0)
+  end
+
+  defp y_axis_max(values) do
+    values
+    |> Enum.max(fn -> 80.0 end)
+    |> max(80.0)
+    |> Kernel.+(4.0)
+    |> Float.ceil(0)
+  end
 
   defp trend_delta(points) do
     Decimal.sub(decimal(List.last(points).value), decimal(List.first(points).value))

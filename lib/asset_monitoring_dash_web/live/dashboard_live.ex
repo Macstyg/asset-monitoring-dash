@@ -374,6 +374,69 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     {:noreply, apply_unavailable_scenario_tick(socket, payload)}
   end
 
+  attr :id, :string, required: true
+  attr :items, :list, required: true
+
+  defp analytics_summary(assigns) do
+    ~H"""
+    <dl
+      id={@id}
+      class="mt-4 grid gap-2 border-y border-app-border py-3 sm:grid-cols-3"
+    >
+      <div
+        :for={item <- @items}
+        id={"#{@id}-#{item.id}"}
+        class="min-w-0 rounded-app bg-app-surface-2 px-3 py-2 ring-1 ring-app-border/70"
+      >
+        <dt class="font-mono text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-app-muted">
+          {item.label}
+        </dt>
+        <dd class={["mt-1 truncate text-sm font-semibold", analytics_summary_tone(item[:tone])]}>
+          {item.value}
+        </dd>
+      </div>
+    </dl>
+    """
+  end
+
+  defp analytics_summary_tone(:positive), do: "text-app-accent"
+  defp analytics_summary_tone(:negative), do: "text-app-danger"
+  defp analytics_summary_tone(:warning), do: "text-app-warn"
+  defp analytics_summary_tone(_tone), do: "text-app-fg"
+
+  attr :id, :string, required: true
+  attr :label, :string, required: true
+  attr :tone, :atom, default: :neutral
+
+  defp analytics_interpretation(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class={[
+        "mt-4 inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ring-1",
+        analytics_interpretation_tone(@tone)
+      ]}
+    >
+      <span class="size-1.5 rounded-full bg-current"></span>
+      <span class="truncate">{@label}</span>
+    </div>
+    """
+  end
+
+  defp analytics_interpretation_tone(:positive),
+    do: "bg-app-accent/10 text-app-accent ring-app-accent/20"
+
+  defp analytics_interpretation_tone(:negative),
+    do: "bg-app-danger/10 text-app-danger ring-app-danger/25"
+
+  defp analytics_interpretation_tone(:warning),
+    do: "bg-app-warn/10 text-app-warn ring-app-warn/25"
+
+  defp analytics_interpretation_tone(:info),
+    do: "bg-app-accent-2/10 text-app-accent-2 ring-app-accent-2/20"
+
+  defp analytics_interpretation_tone(_tone), do: "bg-app-surface-2 text-app-muted ring-app-border"
+
   defp assign_metric_cards(socket) do
     assign(socket, :metric_cards, metric_cards(socket.assigns.snapshot))
   end
@@ -688,47 +751,231 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp assign_event_volume_chart(socket) do
     window = analytics_window_option(socket.assigns.analytics_window)
 
-    option =
+    buckets =
       ActivityLog.event_source_buckets(
         bucket_count: window.event_bucket_count,
         bucket_seconds: window.event_bucket_seconds
       )
+
+    option =
+      buckets
       |> event_volume_chart_option()
 
     socket
+    |> assign(:event_volume_empty?, event_volume_empty?(buckets))
+    |> assign(:event_volume_interpretation, event_volume_interpretation(buckets))
+    |> assign(:event_volume_summary, event_volume_summary(buckets, window))
     |> assign(:event_volume_chart_option, option)
     |> push_event("chart:update", %{id: "event-volume-chart", option: option})
   end
 
   defp assign_risk_pressure_chart(socket) do
-    option =
-      risk_pressure_chart_option(Assets.risk_pressure_buckets(socket.assigns.shocked_asset_ids))
+    buckets = Assets.risk_pressure_buckets(socket.assigns.shocked_asset_ids)
+    option = risk_pressure_chart_option(buckets)
 
     socket
+    |> assign(:risk_pressure_interpretation, risk_pressure_interpretation(buckets))
+    |> assign(:risk_pressure_summary, risk_pressure_summary(buckets))
     |> assign(:risk_pressure_chart_option, option)
     |> push_event("chart:update", %{id: "risk-pressure-chart", option: option})
   end
 
   defp assign_portfolio_value_chart(socket) do
-    option =
-      socket.assigns.shocked_asset_ids
-      |> Assets.portfolio_value_trend(socket.assigns.analytics_window)
-      |> portfolio_value_chart_option()
+    points =
+      Assets.portfolio_value_trend(
+        socket.assigns.shocked_asset_ids,
+        socket.assigns.analytics_window
+      )
+
+    option = portfolio_value_chart_option(points)
 
     socket
+    |> assign(:portfolio_value_interpretation, portfolio_value_interpretation(points))
+    |> assign(:portfolio_value_summary, portfolio_value_summary(points))
     |> assign(:portfolio_value_chart_option, option)
     |> push_event("chart:update", %{id: "portfolio-value-chart", option: option})
   end
 
   defp assign_portfolio_risk_chart(socket) do
-    option =
-      socket.assigns.shocked_asset_ids
-      |> Assets.portfolio_risk_trend(socket.assigns.analytics_window)
-      |> portfolio_risk_chart_option()
+    points =
+      Assets.portfolio_risk_trend(
+        socket.assigns.shocked_asset_ids,
+        socket.assigns.analytics_window
+      )
+
+    option = portfolio_risk_chart_option(points)
 
     socket
+    |> assign(:portfolio_risk_interpretation, portfolio_risk_interpretation(points))
+    |> assign(:portfolio_risk_summary, portfolio_risk_summary(points))
     |> assign(:portfolio_risk_chart_option, option)
     |> push_event("chart:update", %{id: "portfolio-risk-chart", option: option})
+  end
+
+  defp portfolio_value_summary(points) do
+    first = List.first(points)
+    current = List.last(points)
+    delta = Decimal.sub(current.value, first.value)
+
+    [
+      %{id: "current", label: "Current", value: current.tooltip_value},
+      %{
+        id: "change",
+        label: "Change",
+        value: format_signed_usd(delta),
+        tone: decimal_delta_tone(delta)
+      },
+      %{id: "source", label: "Source", value: "Portfolio snapshots"}
+    ]
+  end
+
+  defp portfolio_value_interpretation(points) do
+    delta =
+      points
+      |> value_delta()
+      |> Money.decimal()
+
+    case Decimal.compare(delta, Decimal.new(0)) do
+      :gt -> %{label: "Collateral value building", tone: :positive}
+      :lt -> %{label: "Collateral value under pressure", tone: :negative}
+      :eq -> %{label: "Collateral value stable", tone: :neutral}
+    end
+  end
+
+  defp portfolio_risk_summary(points) do
+    first = List.first(points)
+    current = List.last(points)
+    delta = current.value - first.value
+
+    [
+      %{id: "current", label: "Current", value: current.tooltip_value},
+      %{
+        id: "change",
+        label: "Change",
+        value: format_signed_points(delta),
+        tone: risk_delta_tone(delta)
+      },
+      %{id: "source", label: "Source", value: "Portfolio snapshots"}
+    ]
+  end
+
+  defp portfolio_risk_interpretation(points) do
+    case risk_delta(points) do
+      delta when delta > 0 -> %{label: "Risk drift increasing", tone: :warning}
+      delta when delta < 0 -> %{label: "Risk easing", tone: :positive}
+      _delta -> %{label: "Risk score stable", tone: :neutral}
+    end
+  end
+
+  defp event_volume_summary(buckets, window) do
+    total_count = event_volume_count(buckets)
+
+    [
+      %{id: "total", label: "Events", value: Integer.to_string(total_count)},
+      %{id: "window", label: "Window", value: window.event_window_label},
+      %{id: "source", label: "Source", value: "Activity store"}
+    ]
+  end
+
+  defp event_volume_empty?(buckets), do: event_volume_count(buckets) == 0
+
+  defp event_volume_interpretation(buckets) do
+    totals = event_source_totals(buckets)
+
+    case {Map.get(totals, "scenario", 0), Map.get(totals, "operator", 0),
+          event_volume_count(buckets)} do
+      {_scenario, _operator, 0} ->
+        %{label: "No recent activity", tone: :neutral}
+
+      {scenario, _operator, _total} when scenario > 0 ->
+        %{label: "Scenario events active", tone: :warning}
+
+      {_scenario, operator, _total} when operator > 0 ->
+        %{label: "Operator activity present", tone: :positive}
+
+      _activity ->
+        %{label: "System activity normal", tone: :info}
+    end
+  end
+
+  defp event_volume_count(buckets) do
+    buckets
+    |> Enum.flat_map(&Map.values(&1.sources))
+    |> Enum.sum()
+  end
+
+  defp event_source_totals(buckets) do
+    Enum.reduce(buckets, %{}, fn bucket, totals ->
+      Map.merge(totals, bucket.sources, fn _source, left, right -> left + right end)
+    end)
+  end
+
+  defp risk_pressure_summary(buckets) do
+    at_risk_buckets = Enum.filter(buckets, &(&1.value in ["Elevated", "Critical"]))
+    at_risk_value = at_risk_buckets |> Enum.map(& &1.collateral_value_usd) |> Money.sum()
+    at_risk_count = at_risk_buckets |> Enum.map(& &1.count) |> Enum.sum()
+
+    [
+      %{id: "at-risk", label: "At-risk", value: Money.format_usd(at_risk_value), tone: :warning},
+      %{id: "positions", label: "Positions", value: Integer.to_string(at_risk_count)},
+      %{id: "source", label: "Source", value: "Scenario overlay"}
+    ]
+  end
+
+  defp risk_pressure_interpretation(buckets) do
+    risk_counts =
+      Map.new(buckets, fn bucket ->
+        {bucket.value, bucket.count}
+      end)
+
+    case {Map.get(risk_counts, "Critical", 0), Map.get(risk_counts, "Elevated", 0)} do
+      {critical, _elevated} when critical > 0 ->
+        %{label: "Critical collateral present", tone: :negative}
+
+      {_critical, elevated} when elevated > 0 ->
+        %{label: "Elevated collateral concentrated", tone: :warning}
+
+      _risk ->
+        %{label: "Pressure contained", tone: :positive}
+    end
+  end
+
+  defp value_delta(points) do
+    first = List.first(points)
+    current = List.last(points)
+
+    Decimal.sub(current.value, first.value)
+  end
+
+  defp risk_delta(points) do
+    first = List.first(points)
+    current = List.last(points)
+
+    current.value - first.value
+  end
+
+  defp format_signed_usd(value) do
+    case Decimal.compare(Money.decimal(value), Decimal.new(0)) do
+      :gt -> "+#{Money.format_usd(value)}"
+      :lt -> "-#{value |> Decimal.mult(Decimal.new(-1)) |> Money.format_usd()}"
+      :eq -> "$0"
+    end
+  end
+
+  defp format_signed_points(value) when value > 0, do: "+#{value} pts"
+  defp format_signed_points(value) when value < 0, do: "#{value} pts"
+  defp format_signed_points(_value), do: "0 pts"
+
+  defp risk_delta_tone(value) when value > 0, do: :negative
+  defp risk_delta_tone(value) when value < 0, do: :positive
+  defp risk_delta_tone(_value), do: :neutral
+
+  defp decimal_delta_tone(value) do
+    case Decimal.compare(Money.decimal(value), Decimal.new(0)) do
+      :gt -> :positive
+      :lt -> :negative
+      :eq -> :neutral
+    end
   end
 
   defp filter_events(events, []), do: events
@@ -801,7 +1048,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         top: 0
       },
       series: Enum.map(source_options, &event_volume_chart_series(&1, buckets)),
-      tooltip: axis_tooltip(),
+      tooltip: axis_tooltip("Window"),
       xAxis: category_axis(Enum.map(buckets, & &1.label)),
       yAxis: value_axis(%{minInterval: 1})
     }
@@ -845,7 +1092,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
             formatter: "{b}"
           },
           labelLine: %{lineStyle: %{color: "css:--amd-border"}},
-          name: "Collateral",
+          name: "Collateral value",
           radius: ["48%", "72%"],
           type: "pie"
         }
@@ -858,6 +1105,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         confine: true,
         padding: [10, 12],
         textStyle: %{color: "css:--amd-fg"},
+        titlePrefix: "Risk tier",
         trigger: "item"
       }
     }
@@ -869,6 +1117,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         color: chart_color(bucket.tone)
       },
       name: bucket.label,
+      tooltipLabel: "Collateral value",
       tooltipValue: Money.format_usd(bucket.collateral_value_usd),
       value: Decimal.to_float(bucket.collateral_value_usd)
     }
@@ -877,14 +1126,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp portfolio_value_chart_option(points) do
     line_chart_option(points,
       area_color: "rgba(34, 199, 230, 0.12)",
-      name: "Collateral $M",
+      name: "Collateral value",
       point_mapper: &portfolio_value_chart_point/1,
+      title_prefix: "Snapshot",
       tone: :info
     )
   end
 
   defp portfolio_value_chart_point(point) do
     %{
+      tooltipLabel: "Collateral value",
       tooltipValue: point.tooltip_value,
       value: chart_millions(point.value)
     }
@@ -893,8 +1144,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp portfolio_risk_chart_option(points) do
     line_chart_option(points,
       area_color: "rgba(245, 183, 10, 0.12)",
-      name: "Portfolio risk",
+      name: "Risk score",
       point_mapper: &portfolio_risk_chart_point/1,
+      title_prefix: "Snapshot",
       tone: :warning,
       y_axis: %{max: 100, min: 0}
     )
@@ -921,7 +1173,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
           type: "line"
         }
       ],
-      tooltip: axis_tooltip(),
+      tooltip: axis_tooltip(Keyword.fetch!(opts, :title_prefix)),
       xAxis: category_axis(Enum.map(points, & &1.label)),
       yAxis: value_axis(Keyword.get(opts, :y_axis, %{}))
     }
@@ -929,6 +1181,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp portfolio_risk_chart_point(point) do
     %{
+      tooltipLabel: "Risk score",
       tooltipValue: point.tooltip_value,
       value: point.value
     }
@@ -945,7 +1198,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     %{bottom: 8, containLabel: true, left: 8, right: 8, top: top}
   end
 
-  defp axis_tooltip do
+  defp axis_tooltip(title_prefix) do
     %{
       axisPointer: %{
         lineStyle: %{color: "css:--amd-border", type: "dashed", width: 1},
@@ -958,6 +1211,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       confine: true,
       padding: [10, 12],
       textStyle: %{color: "css:--amd-fg"},
+      titlePrefix: title_prefix,
       trigger: "axis"
     }
   end

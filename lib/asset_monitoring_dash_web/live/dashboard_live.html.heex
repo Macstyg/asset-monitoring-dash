@@ -86,8 +86,8 @@
         </div>
       </div>
 
-      <section id="dashboard-analytics" class="grid min-w-0 gap-4 xl:grid-cols-2">
-        <Panel.render id="portfolio-value-panel">
+      <section id="dashboard-analytics" class="grid min-w-0 gap-4">
+        <Panel.render id="portfolio-value-panel" class="p-6">
           <SectionHeader.render
             title="Portfolio value trend"
             description="Persisted collateral snapshots with the latest point adjusted by active scenarios."
@@ -102,82 +102,85 @@
             </:actions>
           </SectionHeader.render>
 
+          <.analytics_interpretation
+            id="portfolio-value-interpretation"
+            label={@portfolio_value_interpretation.label}
+            tone={@portfolio_value_interpretation.tone}
+          />
+
+          <.analytics_summary id="portfolio-value-summary" items={@portfolio_value_summary} />
+
           <Chart.render
             id="portfolio-value-chart"
             option={@portfolio_value_chart_option}
-            class="mt-4 h-72"
+            class="mt-4 h-80"
             aria-label="Portfolio collateral value trend chart"
           />
         </Panel.render>
 
-        <Panel.render id="portfolio-risk-panel">
-          <SectionHeader.render
-            title="Portfolio risk trend"
-            description="Persisted aggregate risk history with the latest point adjusted by active scenarios."
-          >
-            <:actions>
-              <span
-                id="portfolio-risk-total"
-                class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
-              >
-                {@portfolio_window_label}
-              </span>
-            </:actions>
-          </SectionHeader.render>
+        <section id="risk-analytics" class="grid min-w-0 gap-4 xl:grid-cols-2">
+          <Panel.render id="portfolio-risk-panel">
+            <SectionHeader.render
+              title="Portfolio risk trend"
+              description="Persisted aggregate risk history with the latest point adjusted by active scenarios."
+            >
+              <:actions>
+                <span
+                  id="portfolio-risk-total"
+                  class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
+                >
+                  {@portfolio_window_label}
+                </span>
+              </:actions>
+            </SectionHeader.render>
 
-          <Chart.render
-            id="portfolio-risk-chart"
-            option={@portfolio_risk_chart_option}
-            class="mt-4 h-72"
-            aria-label="Portfolio risk score trend chart"
-          />
-        </Panel.render>
+            <.analytics_interpretation
+              id="portfolio-risk-interpretation"
+              label={@portfolio_risk_interpretation.label}
+              tone={@portfolio_risk_interpretation.tone}
+            />
 
-        <Panel.render id="event-volume-panel">
-          <SectionHeader.render
-            title="Recent event volume"
-            description="System, scenario, and operator activity over the latest demo window."
-          >
-            <:actions>
-              <span
-                id="event-volume-total"
-                class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
-              >
-                {@event_window_label}
-              </span>
-            </:actions>
-          </SectionHeader.render>
+            <.analytics_summary id="portfolio-risk-summary" items={@portfolio_risk_summary} />
 
-          <Chart.render
-            id="event-volume-chart"
-            option={@event_volume_chart_option}
-            class="mt-4 h-72"
-            aria-label="Event volume by source chart"
-          />
-        </Panel.render>
+            <Chart.render
+              id="portfolio-risk-chart"
+              option={@portfolio_risk_chart_option}
+              class="mt-4 h-72"
+              aria-label="Portfolio risk score trend chart"
+            />
+          </Panel.render>
 
-        <Panel.render id="risk-pressure-panel">
-          <SectionHeader.render
-            title="Liquidation pressure"
-            description="Collateral value distribution by risk tier after active scenario overlays."
-          >
-            <:actions>
-              <span
-                id="risk-pressure-total"
-                class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
-              >
-                collateral mix
-              </span>
-            </:actions>
-          </SectionHeader.render>
+          <Panel.render id="risk-pressure-panel">
+            <SectionHeader.render
+              title="Liquidation pressure"
+              description="Collateral value distribution by risk tier after active scenario overlays."
+            >
+              <:actions>
+                <span
+                  id="risk-pressure-total"
+                  class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
+                >
+                  collateral mix
+                </span>
+              </:actions>
+            </SectionHeader.render>
 
-          <Chart.render
-            id="risk-pressure-chart"
-            option={@risk_pressure_chart_option}
-            class="mt-4 h-72"
-            aria-label="Liquidation pressure by risk tier chart"
-          />
-        </Panel.render>
+            <.analytics_interpretation
+              id="risk-pressure-interpretation"
+              label={@risk_pressure_interpretation.label}
+              tone={@risk_pressure_interpretation.tone}
+            />
+
+            <.analytics_summary id="risk-pressure-summary" items={@risk_pressure_summary} />
+
+            <Chart.render
+              id="risk-pressure-chart"
+              option={@risk_pressure_chart_option}
+              class="mt-4 h-72"
+              aria-label="Liquidation pressure by risk tier chart"
+            />
+          </Panel.render>
+        </section>
       </section>
 
       <section class="grid min-w-0 gap-4">
@@ -200,15 +203,58 @@
           scenario_count={@scenario_count}
         />
 
-        <DashboardEventFeed.render
-          active_event_filter_chips={@active_event_filter_chips}
-          event_count={@event_count}
-          event_filter_form={@event_filter_form}
-          event_filters={@event_filters}
-          event_source_filter_options={@event_source_filter_options}
-          feed_paused={@feed_paused}
-          rows={@streams.events}
-        />
+        <section id="operations-telemetry" class="grid min-w-0 gap-4 xl:grid-cols-2">
+          <Panel.render id="event-volume-panel">
+            <SectionHeader.render
+              title="Recent event volume"
+              description="System, scenario, and operator activity over the latest demo window."
+            >
+              <:actions>
+                <span
+                  id="event-volume-total"
+                  class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
+                >
+                  {@event_window_label}
+                </span>
+              </:actions>
+            </SectionHeader.render>
+
+            <.analytics_interpretation
+              id="event-volume-interpretation"
+              label={@event_volume_interpretation.label}
+              tone={@event_volume_interpretation.tone}
+            />
+
+            <.analytics_summary id="event-volume-summary" items={@event_volume_summary} />
+
+            <div class="relative">
+              <Chart.render
+                id="event-volume-chart"
+                option={@event_volume_chart_option}
+                class="mt-4 h-72"
+                aria-label="Event volume by source chart"
+              />
+
+              <div
+                :if={@event_volume_empty?}
+                id="event-volume-empty"
+                class="pointer-events-none absolute inset-x-0 top-1/2 mx-auto max-w-xs -translate-y-1/2 rounded-app border border-app-border bg-app-surface/95 px-4 py-3 text-center text-sm font-semibold text-app-muted shadow-app-panel"
+              >
+                No events in this window
+              </div>
+            </div>
+          </Panel.render>
+
+          <DashboardEventFeed.render
+            active_event_filter_chips={@active_event_filter_chips}
+            event_count={@event_count}
+            event_filter_form={@event_filter_form}
+            event_filters={@event_filters}
+            event_source_filter_options={@event_source_filter_options}
+            feed_paused={@feed_paused}
+            rows={@streams.events}
+          />
+        </section>
       </section>
     </div>
   </section>

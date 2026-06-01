@@ -43,6 +43,8 @@ defmodule AssetMonitoringDashWeb.AssetLive.RenderingTest do
     assert has_element?(view, "#asset-inspection", "$42,000 depth")
     assert has_element?(view, "#risk-explanation")
     assert has_element?(view, "#asset-ltv-trend")
+    assert has_element?(view, ~s(#asset-ltv-trend-chart[phx-hook="EChart"]))
+    assert has_element?(view, ~s(#asset-ltv-trend-chart[phx-update="ignore"]))
     assert has_element?(view, "#asset-ltv-trend-latest", "59.7%")
     assert has_element?(view, "#asset-ltv-trend-delta", "+3.2 pts")
     assert has_element?(view, "#risk-explanation-headline", "Collateral buffer needs attention.")

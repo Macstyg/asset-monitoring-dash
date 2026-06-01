@@ -25,7 +25,7 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/asset_monitoring_dash"
 import * as echarts from "echarts/core"
 import {BarChart, LineChart, PieChart} from "echarts/charts"
-import {GridComponent, LegendComponent, TooltipComponent} from "echarts/components"
+import {GridComponent, LegendComponent, MarkLineComponent, TooltipComponent} from "echarts/components"
 import {CanvasRenderer} from "echarts/renderers"
 import topbar from "../vendor/topbar"
 
@@ -35,6 +35,7 @@ echarts.use([
   PieChart,
   GridComponent,
   LegendComponent,
+  MarkLineComponent,
   TooltipComponent,
   CanvasRenderer,
 ])
@@ -350,13 +351,15 @@ const EChart = {
       return ""
     }
 
-    const title = points[0]?.axisValueLabel || points[0]?.name || ""
+    const rawTitle = points[0]?.axisValueLabel || points[0]?.name || ""
+    const titlePrefix = this.option?.tooltip?.titlePrefix
+    const title = titlePrefix && rawTitle ? `${titlePrefix}: ${rawTitle}` : rawTitle
     const rows = visiblePoints
       .map(point => `
         <div style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;min-width:9rem;">
           <span style="display:inline-flex;align-items:center;gap:0.5rem;">
             <span style="display:inline-block;width:0.55rem;height:0.55rem;border-radius:999px;background:${point.color};"></span>
-            <span>${point.seriesName}</span>
+            <span>${this.tooltipLabel(point)}</span>
           </span>
           <strong style="font-family:var(--amd-font-mono);">${this.tooltipValue(point)}</strong>
         </div>
@@ -373,6 +376,10 @@ const EChart = {
 
   tooltipValue(point) {
     return point.data?.tooltipValue || point.value
+  },
+
+  tooltipLabel(point) {
+    return point.data?.tooltipLabel || point.seriesName
   },
 
   resolveThemeValues(value) {
