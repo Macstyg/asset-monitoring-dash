@@ -71,6 +71,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_sort_options, asset_sort_options())
       |> assign_metric_cards()
       |> assign_portfolio_value_chart()
+      |> assign_portfolio_risk_chart()
       |> assign_risk_pressure_chart()
       |> assign(:active_filter_chips, active_filter_chips(asset_state.filters))
       |> assign(:filter_form, filter_form(asset_state.filters))
@@ -133,6 +134,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:last_simulator_action, nil)
       |> assign_metric_cards()
       |> assign_portfolio_value_chart()
+      |> assign_portfolio_risk_chart()
       |> assign_risk_pressure_chart()
       |> apply_asset_filters(socket.assigns.asset_filters)
       |> apply_event_filter()
@@ -158,6 +160,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:event_history, events)
       |> assign_metric_cards()
       |> assign_portfolio_value_chart()
+      |> assign_portfolio_risk_chart()
       |> assign_risk_pressure_chart()
       |> assign_simulator_status()
       |> apply_asset_filters(socket.assigns.asset_filters)
@@ -645,6 +648,17 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> push_event("chart:update", %{id: "portfolio-value-chart", option: option})
   end
 
+  defp assign_portfolio_risk_chart(socket) do
+    option =
+      socket.assigns.shocked_asset_ids
+      |> Assets.portfolio_risk_trend()
+      |> portfolio_risk_chart_option()
+
+    socket
+    |> assign(:portfolio_risk_chart_option, option)
+    |> push_event("chart:update", %{id: "portfolio-risk-chart", option: option})
+  end
+
   defp filter_events(events, []), do: events
 
   defp filter_events(events, sources) do
@@ -706,7 +720,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
     %{
       animationDuration: 350,
-      grid: %{bottom: 8, containLabel: true, left: 8, right: 8, top: 96},
+      grid: chart_grid(96),
       legend: %{
         itemHeight: 8,
         itemWidth: 8,
@@ -715,33 +729,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
         top: 0
       },
       series: Enum.map(source_options, &event_volume_chart_series(&1, buckets)),
-      tooltip: %{
-        axisPointer: %{
-          lineStyle: %{color: "css:--amd-border", type: "dashed", width: 1},
-          type: "line"
-        },
-        backgroundColor: "css:--amd-surface",
-        borderColor: "css:--amd-border",
-        borderRadius: 8,
-        borderWidth: 1,
-        confine: true,
-        padding: [10, 12],
-        textStyle: %{color: "css:--amd-fg"},
-        trigger: "axis"
-      },
-      xAxis: %{
-        axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
-        axisLine: %{lineStyle: %{color: "css:--amd-border"}},
-        axisTick: %{show: false},
-        data: Enum.map(buckets, & &1.label),
-        type: "category"
-      },
-      yAxis: %{
-        axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
-        minInterval: 1,
-        splitLine: %{lineStyle: %{color: "css:--amd-border", type: "dashed"}},
-        type: "value"
-      }
+      tooltip: axis_tooltip(),
+      xAxis: category_axis(Enum.map(buckets, & &1.label)),
+      yAxis: value_axis(%{minInterval: 1})
     }
   end
 
@@ -813,50 +803,12 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   end
 
   defp portfolio_value_chart_option(points) do
-    %{
-      animationDuration: 350,
-      grid: %{bottom: 8, containLabel: true, left: 8, right: 8, top: 44},
-      series: [
-        %{
-          areaStyle: %{color: "rgba(34, 199, 230, 0.12)"},
-          data: Enum.map(points, &portfolio_value_chart_point/1),
-          emphasis: %{disabled: true},
-          itemStyle: %{color: chart_color(:info)},
-          lineStyle: %{color: chart_color(:info), width: 2},
-          name: "Collateral $M",
-          showSymbol: true,
-          smooth: true,
-          symbolSize: 7,
-          type: "line"
-        }
-      ],
-      tooltip: %{
-        axisPointer: %{
-          lineStyle: %{color: "css:--amd-border", type: "dashed", width: 1},
-          type: "line"
-        },
-        backgroundColor: "css:--amd-surface",
-        borderColor: "css:--amd-border",
-        borderRadius: 8,
-        borderWidth: 1,
-        confine: true,
-        padding: [10, 12],
-        textStyle: %{color: "css:--amd-fg"},
-        trigger: "axis"
-      },
-      xAxis: %{
-        axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
-        axisLine: %{lineStyle: %{color: "css:--amd-border"}},
-        axisTick: %{show: false},
-        data: Enum.map(points, & &1.label),
-        type: "category"
-      },
-      yAxis: %{
-        axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
-        splitLine: %{lineStyle: %{color: "css:--amd-border", type: "dashed"}},
-        type: "value"
-      }
-    }
+    line_chart_option(points,
+      area_color: "rgba(34, 199, 230, 0.12)",
+      name: "Collateral $M",
+      point_mapper: &portfolio_value_chart_point/1,
+      tone: :info
+    )
   end
 
   defp portfolio_value_chart_point(point) do
@@ -866,11 +818,95 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     }
   end
 
+  defp portfolio_risk_chart_option(points) do
+    line_chart_option(points,
+      area_color: "rgba(245, 183, 10, 0.12)",
+      name: "Portfolio risk",
+      point_mapper: &portfolio_risk_chart_point/1,
+      tone: :warning,
+      y_axis: %{max: 100, min: 0}
+    )
+  end
+
+  defp line_chart_option(points, opts) do
+    color = chart_color(Keyword.fetch!(opts, :tone))
+    point_mapper = Keyword.fetch!(opts, :point_mapper)
+
+    %{
+      animationDuration: 350,
+      grid: chart_grid(44),
+      series: [
+        %{
+          areaStyle: %{color: Keyword.fetch!(opts, :area_color)},
+          data: Enum.map(points, point_mapper),
+          emphasis: %{disabled: true},
+          itemStyle: %{color: color},
+          lineStyle: %{color: color, width: 2},
+          name: Keyword.fetch!(opts, :name),
+          showSymbol: true,
+          smooth: true,
+          symbolSize: 7,
+          type: "line"
+        }
+      ],
+      tooltip: axis_tooltip(),
+      xAxis: category_axis(Enum.map(points, & &1.label)),
+      yAxis: value_axis(Keyword.get(opts, :y_axis, %{}))
+    }
+  end
+
+  defp portfolio_risk_chart_point(point) do
+    %{
+      tooltipValue: point.tooltip_value,
+      value: point.value
+    }
+  end
+
   defp chart_millions(value) do
     value
     |> Decimal.div(Decimal.new(1_000_000))
     |> Decimal.round(2)
     |> Decimal.to_float()
+  end
+
+  defp chart_grid(top) do
+    %{bottom: 8, containLabel: true, left: 8, right: 8, top: top}
+  end
+
+  defp axis_tooltip do
+    %{
+      axisPointer: %{
+        lineStyle: %{color: "css:--amd-border", type: "dashed", width: 1},
+        type: "line"
+      },
+      backgroundColor: "css:--amd-surface",
+      borderColor: "css:--amd-border",
+      borderRadius: 8,
+      borderWidth: 1,
+      confine: true,
+      padding: [10, 12],
+      textStyle: %{color: "css:--amd-fg"},
+      trigger: "axis"
+    }
+  end
+
+  defp category_axis(labels) do
+    %{
+      axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
+      axisLine: %{lineStyle: %{color: "css:--amd-border"}},
+      axisTick: %{show: false},
+      data: labels,
+      type: "category"
+    }
+  end
+
+  defp value_axis(overrides) do
+    %{
+      axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
+      splitLine: %{lineStyle: %{color: "css:--amd-border", type: "dashed"}},
+      type: "value"
+    }
+    |> Map.merge(overrides)
   end
 
   defp chart_color(:success), do: "#4ade80"
@@ -974,6 +1010,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign_scenario_summary()
     |> assign_metric_cards()
     |> assign_portfolio_value_chart()
+    |> assign_portfolio_risk_chart()
     |> assign_risk_pressure_chart()
     |> assign_simulator_status()
     |> apply_asset_filters(socket.assigns.asset_filters)

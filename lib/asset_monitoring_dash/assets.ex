@@ -11,6 +11,7 @@ defmodule AssetMonitoringDash.Assets do
 
   alias AssetMonitoringDash.Assets.MarketSnapshot
   alias AssetMonitoringDash.Assets.MonitoredAsset
+  alias AssetMonitoringDash.Assets.PortfolioSnapshot
   alias AssetMonitoringDash.AssetScenario
   alias AssetMonitoringDash.DemoData
   alias AssetMonitoringDash.Money
@@ -208,6 +209,7 @@ defmodule AssetMonitoringDash.Assets do
     baseline = portfolio_aggregate(MapSet.new())
     current = portfolio_aggregate(shocked_asset_ids)
     snapshot = DemoData.portfolio_snapshot()
+    latest_snapshot = latest_portfolio_snapshot()
     risk_score = rounded_average_score(current.average_risk_score)
     baseline_risk_score = rounded_average_score(baseline.average_risk_score)
 
@@ -218,7 +220,8 @@ defmodule AssetMonitoringDash.Assets do
           percent_delta(current.total_collateral_value_usd, baseline.total_collateral_value_usd),
         risk_score: risk_score,
         risk_delta: risk_score - baseline_risk_score,
-        risk_band: Risk.risk_band(risk_score)
+        risk_band: Risk.risk_band(risk_score),
+        weighted_apy_percent: persisted_apy_percent(latest_snapshot, snapshot)
     }
   end
 
@@ -245,35 +248,87 @@ defmodule AssetMonitoringDash.Assets do
   end
 
   def portfolio_value_trend(shocked_asset_ids \\ MapSet.new()) do
+    shocked_asset_ids
+    |> portfolio_snapshot_points()
+    |> Enum.map(fn point ->
+      %{
+        id: "portfolio-value-#{point.index}",
+        label: point.label,
+        tooltip_value: Money.format_usd(point.total_collateral_value_usd),
+        value: point.total_collateral_value_usd
+      }
+    end)
+  end
+
+  def portfolio_risk_trend(shocked_asset_ids \\ MapSet.new()) do
+    shocked_asset_ids
+    |> portfolio_snapshot_points()
+    |> Enum.map(fn point ->
+      %{
+        id: "portfolio-risk-#{point.index}",
+        label: point.label,
+        tooltip_value: "#{point.risk_score}/100",
+        value: point.risk_score
+      }
+    end)
+  end
+
+  defp latest_portfolio_snapshot do
+    PortfolioSnapshot
+    |> order_by([snapshot], desc: snapshot.observed_at)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  defp persisted_apy_percent(nil, fallback_snapshot), do: fallback_snapshot.weighted_apy_percent
+  defp persisted_apy_percent(snapshot, _fallback_snapshot), do: snapshot.weighted_apy_percent
+
+  defp portfolio_snapshot_points(shocked_asset_ids) do
     points =
-      MarketSnapshot
-      |> group_by([snapshot], snapshot.observed_at)
+      PortfolioSnapshot
       |> order_by([snapshot], asc: snapshot.observed_at)
-      |> select([snapshot], %{
-        observed_at: snapshot.observed_at,
-        value: type(sum(snapshot.current_value_usd), :decimal)
-      })
       |> Repo.all()
 
     total_count = length(points)
-    current_value = portfolio_snapshot(shocked_asset_ids).total_collateral_value_usd
+    current = portfolio_snapshot(shocked_asset_ids)
 
     points
     |> Enum.with_index()
     |> Enum.map(fn {point, index} ->
-      value =
-        case index == total_count - 1 do
-          true -> current_value
-          false -> Money.usd(point.value)
-        end
-
-      %{
-        id: "portfolio-value-#{index}",
-        label: snapshot_label(index, total_count),
-        tooltip_value: Money.format_usd(value),
-        value: value
-      }
+      point
+      |> portfolio_point_values(index, total_count, current, shocked_asset_ids)
+      |> Map.merge(%{
+        index: index,
+        label: snapshot_label(index, total_count)
+      })
     end)
+  end
+
+  defp portfolio_point_values(point, index, total_count, current, shocked_asset_ids)
+       when index == total_count - 1 do
+    %{
+      average_ltv_percent: point.average_ltv_percent,
+      liquidation_candidate_count: point.liquidation_candidate_count,
+      risk_score: scenario_pressure_score(current.risk_score, shocked_asset_ids),
+      total_collateral_value_usd: current.total_collateral_value_usd,
+      weighted_apy_percent: current.weighted_apy_percent
+    }
+  end
+
+  defp portfolio_point_values(point, _index, _total_count, _current, _shocked_asset_ids) do
+    %{
+      average_ltv_percent: point.average_ltv_percent,
+      liquidation_candidate_count: point.liquidation_candidate_count,
+      risk_score: point.risk_score,
+      total_collateral_value_usd: Money.usd(point.total_collateral_value_usd),
+      weighted_apy_percent: point.weighted_apy_percent
+    }
+  end
+
+  defp scenario_pressure_score(risk_score, shocked_asset_ids) do
+    risk_score
+    |> Kernel.+(MapSet.size(shocked_asset_ids))
+    |> min(100)
   end
 
   defp runtime_asset_page?(filters, %{field: field}) do

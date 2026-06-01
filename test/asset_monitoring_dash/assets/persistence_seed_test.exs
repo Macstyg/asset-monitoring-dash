@@ -6,6 +6,7 @@ defmodule AssetMonitoringDash.Assets.PersistenceSeedTest do
   alias AssetMonitoringDash.Assets.GameEcosystem
   alias AssetMonitoringDash.Assets.MarketSnapshot
   alias AssetMonitoringDash.Assets.MonitoredAsset
+  alias AssetMonitoringDash.Assets.PortfolioSnapshot
   alias AssetMonitoringDash.Seeds.DemoCatalog
 
   test "seeds the canonical demo asset catalog idempotently" do
@@ -17,6 +18,7 @@ defmodule AssetMonitoringDash.Assets.PersistenceSeedTest do
     assert Repo.aggregate(GameEcosystem, :count) == 6
     assert Repo.aggregate(MonitoredAsset, :count) == 600
     assert Repo.aggregate(MarketSnapshot, :count) == 4_200
+    assert Repo.aggregate(PortfolioSnapshot, :count) == 7
 
     DemoCatalog.run!()
 
@@ -24,5 +26,6 @@ defmodule AssetMonitoringDash.Assets.PersistenceSeedTest do
     assert Repo.aggregate(GameEcosystem, :count) == 6
     assert Repo.aggregate(MonitoredAsset, :count) == 600
     assert Repo.aggregate(MarketSnapshot, :count) == 4_200
+    assert Repo.aggregate(PortfolioSnapshot, :count) == 7
   end
 end

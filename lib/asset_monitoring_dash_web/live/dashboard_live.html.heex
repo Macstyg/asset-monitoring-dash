@@ -55,7 +55,7 @@
         status={@simulator_status}
       />
 
-      <section id="dashboard-analytics" class="grid min-w-0 gap-4 xl:grid-cols-3">
+      <section id="dashboard-analytics" class="grid min-w-0 gap-4 xl:grid-cols-2">
         <Panel.render id="portfolio-value-panel">
           <SectionHeader.render
             title="Portfolio value trend"
@@ -76,6 +76,29 @@
             option={@portfolio_value_chart_option}
             class="mt-4 h-72"
             aria-label="Portfolio collateral value trend chart"
+          />
+        </Panel.render>
+
+        <Panel.render id="portfolio-risk-panel">
+          <SectionHeader.render
+            title="Portfolio risk trend"
+            description="Persisted aggregate risk history with the latest point adjusted by active scenarios."
+          >
+            <:actions>
+              <span
+                id="portfolio-risk-total"
+                class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
+              >
+                score / 100
+              </span>
+            </:actions>
+          </SectionHeader.render>
+
+          <Chart.render
+            id="portfolio-risk-chart"
+            option={@portfolio_risk_chart_option}
+            class="mt-4 h-72"
+            aria-label="Portfolio risk score trend chart"
           />
         </Panel.render>
 

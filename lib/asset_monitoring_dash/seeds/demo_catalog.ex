@@ -11,12 +11,14 @@ defmodule AssetMonitoringDash.Seeds.DemoCatalog do
   alias AssetMonitoringDash.Assets.GameEcosystem
   alias AssetMonitoringDash.Assets.MarketSnapshot
   alias AssetMonitoringDash.Assets.MonitoredAsset
+  alias AssetMonitoringDash.Assets.PortfolioSnapshot
   alias AssetMonitoringDash.EventStore
   alias AssetMonitoringDash.Money
   alias AssetMonitoringDash.Repo
 
   @snapshot_source "seeded_demo_oracle"
   @snapshot_anchor ~U[2026-05-31 00:00:00Z]
+  @portfolio_apy_offsets [-0.7, -0.4, 0.2, -0.1, 0.3, 0.1, 0.0]
   @ltv_trend_offsets %{
     "asset-001" => [-3.2, -2.4, -1.9, -1.1, -0.8, -0.3],
     "asset-002" => [-1.0, 0.7, -0.2, 1.6, 2.1, 1.2],
@@ -41,6 +43,7 @@ defmodule AssetMonitoringDash.Seeds.DemoCatalog do
     Enum.each(assets, &seed_monitored_asset!(&1, chains_by_name, ecosystems_by_name))
 
     seed_market_snapshots!()
+    seed_portfolio_snapshots!()
     EventStore.seed_initial_events!()
 
     Assets.list_persisted_assets()
@@ -119,6 +122,69 @@ defmodule AssetMonitoringDash.Seeds.DemoCatalog do
 
     Assets.list_persisted_assets()
     |> Enum.each(&seed_market_snapshots_for_asset!/1)
+  end
+
+  defp seed_portfolio_snapshots! do
+    Repo.delete_all(PortfolioSnapshot)
+
+    MarketSnapshot
+    |> Repo.all()
+    |> Enum.group_by(& &1.observed_at)
+    |> Enum.sort_by(fn {observed_at, _snapshots} -> DateTime.to_unix(observed_at) end)
+    |> Enum.with_index()
+    |> Enum.each(fn {{observed_at, snapshots}, index} ->
+      %PortfolioSnapshot{}
+      |> PortfolioSnapshot.changeset(portfolio_snapshot_attrs(observed_at, snapshots, index))
+      |> Repo.insert!()
+    end)
+  end
+
+  defp portfolio_snapshot_attrs(observed_at, snapshots, index) do
+    risk_scores = Enum.map(snapshots, &snapshot_risk_score/1)
+
+    %{
+      average_ltv_percent: average_decimal(Enum.map(snapshots, & &1.ltv_percent)),
+      liquidation_candidate_count: Enum.count(risk_scores, &(&1 >= 85)),
+      observed_at: observed_at,
+      risk_score: rounded_average_integer(risk_scores),
+      source: @snapshot_source,
+      total_collateral_value_usd: snapshots |> Enum.map(& &1.current_value_usd) |> Money.sum(),
+      weighted_apy_percent: portfolio_apy_percent(index)
+    }
+  end
+
+  defp snapshot_risk_score(snapshot) do
+    snapshot.ltv_percent
+    |> Money.decimal()
+    |> Decimal.div(Decimal.new("85"))
+    |> Decimal.mult(100)
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+    |> min(100)
+    |> max(0)
+  end
+
+  defp portfolio_apy_percent(index) do
+    offset = Enum.at(@portfolio_apy_offsets, index, 0)
+
+    "13.7"
+    |> Decimal.new()
+    |> Decimal.add(Money.decimal(offset))
+    |> Decimal.round(1)
+  end
+
+  defp average_decimal(values) do
+    values
+    |> Enum.reduce(Decimal.new(0), &Decimal.add(Money.decimal(&1), &2))
+    |> Decimal.div(length(values))
+    |> Decimal.round(1)
+  end
+
+  defp rounded_average_integer(values) do
+    values
+    |> Enum.sum()
+    |> Kernel./(length(values))
+    |> round()
   end
 
   defp seed_market_snapshots_for_asset!(asset) do

@@ -79,6 +79,15 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
 
     assert length(chart_values(portfolio_option, "Collateral $M")) == 7
 
+    risk_trend_option =
+      assert_chart_update(
+        view,
+        "portfolio-risk-chart",
+        &(chart_key(List.first(&1.series), :type) == "line")
+      )
+
+    assert length(chart_values(risk_trend_option, "Portfolio risk")) == 7
+
     view
     |> element("#simulator-toggle")
     |> render_click()
