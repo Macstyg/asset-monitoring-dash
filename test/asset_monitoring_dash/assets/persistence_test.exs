@@ -108,6 +108,20 @@ defmodule AssetMonitoringDash.Assets.PersistenceTest do
     assert snapshot.risk_score == 54
   end
 
+  test "builds portfolio value trend from persisted market snapshots" do
+    trend = Assets.portfolio_value_trend()
+
+    assert Enum.map(trend, & &1.label) == ["6d", "5d", "4d", "3d", "2d", "1d", "Now"]
+    assert length(trend) == 7
+    assert_decimal_equal(List.last(trend).value, "3474032.80")
+
+    shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-001")
+    shocked_trend = Assets.portfolio_value_trend(shocked_asset_ids)
+
+    assert_decimal_equal(List.last(shocked_trend).value, "3473449.60")
+    assert List.last(shocked_trend).tooltip_value == "$3,473,450"
+  end
+
   test "builds risk pressure buckets from scenario-adjusted assets" do
     baseline_buckets = Assets.risk_pressure_buckets()
     shocked_asset_ids = AssetScenarioStore.apply_price_shock("asset-004")

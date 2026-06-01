@@ -70,6 +70,15 @@ defmodule AssetMonitoringDashWeb.DashboardLive.EventsTest do
 
     assert chart_values(pressure_option, "Collateral") |> Enum.sum() > 3_000_000
 
+    portfolio_option =
+      assert_chart_update(
+        view,
+        "portfolio-value-chart",
+        &(chart_key(List.first(&1.series), :type) == "line")
+      )
+
+    assert length(chart_values(portfolio_option, "Collateral $M")) == 7
+
     view
     |> element("#simulator-toggle")
     |> render_click()

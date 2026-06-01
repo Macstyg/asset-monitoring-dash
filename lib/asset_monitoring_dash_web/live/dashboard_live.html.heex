@@ -55,7 +55,30 @@
         status={@simulator_status}
       />
 
-      <section id="dashboard-analytics" class="grid min-w-0 gap-4 xl:grid-cols-2">
+      <section id="dashboard-analytics" class="grid min-w-0 gap-4 xl:grid-cols-3">
+        <Panel.render id="portfolio-value-panel">
+          <SectionHeader.render
+            title="Portfolio value trend"
+            description="Persisted collateral snapshots with the latest point adjusted by active scenarios."
+          >
+            <:actions>
+              <span
+                id="portfolio-value-total"
+                class="rounded-full bg-app-surface-2 px-3 py-1 text-xs font-medium text-app-muted ring-1 ring-app-border"
+              >
+                7 points
+              </span>
+            </:actions>
+          </SectionHeader.render>
+
+          <Chart.render
+            id="portfolio-value-chart"
+            option={@portfolio_value_chart_option}
+            class="mt-4 h-72"
+            aria-label="Portfolio collateral value trend chart"
+          />
+        </Panel.render>
+
         <Panel.render id="event-volume-panel">
           <SectionHeader.render
             title="Recent event volume"

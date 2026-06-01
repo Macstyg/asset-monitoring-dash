@@ -244,6 +244,38 @@ defmodule AssetMonitoringDash.Assets do
     end)
   end
 
+  def portfolio_value_trend(shocked_asset_ids \\ MapSet.new()) do
+    points =
+      MarketSnapshot
+      |> group_by([snapshot], snapshot.observed_at)
+      |> order_by([snapshot], asc: snapshot.observed_at)
+      |> select([snapshot], %{
+        observed_at: snapshot.observed_at,
+        value: type(sum(snapshot.current_value_usd), :decimal)
+      })
+      |> Repo.all()
+
+    total_count = length(points)
+    current_value = portfolio_snapshot(shocked_asset_ids).total_collateral_value_usd
+
+    points
+    |> Enum.with_index()
+    |> Enum.map(fn {point, index} ->
+      value =
+        case index == total_count - 1 do
+          true -> current_value
+          false -> Money.usd(point.value)
+        end
+
+      %{
+        id: "portfolio-value-#{index}",
+        label: snapshot_label(index, total_count),
+        tooltip_value: Money.format_usd(value),
+        value: value
+      }
+    end)
+  end
+
   defp runtime_asset_page?(filters, %{field: field}) do
     field in [:action, :operator] or
       filter_values(filters, :actions, :action, "All") != [] or

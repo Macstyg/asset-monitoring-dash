@@ -24,12 +24,20 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/asset_monitoring_dash"
 import * as echarts from "echarts/core"
-import {BarChart, PieChart} from "echarts/charts"
+import {BarChart, LineChart, PieChart} from "echarts/charts"
 import {GridComponent, LegendComponent, TooltipComponent} from "echarts/components"
 import {CanvasRenderer} from "echarts/renderers"
 import topbar from "../vendor/topbar"
 
-echarts.use([BarChart, PieChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+echarts.use([
+  BarChart,
+  LineChart,
+  PieChart,
+  GridComponent,
+  LegendComponent,
+  TooltipComponent,
+  CanvasRenderer,
+])
 
 const FilterDropdown = {
   mounted() {

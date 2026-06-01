@@ -70,6 +70,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:asset_sort, asset_state.sort)
       |> assign(:asset_sort_options, asset_sort_options())
       |> assign_metric_cards()
+      |> assign_portfolio_value_chart()
       |> assign_risk_pressure_chart()
       |> assign(:active_filter_chips, active_filter_chips(asset_state.filters))
       |> assign(:filter_form, filter_form(asset_state.filters))
@@ -131,6 +132,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:event_history, events)
       |> assign(:last_simulator_action, nil)
       |> assign_metric_cards()
+      |> assign_portfolio_value_chart()
       |> assign_risk_pressure_chart()
       |> apply_asset_filters(socket.assigns.asset_filters)
       |> apply_event_filter()
@@ -155,6 +157,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign_scenario_summary()
       |> assign(:event_history, events)
       |> assign_metric_cards()
+      |> assign_portfolio_value_chart()
       |> assign_risk_pressure_chart()
       |> assign_simulator_status()
       |> apply_asset_filters(socket.assigns.asset_filters)
@@ -631,6 +634,17 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> push_event("chart:update", %{id: "risk-pressure-chart", option: option})
   end
 
+  defp assign_portfolio_value_chart(socket) do
+    option =
+      socket.assigns.shocked_asset_ids
+      |> Assets.portfolio_value_trend()
+      |> portfolio_value_chart_option()
+
+    socket
+    |> assign(:portfolio_value_chart_option, option)
+    |> push_event("chart:update", %{id: "portfolio-value-chart", option: option})
+  end
+
   defp filter_events(events, []), do: events
 
   defp filter_events(events, sources) do
@@ -798,6 +812,67 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     }
   end
 
+  defp portfolio_value_chart_option(points) do
+    %{
+      animationDuration: 350,
+      grid: %{bottom: 8, containLabel: true, left: 8, right: 8, top: 44},
+      series: [
+        %{
+          areaStyle: %{color: "rgba(34, 199, 230, 0.12)"},
+          data: Enum.map(points, &portfolio_value_chart_point/1),
+          emphasis: %{disabled: true},
+          itemStyle: %{color: chart_color(:info)},
+          lineStyle: %{color: chart_color(:info), width: 2},
+          name: "Collateral $M",
+          showSymbol: true,
+          smooth: true,
+          symbolSize: 7,
+          type: "line"
+        }
+      ],
+      tooltip: %{
+        axisPointer: %{
+          lineStyle: %{color: "css:--amd-border", type: "dashed", width: 1},
+          type: "line"
+        },
+        backgroundColor: "css:--amd-surface",
+        borderColor: "css:--amd-border",
+        borderRadius: 8,
+        borderWidth: 1,
+        confine: true,
+        padding: [10, 12],
+        textStyle: %{color: "css:--amd-fg"},
+        trigger: "axis"
+      },
+      xAxis: %{
+        axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
+        axisLine: %{lineStyle: %{color: "css:--amd-border"}},
+        axisTick: %{show: false},
+        data: Enum.map(points, & &1.label),
+        type: "category"
+      },
+      yAxis: %{
+        axisLabel: %{color: "css:--amd-muted", fontFamily: "var(--amd-font-mono)"},
+        splitLine: %{lineStyle: %{color: "css:--amd-border", type: "dashed"}},
+        type: "value"
+      }
+    }
+  end
+
+  defp portfolio_value_chart_point(point) do
+    %{
+      tooltipValue: point.tooltip_value,
+      value: chart_millions(point.value)
+    }
+  end
+
+  defp chart_millions(value) do
+    value
+    |> Decimal.div(Decimal.new(1_000_000))
+    |> Decimal.round(2)
+    |> Decimal.to_float()
+  end
+
   defp chart_color(:success), do: "#4ade80"
   defp chart_color(:warning), do: "#f5b70a"
   defp chart_color(:danger), do: "#f87171"
@@ -898,6 +973,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
     |> assign_scenario_summary()
     |> assign_metric_cards()
+    |> assign_portfolio_value_chart()
     |> assign_risk_pressure_chart()
     |> assign_simulator_status()
     |> apply_asset_filters(socket.assigns.asset_filters)
