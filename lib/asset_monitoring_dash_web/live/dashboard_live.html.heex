@@ -23,9 +23,9 @@
             <span class="inline-flex items-center gap-2 text-app-fg">
               <span class="size-2 rounded-full bg-app-accent shadow-[0_0_14px_var(--amd-accent)]">
               </span>
-              Database-backed demo
+              {@dashboard_mode.label}
             </span>
-            <span class="text-app-muted">Live simulator</span>
+            <span class="text-app-muted">{@dashboard_mode.detail}</span>
           </div>
           <ThemeSwitch.render />
         </div>
@@ -48,7 +48,42 @@
         />
       </section>
 
+      <Panel.render :if={!@demo_controls_enabled?} id="view-only-demo-banner">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div class="max-w-3xl">
+            <p class="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-app-muted">
+              View-only demo
+            </p>
+            <h2 class="mt-2 font-display text-xl font-semibold tracking-normal text-app-fg">
+              Explore the cockpit without changing demo state
+            </h2>
+            <p class="mt-2 text-sm leading-6 text-app-muted">
+              Charts, filters, portfolio metrics, and the event feed are visible by default.
+              Sign in to run simulator ticks, reset runtime state, and open asset review workflows.
+            </p>
+          </div>
+
+          <div class="flex shrink-0 flex-wrap gap-2">
+            <.link
+              id="view-only-login-link"
+              navigate={~p"/users/log-in"}
+              class="inline-flex h-10 items-center justify-center rounded-app border border-app-accent/35 bg-app-accent/10 px-4 text-sm font-semibold text-app-accent transition hover:border-app-accent hover:bg-app-accent/15"
+            >
+              Log in
+            </.link>
+            <.link
+              id="view-only-register-link"
+              navigate={~p"/users/register"}
+              class="inline-flex h-10 items-center justify-center rounded-app border border-app-border bg-app-surface-2 px-4 text-sm font-semibold text-app-muted transition hover:border-app-accent/40 hover:text-app-fg"
+            >
+              Register
+            </.link>
+          </div>
+        </div>
+      </Panel.render>
+
       <DemoWalkthrough.render
+        :if={@demo_controls_enabled?}
         active_asset={@demo_walkthrough_asset}
         active_asset_path={@demo_walkthrough_asset_path}
         last_action={@last_simulator_action}
@@ -58,6 +93,7 @@
       />
 
       <SimulatorStatus.render
+        :if={@demo_controls_enabled?}
         last_action={@last_simulator_action}
         scenario_count={@scenario_count}
         scenario_summary={@scenario_summary}
@@ -205,6 +241,7 @@
           asset_summary={@asset_summary}
           asset_view_shared?={@asset_view_shared?}
           chain_filter_options={@chain_filter_options}
+          demo_controls_enabled?={@demo_controls_enabled?}
           filter_form={@filter_form}
           operator_state_filter_options={@operator_state_filter_options}
           risk_filter_options={@risk_filter_options}

@@ -10,6 +10,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.ScenarioBanner do
   alias AssetMonitoringDashWeb.UI.Button
 
   attr :scenario_count, :integer, required: true
+  attr :demo_controls_enabled?, :boolean, default: true
 
   def render(assigns) do
     ~H"""
@@ -31,6 +32,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.ScenarioBanner do
       </div>
 
       <Button.render
+        :if={@demo_controls_enabled?}
         id="reset-asset-scenarios"
         phx-click="reset_asset_scenarios"
         class="h-9 shrink-0 px-4"

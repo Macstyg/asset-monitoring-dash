@@ -37,8 +37,6 @@ defmodule AssetMonitoringDashWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{AssetMonitoringDashWeb.UserAuth, :require_authenticated}] do
-      live "/", DashboardLive, :show
-      live "/assets/:id", AssetLive, :show
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
@@ -51,6 +49,8 @@ defmodule AssetMonitoringDashWeb.Router do
 
     live_session :current_user,
       on_mount: [{AssetMonitoringDashWeb.UserAuth, :mount_current_scope}] do
+      live "/", DashboardLive, :show
+      live "/assets/:id", AssetLive, :show
       live "/users/register", UserLive.Registration, :new
       live "/users/log-in", UserLive.Login, :new
       live "/users/log-in/:token", UserLive.Confirmation, :new

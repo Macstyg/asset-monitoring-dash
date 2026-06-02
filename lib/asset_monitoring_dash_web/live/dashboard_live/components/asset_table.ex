@@ -18,6 +18,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetTable do
   attr :asset_sort, :map, required: true
   attr :asset_sort_options, :list, required: true
   attr :loaded_count, :integer, required: true
+  attr :row_click_enabled?, :boolean, default: true
   attr :rows, :any, required: true
   attr :total_count, :integer, required: true
 
@@ -57,7 +58,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetTable do
         class="mt-5"
         grid_class="grid-cols-[minmax(170px,1.1fr)_minmax(150px,0.8fr)_86px_86px_66px_80px_minmax(120px,0.75fr)_minmax(150px,1fr)]"
         row_class="lg:min-w-[1120px] lg:grid-cols-[minmax(170px,1.1fr)_minmax(150px,0.8fr)_86px_86px_66px_80px_minmax(120px,0.75fr)_minmax(150px,1fr)] lg:items-center"
-        row_click="select_asset"
+        row_click={row_click(@row_click_enabled?)}
         load_more_target_id="asset-table-loading"
         rows_class="max-h-[min(62vh,760px)] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
         rows={@rows}
@@ -172,4 +173,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetTable do
   defp range_label(loaded_count, count) do
     "Showing 1-#{min(loaded_count, count)} of #{count}"
   end
+
+  defp row_click(true), do: "select_asset"
+  defp row_click(false), do: nil
 end

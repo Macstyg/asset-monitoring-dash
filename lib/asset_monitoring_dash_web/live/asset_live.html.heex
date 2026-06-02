@@ -48,7 +48,7 @@
       />
 
       <DemoStoryContext.render
-        :if={@demo_story?}
+        :if={@demo_story? && @operator_controls_enabled?}
         activity_path={@demo_story_activity_path}
         completed?={@demo_story_completed?}
         return_to={@return_to}
@@ -90,6 +90,7 @@
             review_state={@asset_review_state}
             reviewed={@asset_reviewed?}
             risk_recommendation={@asset_risk_recommendation}
+            operator_controls_enabled?={@operator_controls_enabled?}
             scenario_options={@scenario_options}
           />
         </div>

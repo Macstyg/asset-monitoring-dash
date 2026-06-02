@@ -22,6 +22,15 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.Tabs
 
+  @operator_control_events ~w(
+    apply_asset_scenario
+    apply_price_shock
+    reset_asset_scenario
+    reset_demo_runtime_and_return
+    submit_review_action
+    validate_review_action
+  )
+
   @impl true
   def mount(%{"id" => asset_id} = params, _session, socket) do
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
@@ -32,6 +41,10 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       socket
       |> stream_configure(:events, dom_id: &"asset-event-row-#{&1.id}")
       |> assign(:page_title, "Asset detail")
+      |> assign(
+        :operator_controls_enabled?,
+        operator_controls_enabled?(socket.assigns.current_scope)
+      )
       |> assign(:review_states, ReviewStore.all_states())
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:return_to, normalize_return_to(Map.get(params, "return_to")))
@@ -68,6 +81,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       |> assign_asset_from_id(asset_id)
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event(event, _params, %{assigns: %{operator_controls_enabled?: false}} = socket)
+      when event in @operator_control_events do
+    {:noreply, put_flash(socket, :error, "Log in to use operator controls.")}
   end
 
   @impl true
@@ -285,6 +304,9 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   defp simulator_review_states(%{review_states: review_states}), do: review_states
   defp simulator_review_states(_payload), do: ReviewStore.all_states()
+
+  defp operator_controls_enabled?(%{user: %{}}), do: true
+  defp operator_controls_enabled?(_current_scope), do: false
 
   defp refresh_asset_events(socket, true),
     do: assign_asset_events(socket, socket.assigns.asset.id)

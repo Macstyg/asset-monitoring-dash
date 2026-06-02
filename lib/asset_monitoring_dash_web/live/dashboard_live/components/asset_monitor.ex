@@ -27,7 +27,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor do
   attr :asset_sort_options, :list, required: true
   attr :asset_summary, :map, required: true
   attr :asset_view_shared?, :boolean, required: true
+  attr :asset_detail_enabled?, :boolean, default: true
   attr :chain_filter_options, :list, required: true
+  attr :demo_controls_enabled?, :boolean, default: true
   attr :filter_form, :any, required: true
   attr :operator_state_filter_options, :list, required: true
   attr :risk_filter_options, :list, required: true
@@ -139,7 +141,10 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor do
         <FilterBar.active_chip :for={chip <- @active_filter_chips} chip={chip} />
       </div>
 
-      <ScenarioBanner.render scenario_count={@scenario_count} />
+      <ScenarioBanner.render
+        scenario_count={@scenario_count}
+        demo_controls_enabled?={@demo_controls_enabled?}
+      />
       <AssetSummary.render summary={@asset_summary} />
 
       <LoadStatus.render
@@ -156,6 +161,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor do
         asset_sort={@asset_sort}
         asset_sort_options={@asset_sort_options}
         loaded_count={@asset_loaded_count}
+        row_click_enabled?={@asset_detail_enabled?}
         total_count={@asset_count}
       />
     </Panel.render>

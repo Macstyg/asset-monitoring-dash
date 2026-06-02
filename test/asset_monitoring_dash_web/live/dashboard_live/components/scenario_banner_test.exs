@@ -25,4 +25,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.ScenarioBannerTest do
 
     refute document |> LazyHTML.query("#active-scenario-banner") |> Enum.any?()
   end
+
+  test "can hide reset action for view-only dashboards" do
+    document =
+      render_component(&ScenarioBanner.render/1,
+        scenario_count: 2,
+        demo_controls_enabled?: false
+      )
+      |> LazyHTML.from_fragment()
+
+    assert document |> LazyHTML.query("#active-scenario-banner") |> Enum.any?()
+    refute document |> LazyHTML.query("#reset-asset-scenarios") |> Enum.any?()
+  end
 end

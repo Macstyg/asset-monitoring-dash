@@ -4,6 +4,14 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @asset_page_limit 50
   @asset_stream_limit 150
   @default_analytics_window :demo
+  @demo_control_events ~w(
+    reset_asset_scenarios
+    reset_demo_runtime
+    run_event_tick
+    run_scenario_tick
+    toggle_simulator_process
+    track_demo_story_step
+  )
   @analytics_window_options [
     %{
       value: :demo,
@@ -79,6 +87,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> stream_configure(:assets, dom_id: &"asset-row-#{&1.dom_id}")
       |> stream_configure(:events, dom_id: &"event-row-#{&1.id}")
       |> assign(:page_title, "Asset Risk Cockpit")
+      |> assign(:demo_controls_enabled?, demo_controls_enabled?(socket.assigns.current_scope))
+      |> assign(:dashboard_mode, dashboard_mode(socket.assigns.current_scope))
       |> assign(:snapshot, snapshot)
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
@@ -125,6 +135,12 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_params(params, _uri, socket) do
     {:noreply, apply_asset_state(socket, DashboardURLState.from_params(params))}
+  end
+
+  @impl true
+  def handle_event(event, _params, %{assigns: %{demo_controls_enabled?: false}} = socket)
+      when event in @demo_control_events do
+    {:noreply, put_flash(socket, :error, "Log in to use demo controls.")}
   end
 
   @impl true
@@ -452,6 +468,23 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
 
   defp assign_metric_cards(socket) do
     assign(socket, :metric_cards, metric_cards(socket.assigns.snapshot))
+  end
+
+  defp demo_controls_enabled?(%{user: %{}}), do: true
+  defp demo_controls_enabled?(_current_scope), do: false
+
+  defp dashboard_mode(%{user: %{}}) do
+    %{
+      label: "Database-backed demo",
+      detail: "Live simulator"
+    }
+  end
+
+  defp dashboard_mode(_current_scope) do
+    %{
+      label: "Public preview",
+      detail: "View-only"
+    }
   end
 
   defp assign_analytics_window(socket, window) do

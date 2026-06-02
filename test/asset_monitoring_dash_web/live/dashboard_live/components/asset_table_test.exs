@@ -65,6 +65,27 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.AssetTableTest do
     assert document |> LazyHTML.query("#asset-table-range") |> LazyHTML.text() =~ "Showing 0 of 0"
   end
 
+  test "can render rows without asset navigation" do
+    document =
+      render_component(&AssetTable.render/1,
+        asset_next_cursor: nil,
+        asset_sort: %{field: :risk, direction: :desc},
+        asset_sort_options: [],
+        loaded_count: 1,
+        row_click_enabled?: false,
+        rows: [{"asset-row-asset-001", asset()}],
+        total_count: 1
+      )
+      |> LazyHTML.from_fragment()
+
+    refute document
+           |> LazyHTML.query("#asset-row-asset-001[phx-click=\"select_asset\"]")
+           |> Enum.any?()
+
+    assert document |> LazyHTML.query("#asset-row-asset-001") |> LazyHTML.text() =~
+             "Aegis Dragon Helm"
+  end
+
   defp asset do
     %{
       id: "asset-001",
