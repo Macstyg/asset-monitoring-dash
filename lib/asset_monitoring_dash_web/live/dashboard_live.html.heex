@@ -48,6 +48,14 @@
         />
       </section>
 
+      <DemoWalkthrough.render
+        active_asset={@demo_walkthrough_asset}
+        active_asset_path={@demo_walkthrough_asset_path}
+        last_action={@last_simulator_action}
+        scenario_count={@scenario_count}
+        status={@simulator_status}
+      />
+
       <SimulatorStatus.render
         last_action={@last_simulator_action}
         scenario_count={@scenario_count}

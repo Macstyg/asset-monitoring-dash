@@ -43,6 +43,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   alias AssetMonitoringDash.Simulator
   alias AssetMonitoringDashWeb.ChartOptions
   alias AssetMonitoringDashWeb.DashboardLive.Components.AssetMonitor
+  alias AssetMonitoringDashWeb.DashboardLive.Components.DemoWalkthrough
   alias AssetMonitoringDashWeb.DashboardLive.Components.EventFeed, as: DashboardEventFeed
   alias AssetMonitoringDashWeb.DashboardLive.Components.SimulatorStatus
   alias AssetMonitoringDashWeb.DashboardURLState
@@ -95,6 +96,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:active_event_filter_chips, active_event_filter_chips(default_event_filters()))
       |> assign(:chain_filter_options, Assets.chain_filter_options())
       |> assign_asset_url_state(asset_state)
+      |> assign_demo_walkthrough()
       |> assign(:asset_filters, asset_state.filters)
       |> assign(:asset_sort, asset_state.sort)
       |> assign(:asset_sort_options, asset_sort_options())
@@ -160,6 +162,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
       |> assign_scenario_summary()
+      |> assign_demo_walkthrough()
       |> assign(:event_history, events)
       |> assign(:last_simulator_action, nil)
       |> assign_metric_cards()
@@ -187,6 +190,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
       |> assign_scenario_summary()
+      |> assign_demo_walkthrough()
       |> assign(:event_history, events)
       |> assign_metric_cards()
       |> assign_portfolio_value_chart()
@@ -525,6 +529,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp apply_asset_state(socket, %DashboardURLState{} = asset_state) do
     socket
     |> assign_asset_url_state(asset_state)
+    |> assign_demo_walkthrough()
     |> assign(:asset_sort, asset_state.sort)
     |> apply_asset_filters(asset_state.filters)
   end
@@ -619,6 +624,30 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp shocked_assets(shocked_asset_ids) do
     shocked_asset_ids
     |> Assets.list_persisted_assets_by_ids(shocked_asset_ids)
+  end
+
+  defp assign_demo_walkthrough(socket) do
+    active_asset = demo_walkthrough_asset(socket.assigns.shocked_asset_ids)
+
+    socket
+    |> assign(:demo_walkthrough_asset, active_asset)
+    |> assign(
+      :demo_walkthrough_asset_path,
+      demo_walkthrough_asset_path(active_asset, socket.assigns.asset_url_state)
+    )
+  end
+
+  defp demo_walkthrough_asset(shocked_asset_ids) do
+    shocked_asset_ids
+    |> Assets.list_persisted_assets_by_ids(shocked_asset_ids)
+    |> Enum.sort_by(& &1.name)
+    |> List.first()
+  end
+
+  defp demo_walkthrough_asset_path(nil, _asset_state), do: nil
+
+  defp demo_walkthrough_asset_path(asset, %DashboardURLState{} = asset_state) do
+    asset_detail_path(asset.id, asset_state)
   end
 
   defp record_review_decision(_asset, nil), do: :ok
@@ -1124,6 +1153,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:shocked_asset_ids, shocked_asset_ids)
     |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
     |> assign_scenario_summary()
+    |> assign_demo_walkthrough()
     |> assign_metric_cards()
     |> assign_portfolio_value_chart()
     |> assign_portfolio_risk_chart()

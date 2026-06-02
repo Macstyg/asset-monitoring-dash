@@ -18,6 +18,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
     assert has_element?(view, "#active-scenario-banner")
     assert has_element?(view, "#active-scenario-count", "1 active scenario")
     assert has_element?(view, "#reset-asset-scenarios")
+    assert has_element?(view, "#demo-story-state", "1 scenario active")
+    assert has_element?(view, "#demo-inspect-asset", "Aegis Dragon Helm")
+    refute has_element?(view, "#demo-inspect-asset-placeholder")
 
     view
     |> form("#asset-filters", %{
@@ -43,6 +46,9 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
 
     refute has_element?(view, "#active-scenario-banner")
     refute has_element?(view, "#asset-scenario-asset-001")
+    refute has_element?(view, "#demo-inspect-asset")
+    assert has_element?(view, "#demo-story-state", "Ready")
+    assert has_element?(view, "#demo-inspect-asset-placeholder", "Waiting for scenario")
     assert has_element?(view, "#event-row-event-reset-asset-001", "Scenario reset")
     assert has_element?(view, "#asset-row-asset-001", "$4,860")
     assert has_element?(view, "#asset-row-asset-001", "59.7%")
