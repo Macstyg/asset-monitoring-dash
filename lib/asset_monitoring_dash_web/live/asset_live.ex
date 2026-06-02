@@ -7,8 +7,6 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDash.DemoOperations
   alias AssetMonitoringDash.ReviewState
   alias AssetMonitoringDash.ReviewStore
-  alias AssetMonitoringDash.Risk
-  alias AssetMonitoringDash.RiskRecommendation
   alias AssetMonitoringDash.Simulator
   alias AssetMonitoringDashWeb.AssetDetailURLState
   alias AssetMonitoringDashWeb.AssetLive.AssetEventFilters
@@ -18,14 +16,11 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDashWeb.AssetLive.Components.DecisionRail
   alias AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets
   alias AssetMonitoringDashWeb.AssetLive.Components.ReviewHistory
-  alias AssetMonitoringDashWeb.AssetLive.RelatedAssetRanker
   alias AssetMonitoringDashWeb.AssetLive.ReviewAction
-  alias AssetMonitoringDashWeb.Formatters
+  alias AssetMonitoringDashWeb.AssetLive.ViewModel
   alias AssetMonitoringDashWeb.UI.Badge
   alias AssetMonitoringDashWeb.UI.Tabs
 
-  @related_asset_limit 4
-  @related_asset_candidate_limit 24
   @impl true
   def mount(%{"id" => asset_id} = params, _session, socket) do
     shocked_asset_ids = AssetScenarioStore.shocked_asset_ids()
@@ -183,34 +178,14 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   end
 
   defp assign_asset(socket, asset) do
-    review_state = ReviewState.state_for(asset.id, socket.assigns.review_states)
-    risk_recommendation = RiskRecommendation.recommendation_for(asset)
-
-    related_candidates =
-      Assets.list_related_asset_candidates(asset, socket.assigns.shocked_asset_ids,
-        limit: @related_asset_candidate_limit
+    view_model =
+      ViewModel.build(asset,
+        review_states: socket.assigns.review_states,
+        shocked_asset_ids: socket.assigns.shocked_asset_ids
       )
 
     socket
-    |> assign(:page_title, "#{asset.name} · Asset detail")
-    |> assign(:asset, asset)
-    |> assign(
-      :asset_shocked?,
-      Assets.asset_id_in_set?(asset.id, socket.assigns.shocked_asset_ids)
-    )
-    |> assign(:active_scenario, AssetScenarioStore.scenario_option_for_asset(asset.id))
-    |> assign(:asset_reviewed?, review_state.id == :reviewed)
-    |> assign(:asset_escalated?, review_state.id == :escalated)
-    |> assign(:asset_health_factor, asset |> Risk.health_factor() |> Formatters.decimal())
-    |> assign(:asset_ltv_trend, Assets.ltv_trend(asset))
-    |> assign(:asset_risk_explanation, Risk.explanation(asset))
-    |> assign(:asset_risk_recommendation, risk_recommendation)
-    |> assign(:asset_review_state, review_state)
-    |> assign(:review_history, ReviewStore.history_for(asset.id))
-    |> assign(
-      :related_assets,
-      RelatedAssetRanker.related_assets(asset, related_candidates, limit: @related_asset_limit)
-    )
+    |> assign(ViewModel.assigns(view_model))
     |> assign_asset_events(asset.id)
   end
 
