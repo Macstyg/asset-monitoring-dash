@@ -40,6 +40,55 @@ echarts.use([
   CanvasRenderer,
 ])
 
+const initializeTheme = () => {
+  const themeMedia =
+    window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)")
+
+  const resolvedTheme = theme => {
+    if (theme === "dark" || theme === "light") {
+      return theme
+    }
+
+    return themeMedia && themeMedia.matches ? "dark" : "light"
+  }
+
+  const setTheme = theme => {
+    const resolved = resolvedTheme(theme)
+
+    if (theme === "system") {
+      localStorage.removeItem("phx:theme")
+    } else {
+      localStorage.setItem("phx:theme", theme)
+    }
+
+    document.documentElement.setAttribute("data-theme", resolved)
+    document.documentElement.style.colorScheme = resolved
+  }
+
+  if (!document.documentElement.hasAttribute("data-theme")) {
+    setTheme(localStorage.getItem("phx:theme") || "system")
+  }
+
+  window.addEventListener("storage", event => {
+    if (event.key === "phx:theme") {
+      setTheme(event.newValue || "system")
+    }
+  })
+
+  themeMedia &&
+    themeMedia.addEventListener("change", () => {
+      if (!localStorage.getItem("phx:theme")) {
+        setTheme("system")
+      }
+    })
+
+  window.addEventListener("phx:set-theme", event => {
+    setTheme(event.target.dataset.phxTheme)
+  })
+}
+
+initializeTheme()
+
 const FilterDropdown = {
   mounted() {
     this.wasOpen = false

@@ -136,12 +136,16 @@ defmodule AssetMonitoringDashWeb.DashboardLive.RenderingTest do
     assert has_element?(view, "#event-row-event-004")
   end
 
-  test "defaults theme selection to the system preference", %{conn: conn} do
+  test "loads theme bootstrap from the app bundle", %{conn: conn} do
     conn = get(conn, ~p"/")
     html = html_response(conn, 200)
+    document = LazyHTML.from_fragment(html)
+    app_js = File.read!("assets/js/app.js")
 
-    assert html =~ ~s'setTheme(localStorage.getItem("phx:theme") || "system")'
-    assert html =~ ~s|if (!localStorage.getItem("phx:theme")) setTheme("system")|
+    assert document |> LazyHTML.query(~s(script[src="/assets/js/app.js"])) |> Enum.any?()
+    refute html =~ "window.matchMedia"
+    assert app_js =~ ~s'localStorage.getItem("phx:theme") || "system"'
+    assert app_js =~ ~s'window.addEventListener("phx:set-theme"'
   end
 
   test "loads asset filters and sort from URL params", %{conn: conn} do
