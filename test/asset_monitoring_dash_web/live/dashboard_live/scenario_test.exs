@@ -1,6 +1,8 @@
 defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
   use AssetMonitoringDashWeb.ConnCase, async: false
 
+  setup :register_and_log_in_user
+
   import Phoenix.LiveViewTest
 
   alias AssetMonitoringDash.ActivityLog

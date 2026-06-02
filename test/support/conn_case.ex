@@ -17,6 +17,10 @@ defmodule AssetMonitoringDashWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias AssetMonitoringDash.Accounts
+  alias AssetMonitoringDash.Accounts.Scope
+  alias AssetMonitoringDash.AccountsFixtures
+
   using do
     quote do
       # The default endpoint for testing
@@ -47,4 +51,45 @@ defmodule AssetMonitoringDashWeb.ConnCase do
   def event_id(prefix, code), do: "#{prefix}-#{asset_id(code)}"
   def event_row_selector(prefix, code), do: "#event-row-#{event_id(prefix, code)}"
   def asset_event_row_selector(prefix, code), do: "#asset-event-row-#{event_id(prefix, code)}"
+
+  @doc """
+  Setup helper that registers and logs in users.
+
+      setup :register_and_log_in_user
+
+  It stores an updated connection and a registered user in the
+  test context.
+  """
+  def register_and_log_in_user(%{conn: conn} = context) do
+    user = AccountsFixtures.user_fixture()
+    scope = Scope.for_user(user)
+
+    opts =
+      context
+      |> Map.take([:token_authenticated_at])
+      |> Enum.into([])
+
+    %{conn: log_in_user(conn, user, opts), user: user, scope: scope}
+  end
+
+  @doc """
+  Logs the given `user` into the `conn`.
+
+  It returns an updated `conn`.
+  """
+  def log_in_user(conn, user, opts \\ []) do
+    token = Accounts.generate_user_session_token(user)
+
+    maybe_set_token_authenticated_at(token, opts[:token_authenticated_at])
+
+    conn
+    |> Phoenix.ConnTest.init_test_session(%{})
+    |> Plug.Conn.put_session(:user_token, token)
+  end
+
+  defp maybe_set_token_authenticated_at(_token, nil), do: nil
+
+  defp maybe_set_token_authenticated_at(token, authenticated_at) do
+    AccountsFixtures.override_token_authenticated_at(token, authenticated_at)
+  end
 end

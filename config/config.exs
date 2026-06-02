@@ -7,6 +7,19 @@
 # General application configuration
 import Config
 
+config :asset_monitoring_dash, :scopes,
+  user: [
+    default: true,
+    module: AssetMonitoringDash.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users,
+    test_data_fixture: AssetMonitoringDash.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
+
 config :asset_monitoring_dash,
   ecto_repos: [AssetMonitoringDash.Repo],
   generators: [timestamp_type: :utc_datetime]

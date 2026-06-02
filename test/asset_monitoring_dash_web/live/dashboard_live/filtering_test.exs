@@ -1,6 +1,8 @@
 defmodule AssetMonitoringDashWeb.DashboardLive.FilteringTest do
   use AssetMonitoringDashWeb.ConnCase, async: true
 
+  setup :register_and_log_in_user
+
   import Phoenix.LiveViewTest
   import AssetMonitoringDashWeb.DashboardLiveTestHelpers
 

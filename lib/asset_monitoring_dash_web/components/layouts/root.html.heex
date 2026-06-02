@@ -10,6 +10,51 @@
     </script>
   </head>
   <body>
+    <nav
+      id="auth-navigation"
+      class="relative z-10 flex min-h-12 items-center justify-between border-b border-app-border bg-app-bg/95 px-4 text-sm text-app-muted sm:px-6 lg:px-8"
+    >
+      <.link
+        navigate={~p"/"}
+        class="font-mono text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-app-fg transition hover:text-app-accent"
+      >
+        Asset Risk Cockpit
+      </.link>
+
+      <div class="flex min-w-0 items-center gap-3">
+        <%= if @current_scope do %>
+          <span class="hidden max-w-[16rem] truncate sm:inline">
+            {@current_scope.user.email}
+          </span>
+          <.link
+            href={~p"/users/settings"}
+            class="rounded-full border border-app-border px-3 py-1.5 font-semibold text-app-fg transition hover:border-app-accent/40 hover:bg-app-surface"
+          >
+            Settings
+          </.link>
+          <.link
+            href={~p"/users/log-out"}
+            method="delete"
+            class="rounded-full border border-app-border px-3 py-1.5 font-semibold text-app-fg transition hover:border-app-accent/40 hover:bg-app-surface"
+          >
+            Log out
+          </.link>
+        <% else %>
+          <.link
+            href={~p"/users/register"}
+            class="rounded-full border border-app-border px-3 py-1.5 font-semibold text-app-fg transition hover:border-app-accent/40 hover:bg-app-surface"
+          >
+            Register
+          </.link>
+          <.link
+            href={~p"/users/log-in"}
+            class="rounded-full border border-app-accent/35 bg-app-accent/10 px-3 py-1.5 font-semibold text-app-accent transition hover:border-app-accent/60 hover:bg-app-accent/15"
+          >
+            Log in
+          </.link>
+        <% end %>
+      </div>
+    </nav>
     {@inner_content}
   </body>
 </html>
