@@ -20,7 +20,19 @@ defmodule AssetMonitoringDashWeb.DashboardLive.ScenarioTest do
     assert has_element?(view, "#reset-asset-scenarios")
     assert has_element?(view, "#demo-story-state", "1 scenario active")
     assert has_element?(view, "#demo-inspect-asset", "Aegis Dragon Helm")
+
+    assert has_element?(
+             view,
+             ~s(#demo-inspect-asset[href="/assets/#{asset_id("asset-001")}?demo=story"])
+           )
+
     refute has_element?(view, "#demo-inspect-asset-placeholder")
+
+    view
+    |> element("#demo-open-analytics")
+    |> render_click()
+
+    assert has_element?(view, "#demo-step-dashboard", "observed")
 
     view
     |> form("#asset-filters", %{

@@ -15,6 +15,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.DemoWalkthrough do
   attr :active_asset, :map, default: nil
   attr :active_asset_path, :string, default: nil
   attr :last_action, :map, default: nil
+  attr :progress, :any, default: MapSet.new()
   attr :scenario_count, :integer, required: true
   attr :status, :map, required: true
 
@@ -81,7 +82,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.DemoWalkthrough do
           id="demo-step-dashboard"
           icon="hero-chart-bar-square"
           index="03"
-          status={dashboard_status(@scenario_count)}
+          status={dashboard_status(@scenario_count, @progress)}
           title="Read movement"
           description="Use cards, charts, and the activity stream to explain what changed at portfolio level."
         >
@@ -89,6 +90,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.DemoWalkthrough do
             <a
               id="demo-open-analytics"
               href="#dashboard-analytics"
+              phx-click="track_demo_story_step"
+              phx-value-step="dashboard"
               class="inline-flex h-9 items-center gap-2 rounded-app border border-app-border bg-app-surface-2 px-3 text-xs font-semibold text-app-muted transition hover:border-app-accent/50 hover:text-app-fg"
             >
               <.icon name="hero-chart-pie" class="size-3.5" /> Analytics
@@ -96,6 +99,8 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.DemoWalkthrough do
             <a
               id="demo-open-operations"
               href="#operations-telemetry"
+              phx-click="track_demo_story_step"
+              phx-value-step="dashboard"
               class="inline-flex h-9 items-center gap-2 rounded-app border border-app-border bg-app-surface-2 px-3 text-xs font-semibold text-app-muted transition hover:border-app-accent/50 hover:text-app-fg"
             >
               <.icon name="hero-rss" class="size-3.5" /> Feed
@@ -204,8 +209,15 @@ defmodule AssetMonitoringDashWeb.DashboardLive.Components.DemoWalkthrough do
   defp scenario_status(0), do: %{label: "next", tone: :neutral}
   defp scenario_status(_count), do: %{label: "applied", tone: :warning}
 
-  defp dashboard_status(0), do: %{label: "baseline", tone: :neutral}
-  defp dashboard_status(_count), do: %{label: "changed", tone: :positive}
+  defp dashboard_status(count, progress) do
+    case MapSet.member?(progress, :dashboard) do
+      true -> %{label: "observed", tone: :positive}
+      false -> dashboard_status_waiting(count)
+    end
+  end
+
+  defp dashboard_status_waiting(0), do: %{label: "baseline", tone: :neutral}
+  defp dashboard_status_waiting(_count), do: %{label: "watch", tone: :warning}
 
   defp inspect_status(nil), do: %{label: "waiting", tone: :neutral}
   defp inspect_status(_asset), do: %{label: "ready", tone: :positive}

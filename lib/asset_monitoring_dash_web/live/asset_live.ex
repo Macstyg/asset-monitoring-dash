@@ -14,6 +14,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   alias AssetMonitoringDashWeb.AssetLive.Components.AssetContextStrip
   alias AssetMonitoringDashWeb.AssetLive.Components.AssetInspection
   alias AssetMonitoringDashWeb.AssetLive.Components.DecisionRail
+  alias AssetMonitoringDashWeb.AssetLive.Components.DemoStoryContext
   alias AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets
   alias AssetMonitoringDashWeb.AssetLive.Components.ReviewHistory
   alias AssetMonitoringDashWeb.AssetLive.ReviewAction
@@ -34,6 +35,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
       |> assign(:review_states, ReviewStore.all_states())
       |> assign(:shocked_asset_ids, shocked_asset_ids)
       |> assign(:return_to, normalize_return_to(Map.get(params, "return_to")))
+      |> assign(:demo_story?, demo_story_enabled?(params))
       |> assign(:visible_events, [])
       |> assign(:event_count, 0)
       |> assign(:asset_detail_url_state, detail_state)
@@ -59,6 +61,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     socket =
       socket
       |> assign(:return_to, normalize_return_to(Map.get(params, "return_to")))
+      |> assign(:demo_story?, demo_story_enabled?(params))
       |> assign(:asset_detail_url_state, detail_state)
       |> assign(:asset_detail_focus, detail_state.focus)
       |> AssetEventFilters.assign_state(detail_state.event_filters)
@@ -80,6 +83,13 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   @impl true
   def handle_event("reset_asset_scenario", _params, socket) do
     {:noreply, reset_asset_scenario(socket, socket.assigns.asset_shocked?)}
+  end
+
+  @impl true
+  def handle_event("reset_demo_runtime_and_return", _params, socket) do
+    DemoOperations.reset_mutable_state()
+
+    {:noreply, push_navigate(socket, to: socket.assigns.return_to)}
   end
 
   @impl true
@@ -187,6 +197,7 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     socket
     |> assign(ViewModel.assigns(view_model))
     |> assign_asset_events(asset.id)
+    |> assign_demo_story_context()
   end
 
   defp apply_asset_scenario(socket, _scenario_id, true), do: socket
@@ -317,7 +328,13 @@ defmodule AssetMonitoringDashWeb.AssetLive do
   defp patch_asset_detail_state(socket, %AssetDetailURLState{} = detail_state) do
     push_patch(
       socket,
-      to: asset_detail_path(socket.assigns.asset.id, socket.assigns.return_to, detail_state)
+      to:
+        asset_detail_path(
+          socket.assigns.asset.id,
+          socket.assigns.return_to,
+          detail_state,
+          socket.assigns.demo_story?
+        )
     )
   end
 
@@ -329,11 +346,12 @@ defmodule AssetMonitoringDashWeb.AssetLive do
     ]
   end
 
-  defp asset_detail_path(asset_id, return_to, %AssetDetailURLState{} = detail_state) do
+  defp asset_detail_path(asset_id, return_to, %AssetDetailURLState{} = detail_state, demo_story?) do
     params =
       detail_state
       |> AssetDetailURLState.params()
       |> put_return_to_param(return_to)
+      |> put_demo_story_param(demo_story?)
 
     case params do
       empty when empty == %{} -> ~p"/assets/#{asset_id}"
@@ -343,6 +361,32 @@ defmodule AssetMonitoringDashWeb.AssetLive do
 
   defp put_return_to_param(params, "/"), do: params
   defp put_return_to_param(params, return_to), do: Map.put(params, "return_to", return_to)
+
+  defp put_demo_story_param(params, true), do: Map.put(params, "demo", "story")
+  defp put_demo_story_param(params, false), do: params
+
+  defp assign_demo_story_context(%{assigns: %{asset: asset}} = socket) do
+    activity_state =
+      AssetDetailURLState.with_focus(socket.assigns.asset_detail_url_state, "activity")
+
+    socket
+    |> assign(
+      :demo_story_activity_path,
+      asset_detail_path(
+        asset.id,
+        socket.assigns.return_to,
+        activity_state,
+        socket.assigns.demo_story?
+      )
+    )
+    |> assign(
+      :demo_story_completed?,
+      socket.assigns.asset_reviewed? || socket.assigns.asset_escalated?
+    )
+  end
+
+  defp demo_story_enabled?(%{"demo" => "story"}), do: true
+  defp demo_story_enabled?(_params), do: false
 
   defp normalize_return_to(nil), do: ~p"/"
   defp normalize_return_to(""), do: ~p"/"

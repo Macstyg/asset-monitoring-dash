@@ -88,6 +88,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign(:feed_paused, simulator_status.paused?)
       |> assign(:simulator_status, simulator_status)
       |> assign(:last_simulator_action, nil)
+      |> assign(:demo_story_progress, MapSet.new())
       |> assign(:next_event_index, 0)
       |> assign(:event_filters, default_event_filters())
       |> assign(:event_history, events)
@@ -165,6 +166,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign_demo_walkthrough()
       |> assign(:event_history, events)
       |> assign(:last_simulator_action, nil)
+      |> assign(:demo_story_progress, MapSet.new())
       |> assign_metric_cards()
       |> assign_portfolio_value_chart()
       |> assign_portfolio_risk_chart()
@@ -192,6 +194,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
       |> assign_scenario_summary()
       |> assign_demo_walkthrough()
       |> assign(:event_history, events)
+      |> assign(:demo_story_progress, MapSet.new())
       |> assign_metric_cards()
       |> assign_portfolio_value_chart()
       |> assign_portfolio_risk_chart()
@@ -338,6 +341,11 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   @impl true
   def handle_event("run_scenario_tick", _params, socket) do
     {:noreply, run_scenario_tick(socket)}
+  end
+
+  @impl true
+  def handle_event("track_demo_story_step", %{"step" => step}, socket) do
+    {:noreply, track_demo_story_step(socket, step)}
   end
 
   @impl true
@@ -647,8 +655,26 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
   defp demo_walkthrough_asset_path(nil, _asset_state), do: nil
 
   defp demo_walkthrough_asset_path(asset, %DashboardURLState{} = asset_state) do
-    asset_detail_path(asset.id, asset_state)
+    params =
+      asset_state
+      |> demo_walkthrough_asset_params()
+      |> Map.put(:demo, "story")
+
+    ~p"/assets/#{asset.id}?#{params}"
   end
+
+  defp demo_walkthrough_asset_params(%DashboardURLState{} = asset_state) do
+    case DashboardURLState.active?(asset_state) do
+      true -> %{return_to: asset_monitor_path(asset_state)}
+      false -> %{}
+    end
+  end
+
+  defp track_demo_story_step(socket, "dashboard") do
+    update(socket, :demo_story_progress, &MapSet.put(&1, :dashboard))
+  end
+
+  defp track_demo_story_step(socket, _step), do: socket
 
   defp record_review_decision(_asset, nil), do: :ok
 
@@ -1154,6 +1180,7 @@ defmodule AssetMonitoringDashWeb.DashboardLive do
     |> assign(:scenario_count, MapSet.size(shocked_asset_ids))
     |> assign_scenario_summary()
     |> assign_demo_walkthrough()
+    |> track_demo_story_step("scenario")
     |> assign_metric_cards()
     |> assign_portfolio_value_chart()
     |> assign_portfolio_risk_chart()

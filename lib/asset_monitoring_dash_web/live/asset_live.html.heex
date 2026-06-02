@@ -47,6 +47,14 @@
         tabs={@asset_detail_focus_options}
       />
 
+      <DemoStoryContext.render
+        :if={@demo_story?}
+        activity_path={@demo_story_activity_path}
+        completed?={@demo_story_completed?}
+        return_to={@return_to}
+        review_state={@asset_review_state}
+      />
+
       <div
         :if={@asset_detail_focus == "overview"}
         id="asset-detail-tab-overview"
@@ -114,6 +122,7 @@
       >
         <RelatedAssets.render
           activity_sources={@asset_event_filters.sources}
+          demo_story?={@demo_story?}
           focus={@asset_detail_focus}
           related_assets={@related_assets}
           return_to={@return_to}

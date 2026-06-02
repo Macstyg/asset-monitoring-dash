@@ -64,6 +64,33 @@ defmodule AssetMonitoringDashWeb.AssetLive.RenderingTest do
     refute has_element?(view, "#asset-activity")
     refute has_element?(view, "#review-history")
     refute has_element?(view, "#related-assets")
+    refute has_element?(view, "#asset-demo-story")
+  end
+
+  test "renders presenter story context when opened from the dashboard walkthrough", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?demo=story")
+
+    assert has_element?(view, "#asset-demo-story")
+    assert has_element?(view, "#asset-demo-story-state", "Inspection phase")
+    assert has_element?(view, "#asset-demo-review-state", "Unreviewed")
+    assert has_element?(view, "#asset-demo-step-inspect", "Done")
+    assert has_element?(view, "#asset-demo-step-review", "Pending")
+    assert has_element?(view, "#asset-demo-step-audit", "Pending")
+
+    assert has_element?(
+             view,
+             ~s(#asset-demo-open-audit[href="/assets/#{asset_id("asset-001")}?demo=story&focus=activity"])
+           )
+
+    assert has_element?(view, "#asset-demo-back-dashboard")
+    assert has_element?(view, "#asset-demo-reset-replay", "Reset and replay")
+
+    view
+    |> element("#asset-focus-activity")
+    |> render_click()
+
+    assert assert_patch(view) == "/assets/#{asset_id("asset-001")}?demo=story&focus=activity"
+    assert has_element?(view, "#asset-demo-story")
   end
 
   test "renders the activity tab as an activity workspace", %{conn: conn} do

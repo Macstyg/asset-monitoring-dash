@@ -37,6 +37,43 @@ defmodule AssetMonitoringDashWeb.AssetLive.ReviewWorkflowTest do
            )
   end
 
+  test "updates presenter story state after review completion", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?demo=story")
+
+    assert has_element?(view, "#asset-demo-story-state", "Inspection phase")
+    assert has_element?(view, "#asset-demo-step-review", "Pending")
+    assert has_element?(view, "#asset-demo-step-audit", "Pending")
+
+    submit_review_action(view, :reviewed)
+
+    assert has_element?(view, "#asset-demo-story-state", "Loop closed")
+    assert has_element?(view, "#asset-demo-review-state", "Reviewed")
+    assert has_element?(view, "#asset-demo-step-review", "Done")
+    assert has_element?(view, "#asset-demo-step-audit", "Ready")
+
+    view
+    |> element("#asset-demo-open-audit")
+    |> render_click()
+
+    assert assert_patch(view) == asset_path("asset-001", "demo=story&focus=activity")
+    assert has_element?(view, "#review-history-count", "1")
+    assert has_element?(view, "#review-history-list", "Reviewed")
+  end
+
+  test "resets demo runtime and returns to the dashboard from presenter story", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/assets/asset-001?demo=story")
+
+    submit_review_action(view, :reviewed)
+
+    assert has_element?(view, "#asset-demo-story-state", "Loop closed")
+
+    view
+    |> element("#asset-demo-reset-replay")
+    |> render_click()
+
+    assert_redirect(view, ~p"/")
+  end
+
   test "persists operator state for dashboard filtering", %{conn: conn} do
     {:ok, detail_view, _html} = live(conn, ~p"/assets/asset-001")
 

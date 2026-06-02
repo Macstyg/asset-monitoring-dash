@@ -11,6 +11,7 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets do
   alias AssetMonitoringDashWeb.UI.ChainIcon
 
   attr :activity_sources, :list, default: []
+  attr :demo_story?, :boolean, default: false
   attr :focus, :string, default: "overview"
   attr :related_assets, :list, required: true
   attr :return_to, :string, required: true
@@ -29,7 +30,15 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets do
         <.link
           :for={related_asset <- @related_assets}
           id={"related-asset-#{Map.get(related_asset, :dom_id, related_asset.id)}"}
-          navigate={asset_detail_path(related_asset.id, @return_to, @activity_sources, @focus)}
+          navigate={
+            asset_detail_path(
+              related_asset.id,
+              @return_to,
+              @activity_sources,
+              @focus,
+              @demo_story?
+            )
+          }
           class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-app border border-app-border bg-app-surface-2 px-3 py-3 transition hover:border-app-accent/40 hover:bg-app-bg"
         >
           <ChainIcon.render chain={related_asset.chain} size="size-9" />
@@ -65,12 +74,13 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets do
     """
   end
 
-  defp asset_detail_path(asset_id, return_to, activity_sources, focus) do
+  defp asset_detail_path(asset_id, return_to, activity_sources, focus, demo_story?) do
     params =
       %{}
       |> put_return_to(return_to)
       |> put_activity_sources(activity_sources)
       |> put_focus(focus)
+      |> put_demo_story(demo_story?)
 
     case params do
       empty when empty == %{} -> ~p"/assets/#{asset_id}"
@@ -89,6 +99,9 @@ defmodule AssetMonitoringDashWeb.AssetLive.Components.RelatedAssets do
 
   defp put_focus(params, "overview"), do: params
   defp put_focus(params, focus), do: Map.put(params, "focus", focus)
+
+  defp put_demo_story(params, true), do: Map.put(params, "demo", "story")
+  defp put_demo_story(params, false), do: params
 
   defp risk_tone("Low"), do: :success
   defp risk_tone("Moderate"), do: :info
