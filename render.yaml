@@ -3,6 +3,8 @@ services:
     name: asset-monitoring-dash
     runtime: elixir
     plan: free
+    branch: main
+    autoDeployTrigger: commit
     buildCommand: ./build.sh
     startCommand: ./bin/render-start.sh
     envVars:
