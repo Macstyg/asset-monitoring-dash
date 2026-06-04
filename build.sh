@@ -4,6 +4,8 @@ set -o errexit
 
 mix deps.get --only prod
 
+npm ci --prefix assets
+
 MIX_ENV=prod mix assets.setup
 MIX_ENV=prod mix assets.deploy
 MIX_ENV=prod mix release --overwrite
