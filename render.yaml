@@ -4,8 +4,7 @@ services:
     runtime: elixir
     plan: free
     buildCommand: ./build.sh
-    preDeployCommand: _build/prod/rel/asset_monitoring_dash/bin/asset_monitoring_dash eval "AssetMonitoringDash.Release.migrate_and_seed()"
-    startCommand: _build/prod/rel/asset_monitoring_dash/bin/server
+    startCommand: ./bin/render-start.sh
     envVars:
       - key: ELIXIR_VERSION
         value: 1.19.5
