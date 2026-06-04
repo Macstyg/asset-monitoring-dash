@@ -94,6 +94,7 @@ defmodule AssetMonitoringDash.MixProject do
         "esbuild asset_monitoring_dash"
       ],
       "assets.deploy": [
+        "compile",
         "tailwind asset_monitoring_dash --minify",
         "esbuild asset_monitoring_dash --minify",
         "phx.digest"

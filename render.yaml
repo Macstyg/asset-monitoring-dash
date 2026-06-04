@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: asset-monitoring-dash
+    runtime: elixir
+    plan: free
+    buildCommand: ./build.sh
+    preDeployCommand: _build/prod/rel/asset_monitoring_dash/bin/asset_monitoring_dash eval "AssetMonitoringDash.Release.migrate_and_seed()"
+    startCommand: _build/prod/rel/asset_monitoring_dash/bin/server
+    envVars:
+      - key: ELIXIR_VERSION
+        value: 1.19.5
+      - key: ERLANG_VERSION
+        value: 28.3.1
+      - key: NODE_VERSION
+        value: 24.10.0
+      - key: MIX_ENV
+        value: prod
+      - key: POOL_SIZE
+        value: "2"
+      - key: ECTO_SSL
+        value: "true"
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
