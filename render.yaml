@@ -21,6 +21,6 @@ services:
       - key: ECTO_SSL
         value: "true"
       - key: SECRET_KEY_BASE
-        generateValue: true
+        sync: false
       - key: DATABASE_URL
         sync: false

@@ -54,6 +54,8 @@ defmodule AssetMonitoringDash.Assets do
     %{label: "Reviewed", value: "reviewed", icon_text: "R", tone: :success},
     %{label: "Escalated", value: "escalated", icon_text: "E", tone: :warning}
   ]
+  @portfolio_value_trend_multipliers ["0.964", "0.978", "0.971", "0.989", "0.995", "1.006", "1.0"]
+  @portfolio_risk_trend_offsets [-4, -2, -3, -1, 0, 1, 0]
   @at_risk_bands ["Elevated", "Critical"]
   @fresh_oracle_max_seconds 60
   @delayed_oracle_max_seconds 300
@@ -290,6 +292,19 @@ defmodule AssetMonitoringDash.Assets do
       |> Repo.all()
       |> portfolio_points_for_window(analytics_window)
 
+    case points do
+      [] ->
+        fallback_portfolio_snapshot_points(shocked_asset_ids, analytics_window)
+
+      points ->
+        persisted_portfolio_snapshot_points(points, shocked_asset_ids)
+    end
+  end
+
+  defp portfolio_points_for_window(points, :full), do: points
+  defp portfolio_points_for_window(points, _analytics_window), do: Enum.take(points, -7)
+
+  defp persisted_portfolio_snapshot_points(points, shocked_asset_ids) do
     total_count = length(points)
     current = portfolio_snapshot(shocked_asset_ids)
 
@@ -305,8 +320,43 @@ defmodule AssetMonitoringDash.Assets do
     end)
   end
 
-  defp portfolio_points_for_window(points, :full), do: points
-  defp portfolio_points_for_window(points, _analytics_window), do: Enum.take(points, -7)
+  defp fallback_portfolio_snapshot_points(shocked_asset_ids, analytics_window) do
+    snapshot = fallback_portfolio_snapshot(shocked_asset_ids)
+
+    @portfolio_value_trend_multipliers
+    |> portfolio_points_for_window(analytics_window)
+    |> Enum.with_index()
+    |> Enum.map(fn {multiplier, index} ->
+      risk_offset = Enum.at(@portfolio_risk_trend_offsets, index, 0)
+      total_count = length(@portfolio_value_trend_multipliers)
+
+      %{
+        average_ltv_percent: Decimal.new("0.0"),
+        index: index,
+        label: snapshot_label(index, total_count),
+        liquidation_candidate_count: 0,
+        risk_score: clamp_risk_score(snapshot.risk_score + risk_offset),
+        total_collateral_value_usd:
+          Money.multiply(snapshot.total_collateral_value_usd, Decimal.new(multiplier)),
+        weighted_apy_percent: snapshot.weighted_apy_percent
+      }
+    end)
+  end
+
+  defp fallback_portfolio_snapshot(shocked_asset_ids) do
+    snapshot = portfolio_snapshot(shocked_asset_ids)
+
+    case Decimal.compare(Money.decimal(snapshot.total_collateral_value_usd), Decimal.new("0")) do
+      :eq -> DemoData.portfolio_snapshot()
+      _comparison -> snapshot
+    end
+  end
+
+  defp clamp_risk_score(score) do
+    score
+    |> max(0)
+    |> min(100)
+  end
 
   defp portfolio_point_values(point, index, total_count, current, shocked_asset_ids)
        when index == total_count - 1 do

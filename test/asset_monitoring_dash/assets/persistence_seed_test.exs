@@ -28,4 +28,16 @@ defmodule AssetMonitoringDash.Assets.PersistenceSeedTest do
     assert Repo.aggregate(MarketSnapshot, :count) == 4_200
     assert Repo.aggregate(PortfolioSnapshot, :count) == 7
   end
+
+  test "portfolio trends fall back while portfolio snapshots are still warming" do
+    Repo.delete_all(PortfolioSnapshot)
+
+    value_trend = Assets.portfolio_value_trend()
+    risk_trend = Assets.portfolio_risk_trend()
+
+    assert length(value_trend) == 7
+    assert length(risk_trend) == 7
+    assert List.last(value_trend).tooltip_value == "$3,474,033"
+    assert List.last(risk_trend).tooltip_value == "54/100"
+  end
 end
